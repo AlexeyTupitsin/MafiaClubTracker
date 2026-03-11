@@ -1,13 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { ArrowLeft, ArrowRightLeft, TrendingUp, TrendingDown, Minus, User, Sword } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
 import { Badge, StatCard, EmptyState } from "../components/ui";
 import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend } from "../lib/metrics";
 import { ROLE_NAMES, ROLE_BADGE_VARIANT, RESULT_NAMES, ROLE_COLORS } from "../lib/constants";
 import { formatDate } from "../lib/utils";
-import { safeGet } from "../lib/storage";
 
-export function PlayerProfile({ player, games, players, navigate, seasons, currentSeasonId }) {
+export function PlayerProfile({ player, games, players, navigate, seasons, currentSeasonId, allGames }) {
   if (!player) {
     return (
       <EmptyState
@@ -24,32 +23,13 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
   }
 
   const [periodFilter, setPeriodFilter] = useState("current");
-  const [allGamesCache, setAllGamesCache] = useState(null);
-
-  useEffect(() => {
-    if (periodFilter !== "all" || allGamesCache) return;
-    async function loadAll() {
-      let all = [];
-      for (const s of seasons) {
-        if (s.id === currentSeasonId) {
-          all = all.concat(games);
-        } else {
-          const sg = await safeGet(`games:${s.id}`, []);
-          all = all.concat(sg);
-        }
-      }
-      setAllGamesCache(all);
-    }
-    loadAll();
-  }, [periodFilter, seasons, currentSeasonId, games, allGamesCache]);
 
   const activeGames = useMemo(() => {
     if (periodFilter === "current") return games;
-    if (periodFilter === "all") return allGamesCache || games;
+    if (periodFilter === "all") return allGames;
     if (periodFilter === currentSeasonId) return games;
-    if (allGamesCache) return allGamesCache.filter((g) => g.seasonId === periodFilter);
-    return games;
-  }, [periodFilter, games, currentSeasonId, allGamesCache]);
+    return allGames.filter((g) => g.seasonId === periodFilter);
+  }, [periodFilter, games, currentSeasonId, allGames]);
 
   const stats = useMemo(() => calcPlayerStats(player.id, activeGames), [player.id, activeGames]);
   const roleStats = useMemo(() => calcRoleStats(player.id, activeGames), [player.id, activeGames]);

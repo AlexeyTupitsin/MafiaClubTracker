@@ -2,9 +2,10 @@ import React, { useState, useEffect, useMemo } from "react";
 import { ArrowLeft, Check, Users, X, AlertTriangle, Shield, Sword } from "lucide-react";
 import { Badge } from "../components/ui";
 import { ROLE_NAMES, ROLE_OPTIONS, ROLE_REQUIRED, ROLE_BADGE_VARIANT, RESULT_NAMES } from "../lib/constants";
-import { getTeam, generateId } from "../lib/utils";
+import { getTeam } from "../lib/utils";
+import { createGame, updateGame } from "../lib/queries";
 
-export function GameForm({ players, games, currentSeasonId, currentSeason, saveGames, navigate, editingGame, showToast }) {
+export function GameForm({ players, games, currentSeasonId, currentSeason, navigate, editingGame, showToast, refreshGames, refreshAllGames }) {
   const [step, setStep] = useState(1);
 
   // Step 1: seats
@@ -37,7 +38,6 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
   const activePlayers = useMemo(() => {
     const active = players.filter((p) => p.isActive);
     if (!editingGame) return active;
-    // Include inactive players who are already in this game
     const gamePlayerIds = editingGame.players.map((gp) => gp.playerId);
     const inactiveInGame = players.filter(
       (p) => !p.isActive && gamePlayerIds.includes(p.id)
@@ -103,7 +103,6 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
       const result = team === winner ? "win" : "lose";
       const baseScore = result === "win" ? 1 : 0;
       const bonus = parseBonusScore(bonusScores[idx]);
-      console.log(`Seat ${s.seat}: bonus input="${bonusScores[idx]}", parsed=${bonus}, comment="${bonusComments[idx]}"`);
       return {
         playerId: s.playerId,
         seat: s.seat,
@@ -116,39 +115,37 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
       };
     });
 
-    let updatedGames;
-    if (editingGame) {
-      const updatedGame = {
-        ...editingGame,
-        date: new Date(gameDate).toISOString(),
-        winner,
-        players: gamePlayers,
-        notes: notes.trim() || null,
-      };
-      updatedGames = games.map((g) => (g.id === editingGame.id ? updatedGame : g));
-    } else {
-      const gameNumber = games.reduce((max, g) => Math.max(max, g.gameNumber), 0) + 1;
-      const newGame = {
-        id: generateId(),
-        seasonId: currentSeasonId,
-        gameNumber,
-        date: new Date(gameDate).toISOString(),
-        winner,
-        players: gamePlayers,
-        notes: notes.trim() || null,
-        createdAt: new Date().toISOString(),
-      };
-      updatedGames = [...games, newGame];
-    }
-
-    await saveGames(updatedGames);
-    if (editingGame) {
-      showToast?.("\u0418\u0433\u0440\u0430 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0430");
-      navigate("gameDetail", editingGame.id);
-    } else {
-      const num = updatedGames[updatedGames.length - 1].gameNumber;
-      showToast?.(`\u0418\u0433\u0440\u0430 #${num} \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0430`);
-      navigate("games");
+    try {
+      if (editingGame) {
+        await updateGame({
+          id: editingGame.id,
+          date: new Date(gameDate).toISOString(),
+          winner,
+          players: gamePlayers,
+          notes: notes.trim() || null,
+        });
+        await refreshGames();
+        await refreshAllGames();
+        showToast?.("Игра обновлена");
+        navigate("gameDetail", editingGame.id);
+      } else {
+        const gameNumber = games.reduce((max, g) => Math.max(max, g.gameNumber), 0) + 1;
+        await createGame({
+          seasonId: currentSeasonId,
+          gameNumber,
+          date: new Date(gameDate).toISOString(),
+          winner,
+          players: gamePlayers,
+          notes: notes.trim() || null,
+        });
+        await refreshGames();
+        await refreshAllGames();
+        showToast?.(`Игра #${gameNumber} сохранена`);
+        navigate("games");
+      }
+    } catch (err) {
+      console.error("Failed to save game:", err);
+      showToast?.("Ошибка сохранения: " + (err.message || "неизвестная ошибка"));
     }
   };
 
@@ -161,16 +158,16 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
           <ArrowLeft size={20} />
         </button>
         <h2 className="text-xl font-bold">
-          {editingGame ? `\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u0438\u0433\u0440\u044b \u2116${editingGame.gameNumber}` : "\u041d\u043e\u0432\u0430\u044f \u0438\u0433\u0440\u0430"}
+          {editingGame ? `Редактирование игры №${editingGame.gameNumber}` : "Новая игра"}
         </h2>
       </div>
 
       {/* Progress bar */}
       <div className="flex items-center gap-1 mb-6">
         {[
-          { n: 1, label: "\u0418\u0433\u0440\u043e\u043a\u0438" },
-          { n: 2, label: "\u0420\u043e\u043b\u0438" },
-          { n: 3, label: "\u0411\u0430\u043b\u043b\u044b" },
+          { n: 1, label: "Игроки" },
+          { n: 2, label: "Роли" },
+          { n: 3, label: "Баллы" },
         ].map(({ n, label }, i) => (
           <React.Fragment key={n}>
             <button
@@ -200,7 +197,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
       {step === 1 && (
         <div className="bg-white rounded-xl shadow-sm p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 10 \u0438\u0433\u0440\u043e\u043a\u043e\u0432</h3>
+            <h3 className="font-semibold">Выберите 10 игроков</h3>
             {!editingGame && games.length > 0 && (
               <button
                 onClick={() => {
@@ -211,7 +208,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
                 }}
                 className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
               >
-                <Users size={14} /> \u0418\u0437 \u043f\u0440\u0435\u0434\u044b\u0434\u0443\u0449\u0435\u0439 \u0438\u0433\u0440\u044b
+                <Users size={14} /> Из предыдущей игры
               </button>
             )}
           </div>
@@ -228,12 +225,12 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
                     !seat.playerId ? "text-gray-400" : ""
                   }`}
                 >
-                  <option value="">\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0438\u0433\u0440\u043e\u043a\u0430...</option>
+                  <option value="">Выберите игрока...</option>
                   {activePlayers.map((p) => {
                     const taken = selectedIds.includes(p.id) && p.id !== seat.playerId;
                     return (
                       <option key={p.id} value={p.id} disabled={taken}>
-                        {p.nickname}{p.realName ? ` (${p.realName})` : ""}{taken ? " \u2014 \u0443\u0436\u0435 \u0432\u044b\u0431\u0440\u0430\u043d" : ""}
+                        {p.nickname}{p.realName ? ` (${p.realName})` : ""}{taken ? " — уже выбран" : ""}
                       </option>
                     );
                   })}
@@ -250,7 +247,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
           {activePlayers.length < 10 && (
             <p className="mt-3 text-sm text-amber-600 flex items-center gap-1">
               <AlertTriangle size={14} />
-              \u041d\u0443\u0436\u043d\u043e \u043c\u0438\u043d\u0438\u043c\u0443\u043c 10 \u0430\u043a\u0442\u0438\u0432\u043d\u044b\u0445 \u0438\u0433\u0440\u043e\u043a\u043e\u0432 (\u0441\u0435\u0439\u0447\u0430\u0441 {activePlayers.length})
+              Нужно минимум 10 активных игроков (сейчас {activePlayers.length})
             </p>
           )}
         </div>
@@ -297,7 +294,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
                     !roles[idx] ? "text-gray-400" : ""
                   }`}
                 >
-                  <option value="">\u0420\u043e\u043b\u044c...</option>
+                  <option value="">Роль...</option>
                   {ROLE_OPTIONS.map((r) => (
                     <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
@@ -313,7 +310,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
 
           {/* Winner selection */}
           <div>
-            <h4 className="font-medium mb-2">\u041f\u043e\u0431\u0435\u0434\u0438\u0442\u0435\u043b\u044c</h4>
+            <h4 className="font-medium mb-2">Победитель</h4>
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setWinner("red")}
@@ -324,7 +321,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
                 }`}
               >
                 <Shield size={20} />
-                \u041a\u0440\u0430\u0441\u043d\u044b\u0435
+                Красные
               </button>
               <button
                 onClick={() => setWinner("black")}
@@ -335,7 +332,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
                 }`}
               >
                 <Sword size={20} />
-                \u0427\u0451\u0440\u043d\u044b\u0435
+                Чёрные
               </button>
             </div>
           </div>
@@ -345,19 +342,19 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
       {/* Step 3: Bonus scores */}
       {step === 3 && (
         <div className="bg-white rounded-xl shadow-sm p-4">
-          <h3 className="font-semibold mb-3">\u0414\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u0431\u0430\u043b\u043b\u044b</h3>
+          <h3 className="font-semibold mb-3">Дополнительные баллы</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-gray-50">
-                  <th className="text-left px-2 py-2 font-medium text-gray-500">\u041c\u0435\u0441\u0442\u043e</th>
-                  <th className="text-left px-2 py-2 font-medium text-gray-500">\u0418\u0433\u0440\u043e\u043a</th>
-                  <th className="text-left px-2 py-2 font-medium text-gray-500">\u0420\u043e\u043b\u044c</th>
-                  <th className="text-left px-2 py-2 font-medium text-gray-500">\u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442</th>
-                  <th className="text-center px-2 py-2 font-medium text-gray-500">\u0411\u0430\u0437\u0430</th>
-                  <th className="text-center px-2 py-2 font-medium text-gray-500">\u0414\u043e\u043f.</th>
-                  <th className="text-center px-2 py-2 font-medium text-gray-500">\u0418\u0442\u043e\u0433\u043e</th>
-                  <th className="text-left px-2 py-2 font-medium text-gray-500">\u041a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439</th>
+                  <th className="text-left px-2 py-2 font-medium text-gray-500">Место</th>
+                  <th className="text-left px-2 py-2 font-medium text-gray-500">Игрок</th>
+                  <th className="text-left px-2 py-2 font-medium text-gray-500">Роль</th>
+                  <th className="text-left px-2 py-2 font-medium text-gray-500">Результат</th>
+                  <th className="text-center px-2 py-2 font-medium text-gray-500">База</th>
+                  <th className="text-center px-2 py-2 font-medium text-gray-500">Доп.</th>
+                  <th className="text-center px-2 py-2 font-medium text-gray-500">Итого</th>
+                  <th className="text-left px-2 py-2 font-medium text-gray-500">Комментарий</th>
                 </tr>
               </thead>
               <tbody>
@@ -400,7 +397,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
                           value={bonusComments[idx]}
                           onChange={(e) => handleBonusCommentChange(idx, e.target.value)}
                           className="w-full border rounded px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                          placeholder="\u2014"
+                          placeholder="—"
                         />
                       </td>
                     </tr>
@@ -413,7 +410,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
           {/* Game date */}
           <div className="mt-4 flex items-center gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">\u0414\u0430\u0442\u0430 \u0438\u0433\u0440\u044b</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Дата игры</label>
               <input
                 type="date"
                 value={gameDate}
@@ -426,14 +423,14 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
           {/* Notes */}
           <div className="mt-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              \u041a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439 \u043a \u0438\u0433\u0440\u0435
+              Комментарий к игре
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-              placeholder="\u041d\u0435\u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u043e"
+              placeholder="Необязательно"
             />
           </div>
         </div>
@@ -444,7 +441,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
         {step > 1 ? (
           <button onClick={() => setStep(step - 1)}
             className="flex items-center gap-1 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">
-            <ArrowLeft size={16} /> \u041d\u0430\u0437\u0430\u0434
+            <ArrowLeft size={16} /> Назад
           </button>
         ) : (
           <div />
@@ -455,12 +452,12 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, saveG
             disabled={step === 1 ? !step1Valid : !step2Valid}
             className="flex items-center gap-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg text-sm"
           >
-            \u0414\u0430\u043b\u0435\u0435
+            Далее
           </button>
         ) : (
           <button onClick={handleSave}
             className="flex items-center gap-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm">
-            <Check size={16} /> \u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0438\u0433\u0440\u0443
+            <Check size={16} /> Сохранить игру
           </button>
         )}
       </div>

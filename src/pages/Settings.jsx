@@ -11,15 +11,24 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { Modal, ConfirmDialog, Badge } from "../components/ui";
-import { generateId, getTeam, formatDate } from "../lib/utils";
-import { safeGet, safeSet, safeDelete } from "../lib/storage";
+import { getTeam, formatDate } from "../lib/utils";
+import {
+  createSeason,
+  updateSeason,
+  deleteSeason,
+  getGameCountBySeason,
+  createPlayer,
+  createGame,
+  exportAllData,
+  importData,
+  resetAllData,
+} from "../lib/queries";
 
 export function SettingsPage({
-  seasons, setSeasons, saveSeasons,
-  games, setGames,
-  players, setPlayers, savePlayers,
+  seasons, games, players,
   currentSeasonId, setCurrentSeasonId,
-  showToast, reloadData,
+  showToast, refreshData,
+  refreshSeasons, refreshGames, refreshPlayers, refreshAllGames,
 }) {
   const [showNewSeason, setShowNewSeason] = useState(false);
   const [seasonName, setSeasonName] = useState("");
@@ -39,53 +48,62 @@ export function SettingsPage({
     const trimmed = seasonName.trim();
     if (!trimmed) { setError("Введите название сезона"); return; }
 
-    const updated = seasons.map((s) =>
-      s.isActive ? { ...s, isActive: false, endDate: new Date().toISOString().split("T")[0] } : s
-    );
-    const newSeason = {
-      id: generateId(), name: trimmed, startDate: seasonStart,
-      endDate: null, isActive: true,
-    };
-    const newSeasons = [...updated, newSeason];
-    setSeasons(newSeasons);
-    await saveSeasons(newSeasons);
-    setCurrentSeasonId(newSeason.id);
-    setGames([]);
-    setShowNewSeason(false);
-    setSeasonName("");
-    setError("");
-    showToast("Сезон создан");
+    try {
+      const newSeason = await createSeason({
+        name: trimmed,
+        startDate: seasonStart,
+        endDate: null,
+        isActive: true,
+      });
+      await refreshSeasons();
+      setCurrentSeasonId(newSeason.id);
+      await refreshGames(newSeason.id);
+      setShowNewSeason(false);
+      setSeasonName("");
+      setError("");
+      showToast("Сезон создан");
+    } catch (err) {
+      setError(err.message || "Ошибка создания сезона");
+    }
   };
 
   const handleEndSeason = async (season) => {
-    const updated = seasons.map((s) =>
-      s.id === season.id ? { ...s, isActive: false, endDate: new Date().toISOString().split("T")[0] } : s
-    );
-    setSeasons(updated);
-    await saveSeasons(updated);
-    setConfirmEnd(null);
-    showToast("Сезон завершён");
+    try {
+      await updateSeason(season.id, {
+        isActive: false,
+        endDate: new Date().toISOString().split("T")[0],
+      });
+      await refreshSeasons();
+      setConfirmEnd(null);
+      showToast("Сезон завершён");
+    } catch (err) {
+      setError(err.message || "Ошибка завершения сезона");
+    }
   };
 
   const handleDeleteSeason = async (season) => {
-    const seasonGames = season.id === currentSeasonId
-      ? games : await safeGet(`games:${season.id}`, []);
-    if (seasonGames.length > 0) {
-      setError("Нельзя удалить сезон с играми");
+    try {
+      const gameCount = await getGameCountBySeason(season.id);
+      if (gameCount > 0) {
+        setError("Нельзя удалить сезон с играми");
+        setConfirmDelete(null);
+        return;
+      }
+      await deleteSeason(season.id);
+      const updatedSeasons = await refreshSeasons();
+      if (currentSeasonId === season.id) {
+        const fallback = updatedSeasons.find((s) => s.isActive) || updatedSeasons[updatedSeasons.length - 1];
+        if (fallback) {
+          setCurrentSeasonId(fallback.id);
+          await refreshGames(fallback.id);
+        }
+      }
       setConfirmDelete(null);
-      return;
+      setError("");
+      showToast("Сезон удалён");
+    } catch (err) {
+      setError(err.message || "Ошибка удаления сезона");
     }
-    const updated = seasons.filter((s) => s.id !== season.id);
-    setSeasons(updated);
-    await saveSeasons(updated);
-    if (currentSeasonId === season.id) {
-      const fallback = updated.find((s) => s.isActive) || updated[updated.length - 1];
-      if (fallback) setCurrentSeasonId(fallback.id);
-    }
-    try { await safeDelete(`games:${season.id}`); } catch {}
-    setConfirmDelete(null);
-    setError("");
-    showToast("Сезон удалён");
   };
 
   // --- Demo data ---
@@ -105,87 +123,86 @@ export function SettingsPage({
       { nickname: "Ягуар", realName: "Светлана" },
     ];
 
-    const demoPlayers = demoNicknames
-      .filter((d) => !players.some((p) => p.nickname.toLowerCase() === d.nickname.toLowerCase()))
-      .map((d) => ({
-        id: generateId(), nickname: d.nickname, realName: d.realName,
-        createdAt: new Date().toISOString(), isActive: true,
-      }));
+    try {
+      // Create missing players
+      const newPlayers = demoNicknames.filter(
+        (d) => !players.some((p) => p.nickname.toLowerCase() === d.nickname.toLowerCase())
+      );
+      for (const np of newPlayers) {
+        await createPlayer({ nickname: np.nickname, realName: np.realName, isActive: true });
+      }
 
-    const allPlayers = [...players, ...demoPlayers];
-    const activePlayers = allPlayers.filter((p) => p.isActive);
-    if (activePlayers.length < 10) {
-      setError("Нужно минимум 10 активных игроков для генерации игр");
+      // Refresh players to get IDs
+      const allPlayers = await refreshPlayers();
+      const activePlayers = allPlayers.filter((p) => p.isActive);
+
+      if (activePlayers.length < 10) {
+        setError("Нужно минимум 10 активных игроков для генерации игр");
+        setConfirmDemo(false);
+        return;
+      }
+
+      const roleSet = [
+        "citizen", "citizen", "citizen", "citizen", "citizen", "citizen",
+        "sheriff", "mafia", "mafia", "don",
+      ];
+      const maxGameNum = games.reduce((max, g) => Math.max(max, g.gameNumber), 0);
+      const numGames = Math.min(10, Math.floor(activePlayers.length / 10) * 5);
+
+      for (let i = 0; i < numGames; i++) {
+        const shuffledPlayers = [...activePlayers].sort(() => Math.random() - 0.5).slice(0, 10);
+        const shuffledRoles = [...roleSet].sort(() => Math.random() - 0.5);
+        const winner = Math.random() > 0.45 ? "red" : "black";
+
+        const gamePlayers = shuffledPlayers.map((player, idx) => {
+          const role = shuffledRoles[idx];
+          const team = getTeam(role);
+          const result = team === winner ? "win" : "lose";
+          const baseScore = result === "win" ? 1 : 0;
+          const bonusScore = Math.random() > 0.7
+            ? parseFloat((Math.random() * 1 - 0.5).toFixed(1)) : 0;
+          return {
+            playerId: player.id,
+            seat: idx + 1,
+            role,
+            result,
+            baseScore,
+            bonusScore,
+            bonusComment: bonusScore > 0 ? "Лучший ход" : bonusScore < 0 ? "Фол" : null,
+            totalScore: baseScore + bonusScore,
+          };
+        });
+
+        await createGame({
+          seasonId: currentSeasonId,
+          gameNumber: maxGameNum + i + 1,
+          date: new Date(Date.now() - (numGames - 1 - i) * 86400000).toISOString(),
+          winner,
+          players: gamePlayers,
+          notes: null,
+        });
+      }
+
+      await refreshGames();
+      await refreshAllGames();
       setConfirmDemo(false);
-      return;
+      setError("");
+      showToast(`Создано ${newPlayers.length} игроков и ${numGames} игр`);
+    } catch (err) {
+      setError(err.message || "Ошибка генерации демо-данных");
     }
-
-    const roleSet = [
-      "citizen", "citizen", "citizen", "citizen", "citizen", "citizen",
-      "sheriff", "mafia", "mafia", "don",
-    ];
-    const maxGameNum = games.reduce((max, g) => Math.max(max, g.gameNumber), 0);
-    const demoGames = [];
-    const numGames = Math.min(10, Math.floor(activePlayers.length / 10) * 5);
-
-    for (let i = 0; i < numGames; i++) {
-      const shuffledPlayers = [...activePlayers].sort(() => Math.random() - 0.5).slice(0, 10);
-      const shuffledRoles = [...roleSet].sort(() => Math.random() - 0.5);
-      const winner = Math.random() > 0.45 ? "red" : "black";
-
-      const gamePlayers = shuffledPlayers.map((player, idx) => {
-        const role = shuffledRoles[idx];
-        const team = getTeam(role);
-        const result = team === winner ? "win" : "lose";
-        const baseScore = result === "win" ? 1 : 0;
-        const bonusScore = Math.random() > 0.7
-          ? parseFloat((Math.random() * 1 - 0.5).toFixed(1)) : 0;
-        return {
-          playerId: player.id, seat: idx + 1, role, result, baseScore, bonusScore,
-          bonusComment: bonusScore > 0 ? "Лучший ход" : bonusScore < 0 ? "Фол" : null,
-          totalScore: baseScore + bonusScore,
-        };
-      });
-
-      demoGames.push({
-        id: generateId(), seasonId: currentSeasonId,
-        gameNumber: maxGameNum + i + 1,
-        date: new Date(Date.now() - (numGames - 1 - i) * 86400000).toISOString(),
-        winner, players: gamePlayers, notes: null,
-        createdAt: new Date().toISOString(),
-      });
-    }
-
-    setPlayers(allPlayers);
-    await savePlayers(allPlayers);
-    const allGames = [...games, ...demoGames];
-    setGames(allGames);
-    await safeSet(`games:${currentSeasonId}`, allGames);
-    setConfirmDemo(false);
-    setError("");
-    showToast(`Создано ${demoPlayers.length} игроков и ${numGames} игр`);
   };
 
   // --- Export ---
   const [exportData, setExportData] = useState(null);
 
   const handleExport = async () => {
-    const allGames = {};
-    for (const s of seasons) {
-      if (s.id === currentSeasonId) {
-        allGames[s.id] = games;
-      } else {
-        allGames[s.id] = await safeGet(`games:${s.id}`, []);
-      }
+    try {
+      const data = await exportAllData();
+      setExportData(JSON.stringify(data, null, 2));
+    } catch (err) {
+      setError(err.message || "Ошибка экспорта");
     }
-    const data = {
-      exportDate: new Date().toISOString(),
-      version: 1,
-      seasons,
-      players,
-      games: allGames,
-    };
-    setExportData(JSON.stringify(data, null, 2));
   };
 
   const handleCopyExport = () => {
@@ -195,6 +212,17 @@ export function SettingsPage({
     }).catch(() => {
       showToast("Не удалось скопировать — выделите текст вручную");
     });
+  };
+
+  const handleDownloadExport = () => {
+    if (!exportData) return;
+    const blob = new Blob([exportData], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mafia-club-export-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // --- Import ---
@@ -219,39 +247,27 @@ export function SettingsPage({
   };
 
   const handleImportConfirm = async () => {
-    const data = confirmImport;
-    await safeSet("seasons", data.seasons);
-    await safeSet("players", data.players);
-    for (const [seasonId, seasonGames] of Object.entries(data.games)) {
-      await safeSet(`games:${seasonId}`, seasonGames);
+    try {
+      await importData(confirmImport);
+      await refreshData();
+      setConfirmImport(null);
+      showToast("Данные импортированы");
+    } catch (err) {
+      setError(err.message || "Ошибка импорта");
     }
-    await reloadData();
-    setConfirmImport(null);
-    showToast("Данные импортированы");
   };
 
   // --- Reset ---
   const handleReset = async () => {
-    for (const s of seasons) {
-      try { await safeDelete(`games:${s.id}`); } catch {}
+    try {
+      const firstSeason = await resetAllData();
+      await refreshData();
+      setConfirmReset(false);
+      setResetWord("");
+      showToast("Все данные сброшены");
+    } catch (err) {
+      setError(err.message || "Ошибка сброса");
     }
-    try { await safeDelete("seasons"); } catch {}
-    try { await safeDelete("players"); } catch {}
-
-    const firstSeason = {
-      id: generateId(), name: "Сезон 1",
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: null, isActive: true,
-    };
-    await safeSet("seasons", [firstSeason]);
-    setSeasons([firstSeason]);
-    setPlayers([]);
-    await safeSet("players", []);
-    setCurrentSeasonId(firstSeason.id);
-    setGames([]);
-    setConfirmReset(false);
-    setResetWord("");
-    showToast("Все данные сброшены");
   };
 
   return (
@@ -329,8 +345,12 @@ export function SettingsPage({
         {exportData && (
           <div className="mt-3">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-gray-500">Скопируйте данные и сохраните в .json файл:</span>
+              <span className="text-sm text-gray-500">Скопируйте данные или скачайте файл:</span>
               <div className="flex gap-2">
+                <button onClick={handleDownloadExport}
+                  className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                  <Download size={14} /> Скачать
+                </button>
                 <button onClick={handleCopyExport}
                   className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
                   <CheckCircle size={14} /> Копировать

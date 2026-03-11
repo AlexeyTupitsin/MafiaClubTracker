@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Loader } from "lucide-react";
 
-import { safeGet, safeSet } from "./lib/storage";
-import { generateId } from "./lib/utils";
+import { getSeasons, getPlayers, getGamesBySeason, getAllGames } from "./lib/queries";
 import { Toast, EmptyState } from "./components/ui";
 import { Header } from "./components/layout/Header";
 import { TabBar } from "./components/layout/TabBar";
@@ -39,42 +38,60 @@ export default function App() {
     setSelectedId(id);
   }, []);
 
-  const savePlayers = useCallback(async (data) => {
-    await safeSet("players", data);
+  // Refresh individual data sets from Supabase
+  const refreshSeasons = useCallback(async () => {
+    const data = await getSeasons();
+    setSeasons(data);
+    return data;
   }, []);
 
-  const saveSeasons = useCallback(async (data) => {
-    await safeSet("seasons", data);
+  const refreshPlayers = useCallback(async () => {
+    const data = await getPlayers();
+    setPlayers(data);
+    return data;
   }, []);
 
-  const saveGames = useCallback(async (data) => {
+  const refreshGames = useCallback(async (seasonId) => {
+    const sid = seasonId || currentSeasonId;
+    if (!sid) return [];
+    const data = await getGamesBySeason(sid);
     setGames(data);
-    await safeSet(`games:${currentSeasonId}`, data);
-    setAllGames((prev) => {
-      const otherGames = prev.filter((g) => !data.some((d) => d.id === g.id) && g.seasonId !== currentSeasonId);
-      return [...otherGames, ...data];
-    });
+    return data;
   }, [currentSeasonId]);
+
+  const refreshAllGames = useCallback(async () => {
+    const data = await getAllGames();
+    setAllGames(data);
+    return data;
+  }, []);
+
+  // Full data refresh (used after import/reset/demo)
+  const refreshData = useCallback(async () => {
+    const loadedSeasons = await getSeasons();
+    const loadedPlayers = await getPlayers();
+    setSeasons(loadedSeasons);
+    setPlayers(loadedPlayers);
+    const active = loadedSeasons.find((s) => s.isActive);
+    const seasonId = active?.id || loadedSeasons[loadedSeasons.length - 1]?.id;
+    setCurrentSeasonId(seasonId);
+    if (seasonId) {
+      const loadedGames = await getGamesBySeason(seasonId);
+      setGames(loadedGames);
+    } else {
+      setGames([]);
+    }
+    const all = await getAllGames();
+    setAllGames(all);
+    setCurrentPage("dashboard");
+  }, []);
 
   // Load data on mount
   useEffect(() => {
     let cancelled = false;
     async function loadData() {
       try {
-        let loadedSeasons = await safeGet("seasons", []);
-        const loadedPlayers = await safeGet("players", []);
-
-        if (loadedSeasons.length === 0) {
-          const firstSeason = {
-            id: generateId(),
-            name: "Сезон 1",
-            startDate: new Date().toISOString().split("T")[0],
-            endDate: null,
-            isActive: true,
-          };
-          loadedSeasons = [firstSeason];
-          await safeSet("seasons", loadedSeasons);
-        }
+        let loadedSeasons = await getSeasons();
+        const loadedPlayers = await getPlayers();
 
         if (cancelled) return;
 
@@ -86,15 +103,11 @@ export default function App() {
         setCurrentSeasonId(seasonId);
 
         if (seasonId) {
-          const loadedGames = await safeGet(`games:${seasonId}`, []);
+          const loadedGames = await getGamesBySeason(seasonId);
           if (!cancelled) setGames(loadedGames);
         }
 
-        const all = [];
-        for (const s of loadedSeasons) {
-          const sg = await safeGet(`games:${s.id}`, []);
-          all.push(...sg);
-        }
+        const all = await getAllGames();
         if (!cancelled) setAllGames(all);
       } catch (error) {
         console.error("Failed to load data:", error);
@@ -104,30 +117,6 @@ export default function App() {
     }
     loadData();
     return () => { cancelled = true; };
-  }, []);
-
-  // Reload all data (used after import)
-  const reloadData = useCallback(async () => {
-    const loadedSeasons = await safeGet("seasons", []);
-    const loadedPlayers = await safeGet("players", []);
-    setSeasons(loadedSeasons);
-    setPlayers(loadedPlayers);
-    const active = loadedSeasons.find((s) => s.isActive);
-    const seasonId = active?.id || loadedSeasons[loadedSeasons.length - 1]?.id;
-    setCurrentSeasonId(seasonId);
-    if (seasonId) {
-      const loadedGames = await safeGet(`games:${seasonId}`, []);
-      setGames(loadedGames);
-    } else {
-      setGames([]);
-    }
-    const all = [];
-    for (const s of loadedSeasons) {
-      const sg = await safeGet(`games:${s.id}`, []);
-      all.push(...sg);
-    }
-    setAllGames(all);
-    setCurrentPage("dashboard");
   }, []);
 
   // Reload games when season changes (after initial load)
@@ -140,7 +129,7 @@ export default function App() {
     }
     if (!currentSeasonId) return;
     async function loadGames() {
-      const loaded = await safeGet(`games:${currentSeasonId}`, []);
+      const loaded = await getGamesBySeason(currentSeasonId);
       setGames(loaded);
     }
     loadGames();
@@ -194,10 +183,11 @@ export default function App() {
             game={games.find((g) => g.id === selectedId) || allGames.find((g) => g.id === selectedId)}
             players={players}
             navigate={navigate}
-            saveGames={saveGames}
             games={games}
             currentSeason={currentSeason}
             showToast={showToast}
+            refreshGames={refreshGames}
+            refreshAllGames={refreshAllGames}
           />
         );
       case "gameForm":
@@ -207,10 +197,11 @@ export default function App() {
             games={games}
             currentSeasonId={currentSeasonId}
             currentSeason={currentSeason}
-            saveGames={saveGames}
             navigate={navigate}
             editingGame={selectedId ? games.find((g) => g.id === selectedId) : null}
             showToast={showToast}
+            refreshGames={refreshGames}
+            refreshAllGames={refreshAllGames}
           />
         );
       case "rating":
@@ -221,17 +212,17 @@ export default function App() {
             seasons={seasons}
             currentSeasonId={currentSeasonId}
             navigate={navigate}
+            allGames={allGames}
           />
         );
       case "players":
         return (
           <PlayerList
             players={players}
-            setPlayers={setPlayers}
             games={games}
-            savePlayers={savePlayers}
             navigate={navigate}
             showToast={showToast}
+            refreshPlayers={refreshPlayers}
           />
         );
       case "playerProfile":
@@ -243,6 +234,7 @@ export default function App() {
             navigate={navigate}
             seasons={seasons}
             currentSeasonId={currentSeasonId}
+            allGames={allGames}
           />
         );
       case "compare":
@@ -261,17 +253,16 @@ export default function App() {
         return (
           <SettingsPage
             seasons={seasons}
-            setSeasons={setSeasons}
-            saveSeasons={saveSeasons}
             games={games}
-            setGames={setGames}
             players={players}
-            setPlayers={setPlayers}
-            savePlayers={savePlayers}
             currentSeasonId={currentSeasonId}
             setCurrentSeasonId={setCurrentSeasonId}
             showToast={showToast}
-            reloadData={reloadData}
+            refreshData={refreshData}
+            refreshSeasons={refreshSeasons}
+            refreshGames={refreshGames}
+            refreshPlayers={refreshPlayers}
+            refreshAllGames={refreshAllGames}
           />
         );
       default:

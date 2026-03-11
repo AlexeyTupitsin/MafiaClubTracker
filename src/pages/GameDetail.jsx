@@ -4,8 +4,9 @@ import { Badge, ConfirmDialog, EmptyState } from "../components/ui";
 import { ROLE_NAMES, TEAM_NAMES, RESULT_NAMES, ROLE_BADGE_VARIANT } from "../lib/constants";
 import { getTeam, formatDate } from "../lib/utils";
 import { AdminOnly } from "../components/auth/AuthGuard";
+import { deleteGame } from "../lib/queries";
 
-export function GameDetail({ game, players, navigate, saveGames, games, currentSeason, showToast }) {
+export function GameDetail({ game, players, navigate, games, currentSeason, showToast, refreshGames, refreshAllGames }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!game) {
@@ -25,10 +26,16 @@ export function GameDetail({ game, players, navigate, saveGames, games, currentS
 
   const handleDelete = async () => {
     const num = game.gameNumber;
-    const updated = games.filter((g) => g.id !== game.id);
-    await saveGames(updated);
-    showToast?.(`Игра #${num} удалена`);
-    navigate("games");
+    try {
+      await deleteGame(game.id);
+      await refreshGames();
+      await refreshAllGames();
+      showToast?.(`Игра #${num} удалена`);
+      navigate("games");
+    } catch (err) {
+      console.error("Failed to delete game:", err);
+      showToast?.("Ошибка удаления: " + (err.message || "неизвестная ошибка"));
+    }
   };
 
   const sortedPlayers = [...game.players].sort((a, b) => a.seat - b.seat);

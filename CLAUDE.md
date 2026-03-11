@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Mafia Club Tracker — веб-приложение для учёта игр в спортивную мафию. Мигрируется с Claude Artifact на standalone Vite + React + Supabase приложение. Весь UI на русском языке.
+Mafia Club Tracker — веб-приложение для учёта игр в спортивную мафию. Standalone Vite + React + Supabase приложение. Весь UI на русском языке.
 
 ## Commands
 
@@ -28,35 +28,36 @@ npm run preview  # Preview production build
 - **Tailwind CSS v4** через `@tailwindcss/vite` плагин
 - **Recharts** — графики (LineChart, BarChart)
 - **lucide-react** — иконки
-- **@supabase/supabase-js** — установлен, пока placeholder (Stage 2)
+- **@supabase/supabase-js** — PostgreSQL backend
 
-## Storage Layer
+## Data Layer
 
-Текущий слой: `src/lib/storage.js` — localStorage-обёртка с async API и префиксом `mafia:`.
+Все данные хранятся в Supabase PostgreSQL. Слой доступа: `src/lib/queries.js`.
 
 ```javascript
-import { safeGet, safeSet, safeDelete } from "./lib/storage";
-const data = await safeGet("key", fallback);
-await safeSet("key", data);
-await safeDelete("key");
+import { getSeasons, createSeason, getPlayers, createPlayer, getGamesBySeason, createGame } from "./lib/queries";
 ```
 
-Ключи: `seasons`, `players`, `games:SEASON_ID`. При миграции на Supabase заменится на `src/lib/queries.js`.
+Queries.js выполняет трансформацию snake_case (БД) ↔ camelCase (frontend) и маппинг game_players ↔ game.players.
+
+## Auth
+
+Supabase Auth с email/password. Email = `{login}@mafia.local`. Роли: admin/viewer через таблицу profiles. Хук: `useAuth()` из `src/hooks/useAuth.jsx`. Компонент-обёртка: `<AdminOnly>`.
 
 ## Project Structure
 
 ```
 src/
-├── lib/           constants, utils, metrics, storage, supabase
+├── lib/           constants, utils, metrics, queries, supabase
 ├── components/
 │   ├── ui/        Modal, Badge, StatCard, EmptyState, ConfirmDialog, Toast
 │   ├── layout/    Header, TabBar
-│   └── auth/      LoginForm, AuthGuard (заглушки)
+│   └── auth/      LoginForm, AuthGuard (AdminOnly)
 ├── pages/         Dashboard, GameList, GameDetail, GameForm, Leaderboard,
 │                  PlayerList, PlayerProfile, PlayerCompare, Settings
-├── hooks/         (пусто, для Stage 2)
+├── hooks/         useAuth
 ├── App.jsx        State management, routing, layout
-├── main.jsx       Entry point
+├── main.jsx       Entry point (AuthProvider wrapper)
 └── index.css      Tailwind import
 ```
 
@@ -76,3 +77,9 @@ State-based навигация (без react-router): `navigate(page, id)` че�
 - Удаление игрока — только деактивация (если есть игры)
 - Один активный сезон, новые игры только в активный сезон
 - Удаление сезона только если 0 игр
+
+## Architecture Pattern
+
+App.jsx хранит глобальный state (seasons, players, games, allGames) и передаёт компонентам refresh-функции:
+- `refreshSeasons()`, `refreshPlayers()`, `refreshGames(seasonId?)`, `refreshAllGames()`, `refreshData()` — полная перезагрузка
+- Компоненты вызывают queries.js для CRUD, затем refresh для обновления state

@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Plus, Users, UserPlus, Pencil, X, Check } from "lucide-react";
 import { Modal, ConfirmDialog, EmptyState, Badge } from "../components/ui";
-import { generateId } from "../lib/utils";
 import { AdminOnly } from "../components/auth/AuthGuard";
+import { createPlayer, updatePlayer } from "../lib/queries";
 
-export function PlayerList({ players, setPlayers, games, savePlayers, navigate, showToast }) {
+export function PlayerList({ players, games, navigate, showToast, refreshPlayers }) {
   const [showModal, setShowModal] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [nickname, setNickname] = useState("");
@@ -44,40 +44,36 @@ export function PlayerList({ players, setPlayers, games, savePlayers, navigate, 
       return;
     }
 
-    let updated;
-    if (editingPlayer) {
-      updated = players.map((p) =>
-        p.id === editingPlayer.id
-          ? { ...p, nickname: trimmed, realName: realName.trim() || null }
-          : p
-      );
-    } else {
-      updated = [
-        ...players,
-        {
-          id: generateId(),
+    try {
+      if (editingPlayer) {
+        await updatePlayer(editingPlayer.id, {
           nickname: trimmed,
           realName: realName.trim() || null,
-          createdAt: new Date().toISOString(),
+        });
+      } else {
+        await createPlayer({
+          nickname: trimmed,
+          realName: realName.trim() || null,
           isActive: true,
-        },
-      ];
+        });
+      }
+      await refreshPlayers();
+      setShowModal(false);
+      showToast?.(editingPlayer ? `Игрок «${trimmed}» обновлён` : `Игрок «${trimmed}» добавлен`);
+    } catch (err) {
+      setError(err.message || "Ошибка сохранения");
     }
-
-    setPlayers(updated);
-    await savePlayers(updated);
-    setShowModal(false);
-    showToast?.(editingPlayer ? `Игрок «${trimmed}» обновлён` : `Игрок «${trimmed}» добавлен`);
   };
 
   const handleToggleActive = async (player) => {
-    const updated = players.map((p) =>
-      p.id === player.id ? { ...p, isActive: !p.isActive } : p
-    );
-    setPlayers(updated);
-    await savePlayers(updated);
-    setConfirmDeactivate(null);
-    showToast?.(player.isActive ? `Игрок «${player.nickname}» деактивирован` : `Игрок «${player.nickname}» активирован`);
+    try {
+      await updatePlayer(player.id, { isActive: !player.isActive });
+      await refreshPlayers();
+      setConfirmDeactivate(null);
+      showToast?.(player.isActive ? `Игрок «${player.nickname}» деактивирован` : `Игрок «${player.nickname}» активирован`);
+    } catch (err) {
+      setError(err.message || "Ошибка обновления");
+    }
   };
 
   const getPlayerGameCount = (playerId) => {

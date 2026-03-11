@@ -1,45 +1,20 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Trophy, ChevronUp, ChevronDown } from "lucide-react";
 import { Badge, EmptyState } from "../components/ui";
 import { calcPlayerStats } from "../lib/metrics";
-import { safeGet } from "../lib/storage";
 
-export function Leaderboard({ games, players, seasons, currentSeasonId, navigate }) {
+export function Leaderboard({ games, players, seasons, currentSeasonId, navigate, allGames }) {
   const [seasonFilter, setSeasonFilter] = useState("all");
   const [sortCol, setSortCol] = useState("avgScore");
   const [sortDir, setSortDir] = useState("desc");
-  const [allGamesCache, setAllGamesCache] = useState(null);
-
-  // Load all games when "all seasons" selected
-  useEffect(() => {
-    if (seasonFilter !== "all" || allGamesCache) return;
-    async function loadAll() {
-      let all = [];
-      for (const s of seasons) {
-        if (s.id === currentSeasonId) {
-          all = all.concat(games);
-        } else {
-          const sg = await safeGet(`games:${s.id}`, []);
-          all = all.concat(sg);
-        }
-      }
-      setAllGamesCache(all);
-    }
-    loadAll();
-  }, [seasonFilter, seasons, currentSeasonId, games, allGamesCache]);
 
   // Determine active game set
   const activeGames = useMemo(() => {
     if (seasonFilter === "current") return games;
-    if (seasonFilter === "all") return allGamesCache || games;
-    // specific season — if it's current, use games; otherwise need to load
+    if (seasonFilter === "all") return allGames;
     if (seasonFilter === currentSeasonId) return games;
-    // For non-current specific season, we'd need async load, fall back to cache
-    if (allGamesCache) {
-      return allGamesCache.filter((g) => g.seasonId === seasonFilter);
-    }
-    return games;
-  }, [seasonFilter, games, currentSeasonId, allGamesCache]);
+    return allGames.filter((g) => g.seasonId === seasonFilter);
+  }, [seasonFilter, games, currentSeasonId, allGames]);
 
   // Build rating data
   const ratingCalc = useMemo(() => {
