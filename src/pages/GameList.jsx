@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Plus, Sword } from "lucide-react";
 import { Badge, EmptyState } from "../components/ui";
+import { AdminOnly } from "../components/auth/AuthGuard";
 import { TEAM_NAMES } from "../lib/constants";
 import { formatDate } from "../lib/utils";
 
@@ -34,10 +35,12 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold">Игры</h2>
         {canAdd && (
-          <button onClick={() => navigate("gameForm")}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm">
-            <Plus size={16} /> Добавить игру
-          </button>
+          <AdminOnly>
+            <button onClick={() => navigate("gameForm")}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm">
+              <Plus size={16} /> Добавить игру
+            </button>
+          </AdminOnly>
         )}
       </div>
 
@@ -102,10 +105,12 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
             ? (canAdd ? "Добавьте первую игру!" : "Пока нет игр")
             : "Нет игр по выбранным фильтрам"}
           action={canAdd && sourceGames.length === 0 && (
-            <button onClick={() => navigate("gameForm")}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm">
-              <Plus size={16} /> Добавить игру
-            </button>
+            <AdminOnly>
+              <button onClick={() => navigate("gameForm")}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm">
+                <Plus size={16} /> Добавить игру
+              </button>
+            </AdminOnly>
           )}
         />
       ) : (

@@ -3,6 +3,7 @@ import { Plus, Shield, Sword, ChevronUp, ChevronDown, Users } from "lucide-react
 import { StatCard, Badge, EmptyState } from "../components/ui";
 import { calcDashboardStats, calcRoleNominations, calcPlayerStats } from "../lib/metrics";
 import { NOMINATION_CONFIG, TEAM_NAMES, ROLE_NAMES, MIN_GAMES_FOR_NOMINATION } from "../lib/constants";
+import { AdminOnly } from "../components/auth/AuthGuard";
 
 export function Dashboard({ games, players, navigate, currentSeason, seasons, currentSeasonId, allGames }) {
   const hasPlayers = players.length > 0;
@@ -105,10 +106,12 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
           <h2 className="text-xl font-bold text-gray-900 mb-2">Нет игр</h2>
           <p className="text-gray-500 mb-6">Добавьте первую игру!</p>
           {currentSeason?.isActive && (
-            <button onClick={() => navigate("gameForm")}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium mx-auto">
-              <Plus size={18} /> Добавить игру
-            </button>
+            <AdminOnly>
+              <button onClick={() => navigate("gameForm")}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium mx-auto">
+                <Plus size={18} /> Добавить игру
+              </button>
+            </AdminOnly>
           )}
         </div>
       ) : (
@@ -137,10 +140,12 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
 
           {/* Quick action */}
           {currentSeason?.isActive && (
-            <button onClick={() => navigate("gameForm")}
-              className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-xl text-sm font-medium shadow-sm">
-              <Plus size={18} /> Добавить игру
-            </button>
+            <AdminOnly>
+              <button onClick={() => navigate("gameForm")}
+                className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-xl text-sm font-medium shadow-sm">
+                <Plus size={18} /> Добавить игру
+              </button>
+            </AdminOnly>
           )}
 
           {/* Rating table */}

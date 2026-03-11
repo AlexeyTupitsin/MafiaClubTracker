@@ -3,9 +3,11 @@ import { Loader } from "lucide-react";
 
 import { safeGet, safeSet } from "./lib/storage";
 import { generateId } from "./lib/utils";
-import { Toast } from "./components/ui";
+import { Toast, EmptyState } from "./components/ui";
 import { Header } from "./components/layout/Header";
 import { TabBar } from "./components/layout/TabBar";
+import { useAuth } from "./hooks/useAuth";
+import { AdminOnly } from "./components/auth/AuthGuard";
 
 import { Dashboard } from "./pages/Dashboard";
 import { GameList } from "./pages/GameList";

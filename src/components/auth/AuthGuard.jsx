@@ -1,4 +1,6 @@
-// Placeholder for Stage 2: Admin-only wrapper
-export function AdminOnly({ children }) {
-  return children;
+import { useAuth } from '../../hooks/useAuth';
+
+export function AdminOnly({ children, fallback = null }) {
+  const { isAdmin } = useAuth();
+  return isAdmin ? children : fallback;
 }

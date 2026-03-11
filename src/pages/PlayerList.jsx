@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Plus, Users, UserPlus, Pencil, X, Check } from "lucide-react";
 import { Modal, ConfirmDialog, EmptyState, Badge } from "../components/ui";
 import { generateId } from "../lib/utils";
+import { AdminOnly } from "../components/auth/AuthGuard";
 
 export function PlayerList({ players, setPlayers, games, savePlayers, navigate, showToast }) {
   const [showModal, setShowModal] = useState(false);
@@ -87,10 +88,12 @@ export function PlayerList({ players, setPlayers, games, savePlayers, navigate, 
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold">Игроки</h2>
-        <button onClick={openAdd}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm">
-          <Plus size={16} /> Добавить игрока
-        </button>
+        <AdminOnly>
+          <button onClick={openAdd}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm">
+            <Plus size={16} /> Добавить игрока
+          </button>
+        </AdminOnly>
       </div>
 
       {players.length === 0 ? (
@@ -99,10 +102,12 @@ export function PlayerList({ players, setPlayers, games, savePlayers, navigate, 
           title="Нет игроков"
           description="Добавьте первого игрока клуба"
           action={
-            <button onClick={openAdd}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm">
-              <UserPlus size={16} /> Добавить игрока
-            </button>
+            <AdminOnly>
+              <button onClick={openAdd}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm">
+                <UserPlus size={16} /> Добавить игрока
+              </button>
+            </AdminOnly>
           }
         />
       ) : (
@@ -138,20 +143,22 @@ export function PlayerList({ players, setPlayers, games, savePlayers, navigate, 
                     </td>
                     <td className="px-4 py-3 text-gray-500">{getPlayerGameCount(player.id)}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => openEdit(player)}
-                          className="p-1.5 hover:bg-gray-100 rounded transition-colors" title="Редактировать">
-                          <Pencil size={16} className="text-gray-500" />
-                        </button>
-                        <button onClick={() => setConfirmDeactivate(player)}
-                          className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                          title={player.isActive ? "Деактивировать" : "Активировать"}>
-                          {player.isActive
-                            ? <X size={16} className="text-gray-500" />
-                            : <Check size={16} className="text-green-600" />
-                          }
-                        </button>
-                      </div>
+                      <AdminOnly>
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => openEdit(player)}
+                            className="p-1.5 hover:bg-gray-100 rounded transition-colors" title="Редактировать">
+                            <Pencil size={16} className="text-gray-500" />
+                          </button>
+                          <button onClick={() => setConfirmDeactivate(player)}
+                            className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                            title={player.isActive ? "Деактивировать" : "Активировать"}>
+                            {player.isActive
+                              ? <X size={16} className="text-gray-500" />
+                              : <Check size={16} className="text-green-600" />
+                            }
+                          </button>
+                        </div>
+                      </AdminOnly>
                     </td>
                   </tr>
                 ))}

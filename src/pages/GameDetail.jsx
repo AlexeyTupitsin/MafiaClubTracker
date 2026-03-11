@@ -3,6 +3,7 @@ import { ArrowLeft, Pencil, Trash2, Sword } from "lucide-react";
 import { Badge, ConfirmDialog, EmptyState } from "../components/ui";
 import { ROLE_NAMES, TEAM_NAMES, RESULT_NAMES, ROLE_BADGE_VARIANT } from "../lib/constants";
 import { getTeam, formatDate } from "../lib/utils";
+import { AdminOnly } from "../components/auth/AuthGuard";
 
 export function GameDetail({ game, players, navigate, saveGames, games, currentSeason, showToast }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -123,18 +124,20 @@ export function GameDetail({ game, players, navigate, saveGames, games, currentS
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2">
-        {currentSeason?.isActive && (
-          <button onClick={() => navigate("gameForm", game.id)}
-            className="flex items-center gap-1.5 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">
-            <Pencil size={14} /> Редактировать
+      <AdminOnly>
+        <div className="flex gap-2">
+          {currentSeason?.isActive && (
+            <button onClick={() => navigate("gameForm", game.id)}
+              className="flex items-center gap-1.5 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">
+              <Pencil size={14} /> Редактировать
+            </button>
+          )}
+          <button onClick={() => setConfirmDelete(true)}
+            className="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-sm">
+            <Trash2 size={14} /> Удалить
           </button>
-        )}
-        <button onClick={() => setConfirmDelete(true)}
-          className="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-sm">
-          <Trash2 size={14} /> Удалить
-        </button>
-      </div>
+        </div>
+      </AdminOnly>
 
       {confirmDelete && (
         <ConfirmDialog
