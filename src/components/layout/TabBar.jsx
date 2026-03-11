@@ -1,6 +1,8 @@
 import { TABS } from "../../lib/constants";
+import { useAuth } from "../../hooks/useAuth";
 
 export function TabBar({ currentPage, navigate }) {
+  const { isAdmin } = useAuth();
   const getIsActive = (tabId) =>
     currentPage === tabId ||
     (tabId === "games" && ["gameDetail", "gameForm"].includes(currentPage)) ||
@@ -11,7 +13,7 @@ export function TabBar({ currentPage, navigate }) {
       {/* Desktop Navigation Tabs */}
       <nav className="bg-white border-b hidden sm:block">
         <div className="max-w-4xl mx-auto px-4 flex overflow-x-auto">
-          {TABS.map((tab) => {
+          {TABS.filter((tab) => tab.id !== "settings" || isAdmin).map((tab) => {
             const Icon = tab.icon;
             const isActive = getIsActive(tab.id);
             return (
@@ -35,7 +37,7 @@ export function TabBar({ currentPage, navigate }) {
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg sm:hidden z-30">
         <div className="flex justify-around">
-          {TABS.map((tab) => {
+          {TABS.filter((tab) => tab.id !== "settings" || isAdmin).map((tab) => {
             const Icon = tab.icon;
             const isActive = getIsActive(tab.id);
             return (

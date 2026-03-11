@@ -1,12 +1,12 @@
 import { useState, useMemo } from "react";
 import { ArrowLeft, ArrowRightLeft, TrendingUp, TrendingDown, Minus, User, Sword } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
 import { Badge, StatCard, EmptyState } from "../components/ui";
 import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend } from "../lib/metrics";
 import { ROLE_NAMES, ROLE_BADGE_VARIANT, RESULT_NAMES, ROLE_COLORS } from "../lib/constants";
 import { formatDate } from "../lib/utils";
 
-export function PlayerProfile({ player, games, players, navigate, seasons, currentSeasonId, allGames }) {
+export function PlayerProfile({ player, games, players, navigate, seasons, currentSeasonId, allGames, tournaments }) {
   if (!player) {
     return (
       <EmptyState
@@ -22,10 +22,9 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
     );
   }
 
-  const [periodFilter, setPeriodFilter] = useState("current");
+  const [periodFilter, setPeriodFilter] = useState("all");
 
   const activeGames = useMemo(() => {
-    if (periodFilter === "current") return games;
     if (periodFilter === "all") return allGames;
     if (periodFilter === currentSeasonId) return games;
     return allGames.filter((g) => g.seasonId === periodFilter);
@@ -34,6 +33,40 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
   const stats = useMemo(() => calcPlayerStats(player.id, activeGames), [player.id, activeGames]);
   const roleStats = useMemo(() => calcRoleStats(player.id, activeGames), [player.id, activeGames]);
   const formTrend = useMemo(() => calcFormTrend(player.id, activeGames), [player.id, activeGames]);
+
+  // Tournament stats: last 3 tournaments where player participated
+  const tournamentStats = useMemo(() => {
+    if (!tournaments || tournaments.length === 0) return [];
+    // Find tournaments where this player has games
+    const tStats = tournaments
+      .map((t) => {
+        const tGames = allGames.filter((g) => g.tournamentId === t.id);
+        const playerTGames = tGames.filter((g) => g.players.some((p) => p.playerId === player.id));
+        if (playerTGames.length === 0) return null;
+        const wins = playerTGames.filter((g) => {
+          const gp = g.players.find((p) => p.playerId === player.id);
+          return gp?.result === "win";
+        }).length;
+        const totalScore = playerTGames.reduce((sum, g) => {
+          const gp = g.players.find((p) => p.playerId === player.id);
+          return sum + (gp?.totalScore || 0);
+        }, 0);
+        return {
+          id: t.id,
+          name: t.name,
+          date: t.date,
+          games: playerTGames.length,
+          wins,
+          winrate: (wins / playerTGames.length) * 100,
+          totalScore,
+          avgScore: totalScore / playerTGames.length,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 3);
+    return tStats;
+  }, [tournaments, allGames, player.id]);
 
   const roleChartData = useMemo(
     () => roleStats.filter((r) => r.games > 0).map((r) => ({
@@ -62,23 +95,6 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
       .sort((a, b) => b.totalGames - a.totalGames);
   }, [player.id, activeGames, players]);
 
-  // Score progression chart
-  const progressionData = useMemo(() => {
-    const playerGameEntries = activeGames
-      .filter((g) => g.players.some((p) => p.playerId === player.id))
-      .sort((a, b) => a.gameNumber - b.gameNumber)
-      .map((g) => {
-        const gp = g.players.find((p) => p.playerId === player.id);
-        return { gameNumber: g.gameNumber, totalScore: gp.totalScore };
-      });
-
-    let cumulative = 0;
-    return playerGameEntries.map((e) => {
-      cumulative += e.totalScore;
-      return { name: `#${e.gameNumber}`, score: cumulative, delta: e.totalScore };
-    });
-  }, [player.id, activeGames]);
-
   // Game history
   const gameHistory = useMemo(() => {
     return activeGames
@@ -102,7 +118,19 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
             {player.realName && <p className="text-sm text-gray-500">{player.realName}</p>}
           </div>
         </div>
-        <EmptyState icon={Sword} title="Игрок ещё не участвовал в играх" />
+        <div className="flex flex-wrap gap-2 mb-4">
+          <select
+            value={periodFilter}
+            onChange={(e) => setPeriodFilter(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-sm border outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          >
+            <option value="all">Все сезоны</option>
+            {seasons.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <EmptyState icon={Sword} title="Нет игр за выбранный период" />
       </div>
     );
   }
@@ -129,34 +157,16 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
 
       {/* Period filter */}
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => setPeriodFilter("current")}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-            periodFilter === "current"
-              ? "bg-indigo-100 text-indigo-700"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}>
-          Текущий сезон
-        </button>
-        <button onClick={() => setPeriodFilter("all")}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-            periodFilter === "all"
-              ? "bg-indigo-100 text-indigo-700"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}>
-          Все сезоны
-        </button>
-        {seasons && seasons.length > 1 && (
-          <select
-            value={periodFilter === "current" || periodFilter === "all" ? "" : periodFilter}
-            onChange={(e) => { if (e.target.value) setPeriodFilter(e.target.value); }}
-            className="px-3 py-1.5 rounded-lg text-sm bg-gray-100 border-0 outline-none"
-          >
-            <option value="">Выбрать сезон...</option>
-            {seasons.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        )}
+        <select
+          value={periodFilter}
+          onChange={(e) => setPeriodFilter(e.target.value)}
+          className="px-3 py-1.5 rounded-lg text-sm border outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+        >
+          <option value="all">Все сезоны</option>
+          {seasons.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Stat cards */}
@@ -168,6 +178,45 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
         <StatCard label="Баллы" value={fmtScore(stats.totalScore)} />
         <StatCard label="Ср. балл" value={stats.avgScore.toFixed(2)} />
       </div>
+
+      {/* Tournament stats */}
+      {tournamentStats.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-4">
+          <h3 className="font-semibold mb-3">Последние турниры</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left px-2 py-1.5 font-medium text-gray-500">Турнир</th>
+                  <th className="text-left px-2 py-1.5 font-medium text-gray-500">Дата</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-gray-500">Игр</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-gray-500">Побед</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-gray-500">WR%</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-gray-500">Баллы</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-gray-500">Ср. балл</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tournamentStats.map((t) => (
+                  <tr key={t.id} className="border-b last:border-b-0">
+                    <td className="px-2 py-1.5 font-medium">{t.name}</td>
+                    <td className="px-2 py-1.5 text-gray-500">{formatDate(t.date)}</td>
+                    <td className="px-2 py-1.5 text-center">{t.games}</td>
+                    <td className="px-2 py-1.5 text-center">{t.wins}</td>
+                    <td className="px-2 py-1.5 text-center">
+                      <span className={t.winrate > 60 ? "text-green-600 font-medium" : t.winrate < 40 ? "text-red-500" : ""}>
+                        {t.winrate.toFixed(0)}%
+                      </span>
+                    </td>
+                    <td className="px-2 py-1.5 text-center font-semibold">{fmtScore(t.totalScore)}</td>
+                    <td className="px-2 py-1.5 text-center">{t.avgScore.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Form trend */}
       {formTrend && formTrend.recentGames >= 3 && (
@@ -276,36 +325,6 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
           )}
         </div>
       </div>
-
-      {/* Score progression */}
-      {progressionData.length > 1 && (
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <h3 className="font-semibold mb-3">Динамика баллов</h3>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={progressionData} margin={{ top: 5, right: 15, bottom: 5, left: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip
-                  formatter={(v, name, props) => [
-                    `${fmtScore(v)} (${props.payload.delta >= 0 ? "+" : ""}${fmtScore(props.payload.delta)})`,
-                    "Баллы",
-                  ]}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="score"
-                  stroke="#4f46e5"
-                  strokeWidth={2}
-                  dot={{ r: 3, fill: "#4f46e5" }}
-                  activeDot={{ r: 5 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
 
       {/* Pair stats */}
       {pairData.length > 0 && (

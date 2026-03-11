@@ -100,12 +100,23 @@ function toFrontendGame(row) {
   return {
     id: row.id,
     seasonId: row.season_id,
+    tournamentId: row.tournament_id || null,
     gameNumber: row.game_number,
     date: row.date,
     winner: row.winner,
     notes: row.notes,
     createdAt: row.created_at,
     players: (row.game_players || []).map(toFrontendGamePlayer),
+  };
+}
+
+function toFrontendTournament(row) {
+  return {
+    id: row.id,
+    seasonId: row.season_id,
+    name: row.name,
+    date: row.date,
+    createdAt: row.created_at,
   };
 }
 
@@ -174,6 +185,28 @@ export async function updatePlayer(id, updates) {
 }
 
 // ============================================================
+// Tournaments
+// ============================================================
+
+export async function getTournamentsBySeason(seasonId) {
+  const data = await rest(`tournaments?select=*&season_id=eq.${seasonId}&order=date.desc`);
+  return data.map(toFrontendTournament);
+}
+
+export async function createTournament({ seasonId, name, date }) {
+  const row = await rest('tournaments', {
+    method: 'POST',
+    body: { season_id: seasonId, name, date },
+    single: true,
+  });
+  return toFrontendTournament(row);
+}
+
+export async function deleteTournament(id) {
+  await rest(`tournaments?id=eq.${id}`, { method: 'DELETE' });
+}
+
+// ============================================================
 // Games
 // ============================================================
 
@@ -193,6 +226,7 @@ export async function createGame(game) {
     method: 'POST',
     body: {
       season_id: game.seasonId,
+      tournament_id: game.tournamentId || null,
       game_number: game.gameNumber,
       date: game.date,
       winner: game.winner,
@@ -226,6 +260,7 @@ export async function updateGame(game) {
   await rest(`games?id=eq.${game.id}`, {
     method: 'PATCH',
     body: {
+      tournament_id: game.tournamentId || null,
       date: game.date,
       winner: game.winner,
       notes: game.notes || null,
@@ -268,6 +303,13 @@ export async function exportAllData() {
   const players = await getPlayers();
   const allGames = await getAllGames();
 
+  // Load tournaments for all seasons
+  const allTournaments = [];
+  for (const s of seasons) {
+    const t = await getTournamentsBySeason(s.id);
+    allTournaments.push(...t);
+  }
+
   const gamesBySeason = {};
   for (const s of seasons) {
     gamesBySeason[s.id] = allGames.filter((g) => g.seasonId === s.id);
@@ -278,6 +320,7 @@ export async function exportAllData() {
     version: 1,
     seasons,
     players,
+    tournaments: allTournaments,
     games: gamesBySeason,
   };
 }
@@ -286,12 +329,14 @@ export async function importData(data) {
   // Clear existing data (order matters for foreign keys)
   await rest('game_players?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
   await rest('games?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
+  await rest('tournaments?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
   await rest('players?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
   await rest('seasons?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
 
   // ID maps: old ID → new UUID (DB generates UUIDs)
   const seasonIdMap = {};
   const playerIdMap = {};
+  const tournamentIdMap = {};
 
   // Insert seasons (let DB generate UUIDs)
   for (const s of (data.seasons || [])) {
@@ -322,6 +367,22 @@ export async function importData(data) {
     playerIdMap[p.id] = row.id;
   }
 
+  // Insert tournaments (map old IDs to new UUIDs)
+  for (const t of (data.tournaments || [])) {
+    const newSeasonId = seasonIdMap[t.seasonId];
+    if (!newSeasonId) continue;
+    const row = await rest('tournaments', {
+      method: 'POST',
+      body: {
+        season_id: newSeasonId,
+        name: t.name,
+        date: t.date,
+      },
+      single: true,
+    });
+    tournamentIdMap[t.id] = row.id;
+  }
+
   // Insert games + game_players (map old IDs to new UUIDs)
   for (const [oldSeasonId, seasonGames] of Object.entries(data.games || {})) {
     const newSeasonId = seasonIdMap[oldSeasonId];
@@ -332,6 +393,7 @@ export async function importData(data) {
         method: 'POST',
         body: {
           season_id: newSeasonId,
+          tournament_id: game.tournamentId ? (tournamentIdMap[game.tournamentId] || null) : null,
           game_number: game.gameNumber,
           date: game.date,
           winner: game.winner,
@@ -361,6 +423,7 @@ export async function importData(data) {
 export async function resetAllData() {
   await rest('game_players?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
   await rest('games?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
+  await rest('tournaments?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
   await rest('players?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
   await rest('seasons?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
 

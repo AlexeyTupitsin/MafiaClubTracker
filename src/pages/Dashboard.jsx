@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Plus, Shield, Sword, ChevronUp, ChevronDown, Users } from "lucide-react";
 import { StatCard, Badge, EmptyState } from "../components/ui";
 import { calcDashboardStats, calcRoleNominations, calcPlayerStats } from "../lib/metrics";
-import { NOMINATION_CONFIG, TEAM_NAMES, ROLE_NAMES, MIN_GAMES_FOR_NOMINATION } from "../lib/constants";
+import { NOMINATION_CONFIG, TEAM_NAMES, ROLE_NAMES } from "../lib/constants";
 import { AdminOnly } from "../components/auth/AuthGuard";
 
 export function Dashboard({ games, players, navigate, currentSeason, seasons, currentSeasonId, allGames }) {
@@ -20,7 +20,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
 
   const hasGames = activeGames.length > 0;
   const dashStats = useMemo(() => calcDashboardStats(activeGames), [activeGames]);
-  const nominations = useMemo(() => calcRoleNominations(activeGames, players), [activeGames, players]);
+  const { nominations, minGames: nominationMinGames } = useMemo(() => calcRoleNominations(activeGames, players), [activeGames, players]);
 
   // Full rating data
   const ratingData = useMemo(() => {
@@ -226,7 +226,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
                   <div key={role} className="bg-white rounded-xl shadow-sm p-4">
                     <div className="text-sm font-semibold mb-2">{emoji} {label}</div>
                     {top.length === 0 ? (
-                      <p className="text-xs text-gray-400">Мин. {MIN_GAMES_FOR_NOMINATION} игры за роль</p>
+                      <p className="text-xs text-gray-400">Мин. {nominationMinGames} игр за роль</p>
                     ) : (
                       <div className="space-y-1.5">
                         {top.map((p, i) => (

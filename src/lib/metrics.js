@@ -1,5 +1,4 @@
 import { getTeam } from "./utils";
-import { MIN_GAMES_FOR_NOMINATION } from "./constants";
 
 export function calcPlayerStats(playerId, games) {
   const playerGames = games.flatMap((g) =>
@@ -117,6 +116,8 @@ export function calcDashboardStats(games) {
 
 export function calcRoleNominations(games, players) {
   const roles = ["citizen", "sheriff", "mafia", "don"];
+  const totalGames = games.length;
+  const minGames = Math.max(1, Math.floor(totalGames * 0.1));
   const result = {};
   for (const role of roles) {
     const playerScores = [];
@@ -124,7 +125,7 @@ export function calcRoleNominations(games, players) {
       const roleGames = games.flatMap((g) =>
         g.players.filter((p) => p.playerId === player.id && p.role === role)
       );
-      if (roleGames.length < MIN_GAMES_FOR_NOMINATION) continue;
+      if (roleGames.length < minGames) continue;
       const totalScore = roleGames.reduce((sum, p) => sum + p.totalScore, 0);
       playerScores.push({
         playerId: player.id,
@@ -135,7 +136,7 @@ export function calcRoleNominations(games, players) {
     }
     result[role] = playerScores.sort((a, b) => b.avgScore - a.avgScore).slice(0, 3);
   }
-  return result;
+  return { nominations: result, minGames };
 }
 
 export function calcFormTrend(playerId, games, lastN = 10) {

@@ -6,7 +6,7 @@ import { getTeam, formatDate } from "../lib/utils";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { deleteGame } from "../lib/queries";
 
-export function GameDetail({ game, players, navigate, games, currentSeason, showToast, refreshGames, refreshAllGames }) {
+export function GameDetail({ game, players, navigate, games, currentSeason, showToast, refreshGames, refreshAllGames, tournaments }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!game) {
@@ -53,7 +53,12 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
           {TEAM_NAMES[game.winner]} победили
         </Badge>
       </div>
-      <p className="text-sm text-gray-500 mb-4 ml-11">{formatDate(game.date)}</p>
+      <p className="text-sm text-gray-500 mb-1 ml-11">{formatDate(game.date)}</p>
+      {game.tournamentId && (() => {
+        const t = (tournaments || []).find((x) => x.id === game.tournamentId);
+        return t ? <p className="text-sm text-indigo-600 mb-4 ml-11">{t.name}</p> : null;
+      })()}
+      {!game.tournamentId && <div className="mb-3" />}
 
       {/* Notes */}
       {game.notes && (
@@ -133,12 +138,10 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
       {/* Actions */}
       <AdminOnly>
         <div className="flex gap-2">
-          {currentSeason?.isActive && (
-            <button onClick={() => navigate("gameForm", game.id)}
-              className="flex items-center gap-1.5 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">
-              <Pencil size={14} /> Редактировать
-            </button>
-          )}
+          <button onClick={() => navigate("gameForm", game.id)}
+            className="flex items-center gap-1.5 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">
+            <Pencil size={14} /> Редактировать
+          </button>
           <button onClick={() => setConfirmDelete(true)}
             className="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-sm">
             <Trash2 size={14} /> Удалить

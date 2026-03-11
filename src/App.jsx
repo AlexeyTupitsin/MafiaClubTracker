@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Loader } from "lucide-react";
 
-import { getSeasons, getPlayers, getGamesBySeason, getAllGames } from "./lib/queries";
+import { getSeasons, getPlayers, getGamesBySeason, getAllGames, getTournamentsBySeason } from "./lib/queries";
 import { Toast, EmptyState } from "./components/ui";
 import { Header } from "./components/layout/Header";
 import { TabBar } from "./components/layout/TabBar";
@@ -19,10 +19,12 @@ import { PlayerCompare } from "./pages/PlayerCompare";
 import { SettingsPage } from "./pages/Settings";
 
 export default function App() {
+  const { isAdmin } = useAuth();
   const [seasons, setSeasons] = useState([]);
   const [players, setPlayers] = useState([]);
   const [games, setGames] = useState([]);
   const [allGames, setAllGames] = useState([]);
+  const [tournaments, setTournaments] = useState([]);
   const [currentSeasonId, setCurrentSeasonId] = useState(null);
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [selectedId, setSelectedId] = useState(null);
@@ -66,6 +68,14 @@ export default function App() {
     return data;
   }, []);
 
+  const refreshTournaments = useCallback(async (seasonId) => {
+    const sid = seasonId || currentSeasonId;
+    if (!sid) return [];
+    const data = await getTournamentsBySeason(sid);
+    setTournaments(data);
+    return data;
+  }, [currentSeasonId]);
+
   // Full data refresh (used after import/reset/demo)
   const refreshData = useCallback(async () => {
     const loadedSeasons = await getSeasons();
@@ -78,8 +88,11 @@ export default function App() {
     if (seasonId) {
       const loadedGames = await getGamesBySeason(seasonId);
       setGames(loadedGames);
+      const loadedTournaments = await getTournamentsBySeason(seasonId);
+      setTournaments(loadedTournaments);
     } else {
       setGames([]);
+      setTournaments([]);
     }
     const all = await getAllGames();
     setAllGames(all);
@@ -106,6 +119,8 @@ export default function App() {
         if (seasonId) {
           const loadedGames = await getGamesBySeason(seasonId);
           if (!cancelled) setGames(loadedGames);
+          const loadedTournaments = await getTournamentsBySeason(seasonId);
+          if (!cancelled) setTournaments(loadedTournaments);
         }
 
         const all = await getAllGames();
@@ -130,11 +145,13 @@ export default function App() {
       return;
     }
     if (!currentSeasonId) return;
-    async function loadGames() {
+    async function loadSeasonData() {
       const loaded = await getGamesBySeason(currentSeasonId);
       setGames(loaded);
+      const loadedTournaments = await getTournamentsBySeason(currentSeasonId);
+      setTournaments(loadedTournaments);
     }
-    loadGames();
+    loadSeasonData();
   }, [currentSeasonId, loading]);
 
   const currentSeason = useMemo(
@@ -185,6 +202,7 @@ export default function App() {
             seasons={seasons}
             currentSeasonId={currentSeasonId}
             allGames={allGames}
+            tournaments={tournaments}
           />
         );
       case "gameDetail":
@@ -198,6 +216,7 @@ export default function App() {
             showToast={showToast}
             refreshGames={refreshGames}
             refreshAllGames={refreshAllGames}
+            tournaments={tournaments}
           />
         );
       case "gameForm":
@@ -208,10 +227,12 @@ export default function App() {
             currentSeasonId={currentSeasonId}
             currentSeason={currentSeason}
             navigate={navigate}
-            editingGame={selectedId ? games.find((g) => g.id === selectedId) : null}
+            editingGame={selectedId ? (games.find((g) => g.id === selectedId) || allGames.find((g) => g.id === selectedId)) : null}
             showToast={showToast}
             refreshGames={refreshGames}
             refreshAllGames={refreshAllGames}
+            tournaments={tournaments}
+            refreshTournaments={refreshTournaments}
           />
         );
       case "rating":
@@ -223,6 +244,7 @@ export default function App() {
             currentSeasonId={currentSeasonId}
             navigate={navigate}
             allGames={allGames}
+            tournaments={tournaments}
           />
         );
       case "players":
@@ -230,6 +252,7 @@ export default function App() {
           <PlayerList
             players={players}
             games={games}
+            allGames={allGames}
             navigate={navigate}
             showToast={showToast}
             refreshPlayers={refreshPlayers}
@@ -245,6 +268,7 @@ export default function App() {
             seasons={seasons}
             currentSeasonId={currentSeasonId}
             allGames={allGames}
+            tournaments={tournaments}
           />
         );
       case "compare":
@@ -260,6 +284,7 @@ export default function App() {
           />
         );
       case "settings":
+        if (!isAdmin) return <Dashboard games={games} players={players} navigate={navigate} currentSeason={currentSeason} seasons={seasons} currentSeasonId={currentSeasonId} allGames={allGames} />;
         return (
           <SettingsPage
             seasons={seasons}
@@ -273,6 +298,8 @@ export default function App() {
             refreshGames={refreshGames}
             refreshPlayers={refreshPlayers}
             refreshAllGames={refreshAllGames}
+            tournaments={tournaments}
+            refreshTournaments={refreshTournaments}
           />
         );
       default:

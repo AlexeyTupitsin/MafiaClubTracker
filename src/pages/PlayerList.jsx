@@ -4,7 +4,7 @@ import { Modal, ConfirmDialog, EmptyState, Badge } from "../components/ui";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { createPlayer, updatePlayer } from "../lib/queries";
 
-export function PlayerList({ players, games, navigate, showToast, refreshPlayers }) {
+export function PlayerList({ players, games, allGames, navigate, showToast, refreshPlayers }) {
   const [showModal, setShowModal] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [nickname, setNickname] = useState("");
@@ -77,7 +77,7 @@ export function PlayerList({ players, games, navigate, showToast, refreshPlayers
   };
 
   const getPlayerGameCount = (playerId) => {
-    return games.filter((g) => g.players.some((p) => p.playerId === playerId)).length;
+    return (allGames || games).filter((g) => g.players.some((p) => p.playerId === playerId)).length;
   };
 
   return (

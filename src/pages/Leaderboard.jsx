@@ -3,18 +3,23 @@ import { Trophy, ChevronUp, ChevronDown } from "lucide-react";
 import { Badge, EmptyState } from "../components/ui";
 import { calcPlayerStats } from "../lib/metrics";
 
-export function Leaderboard({ games, players, seasons, currentSeasonId, navigate, allGames }) {
+export function Leaderboard({ games, players, seasons, currentSeasonId, navigate, allGames, tournaments }) {
   const [seasonFilter, setSeasonFilter] = useState("all");
+  const [tournamentFilter, setTournamentFilter] = useState("all");
   const [sortCol, setSortCol] = useState("avgScore");
   const [sortDir, setSortDir] = useState("desc");
 
   // Determine active game set
   const activeGames = useMemo(() => {
-    if (seasonFilter === "current") return games;
-    if (seasonFilter === "all") return allGames;
-    if (seasonFilter === currentSeasonId) return games;
-    return allGames.filter((g) => g.seasonId === seasonFilter);
-  }, [seasonFilter, games, currentSeasonId, allGames]);
+    let result;
+    if (seasonFilter === "all") result = allGames;
+    else if (seasonFilter === currentSeasonId) result = games;
+    else result = allGames.filter((g) => g.seasonId === seasonFilter);
+
+    if (tournamentFilter === "__none__") return result.filter((g) => !g.tournamentId);
+    if (tournamentFilter !== "all") return result.filter((g) => g.tournamentId === tournamentFilter);
+    return result;
+  }, [seasonFilter, tournamentFilter, games, currentSeasonId, allGames]);
 
   // Build rating data
   const ratingCalc = useMemo(() => {
@@ -102,33 +107,30 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
         <h2 className="text-xl font-bold">Рейтинг</h2>
       </div>
 
-      {/* Season filter */}
+      {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-4">
-        <button onClick={() => setSeasonFilter("current")}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-            seasonFilter === "current"
-              ? "bg-indigo-100 text-indigo-700"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}>
-          Текущий сезон
-        </button>
-        <button onClick={() => setSeasonFilter("all")}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-            seasonFilter === "all"
-              ? "bg-indigo-100 text-indigo-700"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}>
-          Все сезоны
-        </button>
-        {seasons.length > 1 && (
+        <select
+          value={seasonFilter}
+          onChange={(e) => setSeasonFilter(e.target.value)}
+          className="px-3 py-1.5 rounded-lg text-sm border outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+        >
+          <option value="all">Все сезоны</option>
+          {seasons.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+
+        {/* Tournament filter */}
+        {(tournaments || []).length > 0 && (
           <select
-            value={seasonFilter === "current" || seasonFilter === "all" ? "" : seasonFilter}
-            onChange={(e) => { if (e.target.value) setSeasonFilter(e.target.value); }}
+            value={tournamentFilter}
+            onChange={(e) => setTournamentFilter(e.target.value)}
             className="px-3 py-1.5 rounded-lg text-sm border outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
           >
-            <option value="">Выбрать сезон...</option>
-            {seasons.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
+            <option value="all">Все турниры</option>
+            <option value="__none__">Без турнира</option>
+            {(tournaments || []).map((t) => (
+              <option key={t.id} value={t.id}>{t.name} ({t.date})</option>
             ))}
           </select>
         )}

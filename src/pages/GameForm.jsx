@@ -3,10 +3,16 @@ import { ArrowLeft, Check, Users, X, AlertTriangle, Shield, Sword } from "lucide
 import { Badge } from "../components/ui";
 import { ROLE_NAMES, ROLE_OPTIONS, ROLE_REQUIRED, ROLE_BADGE_VARIANT, RESULT_NAMES } from "../lib/constants";
 import { getTeam } from "../lib/utils";
-import { createGame, updateGame } from "../lib/queries";
+import { createGame, updateGame, createTournament } from "../lib/queries";
 
-export function GameForm({ players, games, currentSeasonId, currentSeason, navigate, editingGame, showToast, refreshGames, refreshAllGames }) {
+export function GameForm({ players, games, currentSeasonId, currentSeason, navigate, editingGame, showToast, refreshGames, refreshAllGames, tournaments, refreshTournaments }) {
   const [step, setStep] = useState(1);
+
+  // Tournament selection
+  const [tournamentId, setTournamentId] = useState("");
+  const [newTournamentMode, setNewTournamentMode] = useState(false);
+  const [newTournamentName, setNewTournamentName] = useState("");
+  const [newTournamentDate, setNewTournamentDate] = useState(new Date().toISOString().split("T")[0]);
 
   // Step 1: seats
   const initSeats = () => Array.from({ length: 10 }, (_, i) => ({ seat: i + 1, playerId: "" }));
@@ -33,6 +39,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     setBonusComments(sorted.map((p) => p.bonusComment || ""));
     setNotes(editingGame.notes || "");
     setGameDate(editingGame.date.split("T")[0]);
+    setTournamentId(editingGame.tournamentId || "");
   }, [editingGame]);
 
   const activePlayers = useMemo(() => {
@@ -116,9 +123,22 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     });
 
     try {
+      // Resolve tournament ID (create new if needed)
+      let resolvedTournamentId = tournamentId || null;
+      if (newTournamentMode && newTournamentName.trim()) {
+        const t = await createTournament({
+          seasonId: currentSeasonId,
+          name: newTournamentName.trim(),
+          date: newTournamentDate,
+        });
+        resolvedTournamentId = t.id;
+        refreshTournaments?.();
+      }
+
       if (editingGame) {
         await updateGame({
           id: editingGame.id,
+          tournamentId: resolvedTournamentId,
           date: new Date(gameDate).toISOString(),
           winner,
           players: gamePlayers,
@@ -132,6 +152,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
         const gameNumber = games.reduce((max, g) => Math.max(max, g.gameNumber), 0) + 1;
         await createGame({
           seasonId: currentSeasonId,
+          tournamentId: resolvedTournamentId,
           gameNumber,
           date: new Date(gameDate).toISOString(),
           winner,
@@ -160,6 +181,56 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
         <h2 className="text-xl font-bold">
           {editingGame ? `Редактирование игры №${editingGame.gameNumber}` : "Новая игра"}
         </h2>
+      </div>
+
+      {/* Tournament selection */}
+      <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Турнир (игровой вечер)</label>
+        {!newTournamentMode ? (
+          <select
+            value={tournamentId}
+            onChange={(e) => {
+              if (e.target.value === "__new__") {
+                setNewTournamentMode(true);
+                setTournamentId("");
+              } else {
+                setTournamentId(e.target.value);
+              }
+            }}
+            className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">Без турнира</option>
+            {(tournaments || []).map((t) => (
+              <option key={t.id} value={t.id}>{t.name} ({t.date})</option>
+            ))}
+            <option value="__new__">+ Новый турнир</option>
+          </select>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newTournamentName}
+                onChange={(e) => setNewTournamentName(e.target.value)}
+                className="flex-1 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Название турнира"
+                autoFocus
+              />
+              <input
+                type="date"
+                value={newTournamentDate}
+                onChange={(e) => setNewTournamentDate(e.target.value)}
+                className="border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <button
+              onClick={() => { setNewTournamentMode(false); setNewTournamentName(""); }}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Отмена — выбрать существующий
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Progress bar */}

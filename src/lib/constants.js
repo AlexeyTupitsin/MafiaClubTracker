@@ -19,12 +19,10 @@ export const RESULT_NAMES = {
 
 export const ROLE_REQUIRED = { citizen: 6, sheriff: 1, mafia: 2, don: 1 };
 
-export const MIN_GAMES_FOR_NOMINATION = 3;
-
 export const NOMINATION_CONFIG = [
-  { role: "citizen", emoji: "🏛️", label: "Лучший мирный" },
+  { role: "citizen", emoji: "🏛️", label: "Лучший красный" },
   { role: "sheriff", emoji: "🛡️", label: "Лучший шериф" },
-  { role: "mafia", emoji: "🔫", label: "Лучший мафиози" },
+  { role: "mafia", emoji: "🔫", label: "Лучший чёрный" },
   { role: "don", emoji: "👑", label: "Лучший дон" },
 ];
 

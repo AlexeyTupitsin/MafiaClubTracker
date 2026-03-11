@@ -9,6 +9,8 @@ import {
   Database,
   RefreshCw,
   CheckCircle,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { Modal, ConfirmDialog, Badge } from "../components/ui";
 import { getTeam, formatDate } from "../lib/utils";
@@ -19,6 +21,7 @@ import {
   getGameCountBySeason,
   createPlayer,
   createGame,
+  createTournament,
   exportAllData,
   importData,
   resetAllData,
@@ -29,6 +32,7 @@ export function SettingsPage({
   currentSeasonId, setCurrentSeasonId,
   showToast, refreshData,
   refreshSeasons, refreshGames, refreshPlayers, refreshAllGames,
+  tournaments, refreshTournaments,
 }) {
   const [showNewSeason, setShowNewSeason] = useState(false);
   const [seasonName, setSeasonName] = useState("");
@@ -42,6 +46,8 @@ export function SettingsPage({
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetWord, setResetWord] = useState("");
   const [confirmImport, setConfirmImport] = useState(null);
+  const [editingSeasonId, setEditingSeasonId] = useState(null);
+  const [editingSeasonName, setEditingSeasonName] = useState("");
 
   // --- Season handlers ---
   const handleCreateSeason = async () => {
@@ -106,6 +112,19 @@ export function SettingsPage({
     }
   };
 
+  const handleRenameSeason = async (id) => {
+    const trimmed = editingSeasonName.trim();
+    if (!trimmed) return;
+    try {
+      await updateSeason(id, { name: trimmed });
+      await refreshSeasons();
+      setEditingSeasonId(null);
+      showToast("Сезон переименован");
+    } catch (err) {
+      setError(err.message || "Ошибка переименования");
+    }
+  };
+
   // --- Demo data ---
   const generateDemoData = async () => {
     const demoNicknames = [
@@ -149,10 +168,27 @@ export function SettingsPage({
       const maxGameNum = games.reduce((max, g) => Math.max(max, g.gameNumber), 0);
       const numGames = Math.min(10, Math.floor(activePlayers.length / 10) * 5);
 
+      // Create demo tournaments (group games into evenings)
+      const demoTournaments = [];
+      const tournamentsToCreate = Math.max(1, Math.ceil(numGames / 3));
+      for (let t = 0; t < tournamentsToCreate; t++) {
+        const tournamentDate = new Date(Date.now() - (tournamentsToCreate - 1 - t) * 7 * 86400000);
+        const tournament = await createTournament({
+          seasonId: currentSeasonId,
+          name: `Вечер ${t + 1}`,
+          date: tournamentDate.toISOString().split("T")[0],
+        });
+        demoTournaments.push(tournament);
+      }
+
       for (let i = 0; i < numGames; i++) {
         const shuffledPlayers = [...activePlayers].sort(() => Math.random() - 0.5).slice(0, 10);
         const shuffledRoles = [...roleSet].sort(() => Math.random() - 0.5);
         const winner = Math.random() > 0.45 ? "red" : "black";
+
+        // Assign game to a tournament
+        const tournamentIdx = Math.min(Math.floor(i / 3), demoTournaments.length - 1);
+        const tournament = demoTournaments[tournamentIdx];
 
         const gamePlayers = shuffledPlayers.map((player, idx) => {
           const role = shuffledRoles[idx];
@@ -175,6 +211,7 @@ export function SettingsPage({
 
         await createGame({
           seasonId: currentSeasonId,
+          tournamentId: tournament.id,
           gameNumber: maxGameNum + i + 1,
           date: new Date(Date.now() - (numGames - 1 - i) * 86400000).toISOString(),
           winner,
@@ -185,6 +222,7 @@ export function SettingsPage({
 
       await refreshGames();
       await refreshAllGames();
+      await refreshTournaments?.();
       setConfirmDemo(false);
       setError("");
       showToast(`Создано ${newPlayers.length} игроков и ${numGames} игр`);
@@ -249,10 +287,12 @@ export function SettingsPage({
   const handleImportConfirm = async () => {
     try {
       await importData(confirmImport);
-      await refreshData();
       setConfirmImport(null);
+      await refreshData();
       showToast("Данные импортированы");
     } catch (err) {
+      console.error("Import error:", err);
+      setConfirmImport(null);
       setError(err.message || "Ошибка импорта");
     }
   };
@@ -302,7 +342,34 @@ export function SettingsPage({
                   season.id === currentSeasonId ? "border-indigo-200 bg-indigo-50" : ""
                 }`}>
                 <div className="min-w-0">
-                  <div className="font-medium truncate">{season.name}</div>
+                  {editingSeasonId === season.id ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={editingSeasonName}
+                        onChange={(e) => setEditingSeasonName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleRenameSeason(season.id); if (e.key === "Escape") setEditingSeasonId(null); }}
+                        className="border rounded px-2 py-0.5 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"
+                        autoFocus
+                      />
+                      <button onClick={() => handleRenameSeason(season.id)}
+                        className="p-1 hover:bg-green-100 rounded transition-colors" title="Сохранить">
+                        <Check size={14} className="text-green-600" />
+                      </button>
+                      <button onClick={() => setEditingSeasonId(null)}
+                        className="p-1 hover:bg-gray-100 rounded transition-colors" title="Отмена">
+                        <X size={14} className="text-gray-400" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium truncate">{season.name}</span>
+                      <button onClick={() => { setEditingSeasonId(season.id); setEditingSeasonName(season.name); }}
+                        className="p-1 hover:bg-gray-100 rounded transition-colors" title="Переименовать">
+                        <Pencil size={12} className="text-gray-400" />
+                      </button>
+                    </div>
+                  )}
                   <div className="text-sm text-gray-500">
                     {formatDate(season.startDate)}
                     {season.endDate ? ` — ${formatDate(season.endDate)}` : " — ..."}
