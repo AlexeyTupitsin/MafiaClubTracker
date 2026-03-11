@@ -1,0 +1,229 @@
+import { useState } from "react";
+import { Plus, Users, UserPlus, Pencil, X, Check } from "lucide-react";
+import { Modal, ConfirmDialog, EmptyState, Badge } from "../components/ui";
+import { generateId } from "../lib/utils";
+
+export function PlayerList({ players, setPlayers, games, savePlayers, navigate, showToast }) {
+  const [showModal, setShowModal] = useState(false);
+  const [editingPlayer, setEditingPlayer] = useState(null);
+  const [nickname, setNickname] = useState("");
+  const [realName, setRealName] = useState("");
+  const [error, setError] = useState("");
+  const [confirmDeactivate, setConfirmDeactivate] = useState(null);
+
+  const openAdd = () => {
+    setEditingPlayer(null);
+    setNickname("");
+    setRealName("");
+    setError("");
+    setShowModal(true);
+  };
+
+  const openEdit = (player) => {
+    setEditingPlayer(player);
+    setNickname(player.nickname);
+    setRealName(player.realName || "");
+    setError("");
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    const trimmed = nickname.trim();
+    if (!trimmed) {
+      setError("Введите никнейм");
+      return;
+    }
+    const duplicate = players.find(
+      (p) =>
+        p.nickname.toLowerCase() === trimmed.toLowerCase() &&
+        p.id !== editingPlayer?.id
+    );
+    if (duplicate) {
+      setError("Игрок с таким ником уже существует");
+      return;
+    }
+
+    let updated;
+    if (editingPlayer) {
+      updated = players.map((p) =>
+        p.id === editingPlayer.id
+          ? { ...p, nickname: trimmed, realName: realName.trim() || null }
+          : p
+      );
+    } else {
+      updated = [
+        ...players,
+        {
+          id: generateId(),
+          nickname: trimmed,
+          realName: realName.trim() || null,
+          createdAt: new Date().toISOString(),
+          isActive: true,
+        },
+      ];
+    }
+
+    setPlayers(updated);
+    await savePlayers(updated);
+    setShowModal(false);
+    showToast?.(editingPlayer ? `Игрок «${trimmed}» обновлён` : `Игрок «${trimmed}» добавлен`);
+  };
+
+  const handleToggleActive = async (player) => {
+    const updated = players.map((p) =>
+      p.id === player.id ? { ...p, isActive: !p.isActive } : p
+    );
+    setPlayers(updated);
+    await savePlayers(updated);
+    setConfirmDeactivate(null);
+    showToast?.(player.isActive ? `Игрок «${player.nickname}» деактивирован` : `Игрок «${player.nickname}» активирован`);
+  };
+
+  const getPlayerGameCount = (playerId) => {
+    return games.filter((g) => g.players.some((p) => p.playerId === playerId)).length;
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">Игроки</h2>
+        <button onClick={openAdd}
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm">
+          <Plus size={16} /> Добавить игрока
+        </button>
+      </div>
+
+      {players.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="Нет игроков"
+          description="Добавьте первого игрока клуба"
+          action={
+            <button onClick={openAdd}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm">
+              <UserPlus size={16} /> Добавить игрока
+            </button>
+          }
+        />
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Ник</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Имя</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Статус</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Игры</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-500">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {players.map((player) => (
+                  <tr key={player.id}
+                    className={`border-b last:border-b-0 hover:bg-gray-50 transition-colors ${
+                      !player.isActive ? "opacity-50" : ""
+                    }`}>
+                    <td className="px-4 py-3 font-medium">
+                      <button onClick={(e) => { e.stopPropagation(); navigate("playerProfile", player.id); }}
+                        className="text-indigo-600 hover:text-indigo-800 hover:underline">
+                        {player.nickname}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">{player.realName || "—"}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={player.isActive ? "active" : "inactive"}>
+                        {player.isActive ? "Активен" : "Неактивен"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">{getPlayerGameCount(player.id)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => openEdit(player)}
+                          className="p-1.5 hover:bg-gray-100 rounded transition-colors" title="Редактировать">
+                          <Pencil size={16} className="text-gray-500" />
+                        </button>
+                        <button onClick={() => setConfirmDeactivate(player)}
+                          className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                          title={player.isActive ? "Деактивировать" : "Активировать"}>
+                          {player.isActive
+                            ? <X size={16} className="text-gray-500" />
+                            : <Check size={16} className="text-green-600" />
+                          }
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Modal */}
+      {showModal && (
+        <Modal
+          title={editingPlayer ? "Редактировать игрока" : "Новый игрок"}
+          onClose={() => setShowModal(false)}
+          footer={
+            <>
+              <button onClick={() => setShowModal(false)}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">
+                Отмена
+              </button>
+              <button onClick={handleSave}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm">
+                Сохранить
+              </button>
+            </>
+          }>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Никнейм <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={nickname}
+                onChange={(e) => { setNickname(e.target.value); setError(""); }}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                placeholder="Игровой ник"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Настоящее имя
+              </label>
+              <input
+                type="text"
+                value={realName}
+                onChange={(e) => setRealName(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                placeholder="Необязательно"
+              />
+            </div>
+            {error && <p className="text-red-600 text-sm">{error}</p>}
+          </div>
+        </Modal>
+      )}
+
+      {/* Deactivate/Activate Confirm */}
+      {confirmDeactivate && (
+        <ConfirmDialog
+          title={confirmDeactivate.isActive ? "Деактивировать игрока?" : "Активировать игрока?"}
+          message={
+            confirmDeactivate.isActive
+              ? `Игрок «${confirmDeactivate.nickname}» не будет отображаться при создании игр.`
+              : `Игрок «${confirmDeactivate.nickname}» снова будет доступен для игр.`
+          }
+          onConfirm={() => handleToggleActive(confirmDeactivate)}
+          onCancel={() => setConfirmDeactivate(null)}
+          confirmText={confirmDeactivate.isActive ? "Деактивировать" : "Активировать"}
+          danger={confirmDeactivate.isActive}
+        />
+      )}
+    </div>
+  );
+}
