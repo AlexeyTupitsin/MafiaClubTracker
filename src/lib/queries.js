@@ -1,4 +1,46 @@
-import { supabase } from './supabase';
+import { getAccessToken } from './supabase';
+
+// ============================================================
+// REST helper: direct fetch to bypass supabase-js hanging issue
+// ============================================================
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+async function rest(path, options = {}) {
+  const { method = 'GET', body, headers: extra = {}, single = false } = options;
+
+  const token = getAccessToken();
+
+  const headers = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+    'Prefer': method === 'POST' ? 'return=representation' :
+              method === 'PATCH' ? 'return=representation' :
+              method === 'DELETE' ? 'return=representation' : undefined,
+    ...extra,
+  };
+
+  // Remove undefined headers
+  Object.keys(headers).forEach(k => headers[k] === undefined && delete headers[k]);
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || err.error || `HTTP ${res.status}`);
+  }
+
+  if (method === 'DELETE' && !options.returning) return null;
+
+  const data = await res.json();
+  return single ? data[0] : data;
+}
 
 // ============================================================
 // Helpers: snake_case <-> camelCase transformation
@@ -72,47 +114,36 @@ function toFrontendGame(row) {
 // ============================================================
 
 export async function getSeasons() {
-  const { data, error } = await supabase
-    .from('seasons')
-    .select('*')
-    .order('start_date', { ascending: false });
-  if (error) throw error;
+  const data = await rest('seasons?select=*&order=start_date.desc');
   return data.map(toFrontendSeason);
 }
 
 export async function createSeason(season) {
   // Deactivate current active season
-  await supabase
-    .from('seasons')
-    .update({ is_active: false, end_date: new Date().toISOString().split('T')[0] })
-    .eq('is_active', true);
+  await rest('seasons?is_active=eq.true', {
+    method: 'PATCH',
+    body: { is_active: false, end_date: new Date().toISOString().split('T')[0] },
+  });
 
-  const { data, error } = await supabase
-    .from('seasons')
-    .insert(toDbSeason(season))
-    .select()
-    .single();
-  if (error) throw error;
-  return toFrontendSeason(data);
+  const row = await rest('seasons', {
+    method: 'POST',
+    body: toDbSeason(season),
+    single: true,
+  });
+  return toFrontendSeason(row);
 }
 
 export async function updateSeason(id, updates) {
-  const { data, error } = await supabase
-    .from('seasons')
-    .update(toDbSeason(updates))
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) throw error;
-  return toFrontendSeason(data);
+  const row = await rest(`seasons?id=eq.${id}`, {
+    method: 'PATCH',
+    body: toDbSeason(updates),
+    single: true,
+  });
+  return toFrontendSeason(row);
 }
 
 export async function deleteSeason(id) {
-  const { error } = await supabase
-    .from('seasons')
-    .delete()
-    .eq('id', id);
-  if (error) throw error;
+  await rest(`seasons?id=eq.${id}`, { method: 'DELETE' });
 }
 
 // ============================================================
@@ -120,33 +151,26 @@ export async function deleteSeason(id) {
 // ============================================================
 
 export async function getPlayers() {
-  const { data, error } = await supabase
-    .from('players')
-    .select('*')
-    .order('nickname');
-  if (error) throw error;
+  const data = await rest('players?select=*&order=nickname');
   return data.map(toFrontendPlayer);
 }
 
 export async function createPlayer(player) {
-  const { data, error } = await supabase
-    .from('players')
-    .insert(toDbPlayer(player))
-    .select()
-    .single();
-  if (error) throw error;
-  return toFrontendPlayer(data);
+  const row = await rest('players', {
+    method: 'POST',
+    body: toDbPlayer(player),
+    single: true,
+  });
+  return toFrontendPlayer(row);
 }
 
 export async function updatePlayer(id, updates) {
-  const { data, error } = await supabase
-    .from('players')
-    .update(toDbPlayer(updates))
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) throw error;
-  return toFrontendPlayer(data);
+  const row = await rest(`players?id=eq.${id}`, {
+    method: 'PATCH',
+    body: toDbPlayer(updates),
+    single: true,
+  });
+  return toFrontendPlayer(row);
 }
 
 // ============================================================
@@ -154,38 +178,28 @@ export async function updatePlayer(id, updates) {
 // ============================================================
 
 export async function getGamesBySeason(seasonId) {
-  const { data, error } = await supabase
-    .from('games')
-    .select('*, game_players(*)')
-    .eq('season_id', seasonId)
-    .order('game_number', { ascending: true });
-  if (error) throw error;
+  const data = await rest(`games?select=*,game_players(*)&season_id=eq.${seasonId}&order=game_number`);
   return data.map(toFrontendGame);
 }
 
 export async function getAllGames() {
-  const { data, error } = await supabase
-    .from('games')
-    .select('*, game_players(*)')
-    .order('date', { ascending: false });
-  if (error) throw error;
+  const data = await rest('games?select=*,game_players(*)&order=date.desc');
   return data.map(toFrontendGame);
 }
 
 export async function createGame(game) {
   // Insert game row
-  const { data: gameRow, error: gameError } = await supabase
-    .from('games')
-    .insert({
+  const gameRow = await rest('games', {
+    method: 'POST',
+    body: {
       season_id: game.seasonId,
       game_number: game.gameNumber,
       date: game.date,
       winner: game.winner,
       notes: game.notes || null,
-    })
-    .select()
-    .single();
-  if (gameError) throw gameError;
+    },
+    single: true,
+  });
 
   // Insert game_players
   const gpRows = game.players.map((p) => ({
@@ -200,40 +214,28 @@ export async function createGame(game) {
     total_score: p.totalScore,
   }));
 
-  const { error: gpError } = await supabase
-    .from('game_players')
-    .insert(gpRows);
-  if (gpError) throw gpError;
+  await rest('game_players', { method: 'POST', body: gpRows });
 
   // Return full game with players
-  const { data: full, error: fullError } = await supabase
-    .from('games')
-    .select('*, game_players(*)')
-    .eq('id', gameRow.id)
-    .single();
-  if (fullError) throw fullError;
+  const full = await rest(`games?select=*,game_players(*)&id=eq.${gameRow.id}`, { single: true });
   return toFrontendGame(full);
 }
 
 export async function updateGame(game) {
   // Update game row
-  const { error: gameError } = await supabase
-    .from('games')
-    .update({
+  await rest(`games?id=eq.${game.id}`, {
+    method: 'PATCH',
+    body: {
       date: game.date,
       winner: game.winner,
       notes: game.notes || null,
-    })
-    .eq('id', game.id);
-  if (gameError) throw gameError;
+    },
+  });
 
-  // Delete old game_players and insert new ones
-  const { error: delError } = await supabase
-    .from('game_players')
-    .delete()
-    .eq('game_id', game.id);
-  if (delError) throw delError;
+  // Delete old game_players
+  await rest(`game_players?game_id=eq.${game.id}`, { method: 'DELETE' });
 
+  // Insert new game_players
   const gpRows = game.players.map((p) => ({
     game_id: game.id,
     player_id: p.playerId,
@@ -246,28 +248,15 @@ export async function updateGame(game) {
     total_score: p.totalScore,
   }));
 
-  const { error: gpError } = await supabase
-    .from('game_players')
-    .insert(gpRows);
-  if (gpError) throw gpError;
+  await rest('game_players', { method: 'POST', body: gpRows });
 
   // Return full game
-  const { data: full, error: fullError } = await supabase
-    .from('games')
-    .select('*, game_players(*)')
-    .eq('id', game.id)
-    .single();
-  if (fullError) throw fullError;
+  const full = await rest(`games?select=*,game_players(*)&id=eq.${game.id}`, { single: true });
   return toFrontendGame(full);
 }
 
 export async function deleteGame(gameId) {
-  // game_players cascade on delete
-  const { error } = await supabase
-    .from('games')
-    .delete()
-    .eq('id', gameId);
-  if (error) throw error;
+  await rest(`games?id=eq.${gameId}`, { method: 'DELETE' });
 }
 
 // ============================================================
@@ -279,7 +268,6 @@ export async function exportAllData() {
   const players = await getPlayers();
   const allGames = await getAllGames();
 
-  // Group games by seasonId for export format compatibility
   const gamesBySeason = {};
   for (const s of seasons) {
     gamesBySeason[s.id] = allGames.filter((g) => g.seasonId === s.id);
@@ -296,57 +284,66 @@ export async function exportAllData() {
 
 export async function importData(data) {
   // Clear existing data (order matters for foreign keys)
-  await supabase.from('game_players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  await supabase.from('games').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  await supabase.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  await supabase.from('seasons').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await rest('game_players?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
+  await rest('games?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
+  await rest('players?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
+  await rest('seasons?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
 
-  // Insert seasons
-  if (data.seasons?.length > 0) {
-    const seasonRows = data.seasons.map((s) => ({
-      id: s.id,
-      name: s.name,
-      start_date: s.startDate,
-      end_date: s.endDate || null,
-      is_active: s.isActive,
-    }));
-    const { error } = await supabase.from('seasons').insert(seasonRows);
-    if (error) throw error;
+  // ID maps: old ID → new UUID (DB generates UUIDs)
+  const seasonIdMap = {};
+  const playerIdMap = {};
+
+  // Insert seasons (let DB generate UUIDs)
+  for (const s of (data.seasons || [])) {
+    const row = await rest('seasons', {
+      method: 'POST',
+      body: {
+        name: s.name,
+        start_date: s.startDate,
+        end_date: s.endDate || null,
+        is_active: s.isActive,
+      },
+      single: true,
+    });
+    seasonIdMap[s.id] = row.id;
   }
 
-  // Insert players
-  if (data.players?.length > 0) {
-    const playerRows = data.players.map((p) => ({
-      id: p.id,
-      nickname: p.nickname,
-      real_name: p.realName || null,
-      is_active: p.isActive !== false,
-    }));
-    const { error } = await supabase.from('players').insert(playerRows);
-    if (error) throw error;
+  // Insert players (let DB generate UUIDs)
+  for (const p of (data.players || [])) {
+    const row = await rest('players', {
+      method: 'POST',
+      body: {
+        nickname: p.nickname,
+        real_name: p.realName || null,
+        is_active: p.isActive !== false,
+      },
+      single: true,
+    });
+    playerIdMap[p.id] = row.id;
   }
 
-  // Insert games + game_players
-  for (const [seasonId, seasonGames] of Object.entries(data.games || {})) {
+  // Insert games + game_players (map old IDs to new UUIDs)
+  for (const [oldSeasonId, seasonGames] of Object.entries(data.games || {})) {
+    const newSeasonId = seasonIdMap[oldSeasonId];
+    if (!newSeasonId) continue;
+
     for (const game of seasonGames) {
-      const { data: gameRow, error: gameError } = await supabase
-        .from('games')
-        .insert({
-          id: game.id,
-          season_id: seasonId,
+      const gameRow = await rest('games', {
+        method: 'POST',
+        body: {
+          season_id: newSeasonId,
           game_number: game.gameNumber,
           date: game.date,
           winner: game.winner,
           notes: game.notes || null,
-        })
-        .select()
-        .single();
-      if (gameError) throw gameError;
+        },
+        single: true,
+      });
 
       if (game.players?.length > 0) {
         const gpRows = game.players.map((p) => ({
           game_id: gameRow.id,
-          player_id: p.playerId,
+          player_id: playerIdMap[p.playerId] || p.playerId,
           seat: p.seat,
           role: p.role,
           result: p.result,
@@ -355,40 +352,47 @@ export async function importData(data) {
           bonus_comment: p.bonusComment || null,
           total_score: p.totalScore,
         }));
-        const { error: gpError } = await supabase.from('game_players').insert(gpRows);
-        if (gpError) throw gpError;
+        await rest('game_players', { method: 'POST', body: gpRows });
       }
     }
   }
 }
 
 export async function resetAllData() {
-  // Clear all data
-  await supabase.from('game_players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  await supabase.from('games').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  await supabase.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  await supabase.from('seasons').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await rest('game_players?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
+  await rest('games?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
+  await rest('players?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
+  await rest('seasons?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
 
-  // Create first season
-  const { data, error } = await supabase
-    .from('seasons')
-    .insert({
+  const row = await rest('seasons', {
+    method: 'POST',
+    body: {
       name: 'Сезон 1',
       start_date: new Date().toISOString().split('T')[0],
       end_date: null,
       is_active: true,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return toFrontendSeason(data);
+    },
+    single: true,
+  });
+  return toFrontendSeason(row);
 }
 
 export async function getGameCountBySeason(seasonId) {
-  const { count, error } = await supabase
-    .from('games')
-    .select('*', { count: 'exact', head: true })
-    .eq('season_id', seasonId);
-  if (error) throw error;
-  return count;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/games?season_id=eq.${seasonId}&select=id`, {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Prefer': 'count=exact',
+      'Range-Unit': 'items',
+      'Range': '0-0',
+    },
+  });
+  const range = res.headers.get('content-range');
+  // format: "0-0/5" or "*/0"
+  if (range) {
+    const total = range.split('/')[1];
+    return parseInt(total, 10) || 0;
+  }
+  const data = await res.json();
+  return data.length;
 }

@@ -27,6 +27,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
 
   const showToast = useCallback((msg) => {
@@ -111,6 +112,7 @@ export default function App() {
         if (!cancelled) setAllGames(all);
       } catch (error) {
         console.error("Failed to load data:", error);
+        if (!cancelled) setLoadError(error?.message || String(error));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -143,9 +145,17 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex items-center gap-2 text-gray-500">
-          <Loader size={20} className="animate-spin" />
-          Загрузка...
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2 text-gray-500">
+            <Loader size={20} className="animate-spin" />
+            Загрузка...
+          </div>
+          {loadError && (
+            <div className="mt-4 max-w-md mx-auto bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+              <p className="font-medium mb-1">Ошибка загрузки данных:</p>
+              <p className="font-mono text-xs">{loadError}</p>
+            </div>
+          )}
         </div>
       </div>
     );
