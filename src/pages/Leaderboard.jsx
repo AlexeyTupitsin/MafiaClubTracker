@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { Trophy, ChevronUp, ChevronDown } from "lucide-react";
 import { Badge, EmptyState } from "../components/ui";
-import { calcPlayerStats } from "../lib/metrics";
+import { calcPlayerStats, calcExtendedNominations, calcKillRate } from "../lib/metrics";
+import { NOMINATION_CONFIG } from "../lib/constants";
 
 export function Leaderboard({ games, players, seasons, currentSeasonId, navigate, allGames, tournaments }) {
   const [seasonFilter, setSeasonFilter] = useState("all");
@@ -32,10 +33,12 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     const all = Array.from(playerIds).map((pid) => {
       const player = players.find((p) => p.id === pid);
       const stats = calcPlayerStats(pid, activeGames);
+      const kr = calcKillRate(pid, activeGames, seasons);
       return {
         id: pid,
         nickname: player?.nickname || "?",
         ...stats,
+        killRate: kr,
       };
     });
 
@@ -53,6 +56,11 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     if (showAll) return [];
     return ratingCalc.all.filter((p) => p.totalGames < ratingCalc.minGames);
   }, [ratingCalc, showAll]);
+
+  const { nominations: extNominations, minGames: nomMinGames } = useMemo(
+    () => calcExtendedNominations(activeGames, players),
+    [activeGames, players]
+  );
 
   // Sort
   const sorted = useMemo(() => {
@@ -92,6 +100,8 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     { key: "winrate", label: "WR%", sortable: true },
     { key: "totalScore", label: "Баллы", sortable: true },
     { key: "avgScore", label: "Ср. балл", sortable: true },
+    { key: "avgBonus", label: "Ср. доп.", sortable: true },
+    { key: "killRate", label: "ПУ%", sortable: false },
   ];
 
   const medalEmoji = (idx) => {
@@ -207,10 +217,87 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                     <td className="px-3 py-2.5 text-center">
                       {row.avgScore.toFixed(2)}
                     </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <span className={
+                        row.avgBonus > 0 ? "text-green-600" :
+                        row.avgBonus < 0 ? "text-red-500" : ""
+                      }>
+                        {row.avgBonus.toFixed(2)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-center text-xs">
+                      {row.killRate ? (
+                        <span className={
+                          row.killRate.killRate > 25 ? "text-red-500" :
+                          row.killRate.killRate < 10 ? "text-green-600" : ""
+                        }>
+                          {row.killRate.killRate.toFixed(1)}%
+                        </span>
+                      ) : "—"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Nominations */}
+      {activeGames.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold mb-3">Номинации</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {NOMINATION_CONFIG.map(({ role, emoji, label }) => {
+              const top = extNominations[role] || [];
+              return (
+                <div key={role} className="bg-white rounded-xl shadow-sm p-4">
+                  <div className="font-semibold mb-2">{emoji} {label}</div>
+                  {top.length === 0 ? (
+                    <p className="text-sm text-gray-400">Мин. {nomMinGames} игр за роль</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-1 font-medium text-gray-500">#</th>
+                            <th className="text-left py-1 font-medium text-gray-500">Ник</th>
+                            <th className="text-center py-1 font-medium text-gray-500">Игр</th>
+                            <th className="text-center py-1 font-medium text-gray-500">Побед</th>
+                            <th className="text-center py-1 font-medium text-gray-500">WR%</th>
+                            <th className="text-center py-1 font-medium text-gray-500">Ср. балл</th>
+                            <th className="text-center py-1 font-medium text-gray-500">Ср. доп.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {top.map((p, i) => (
+                            <tr key={p.playerId} className="border-b last:border-b-0">
+                              <td className="py-1 font-medium">{i + 1}</td>
+                              <td className="py-1">
+                                <button onClick={() => navigate("playerProfile", p.playerId)}
+                                  className="text-indigo-600 hover:underline">{p.nickname}</button>
+                              </td>
+                              <td className="py-1 text-center">{p.games}</td>
+                              <td className="py-1 text-center">{p.wins}</td>
+                              <td className="py-1 text-center">{p.winrate.toFixed(0)}%</td>
+                              <td className="py-1 text-center">{p.avgScore.toFixed(2)}</td>
+                              <td className="py-1 text-center">
+                                <span className={
+                                  p.avgBonus > 0 ? "text-green-600" :
+                                  p.avgBonus < 0 ? "text-red-500" : ""
+                                }>
+                                  {p.avgBonus > 0 ? "+" : ""}{p.avgBonus.toFixed(2)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

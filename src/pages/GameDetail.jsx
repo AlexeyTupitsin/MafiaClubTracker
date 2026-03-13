@@ -6,7 +6,7 @@ import { getTeam, formatDate } from "../lib/utils";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { deleteGame } from "../lib/queries";
 
-export function GameDetail({ game, players, navigate, games, currentSeason, showToast, refreshGames, refreshAllGames, tournaments }) {
+export function GameDetail({ game, players, navigate, games, currentSeason, showToast, refreshGames, refreshAllGames, tournaments, goBack }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!game) {
@@ -15,9 +15,9 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
         icon={Sword}
         title="Игра не найдена"
         action={
-          <button onClick={() => navigate("games")}
+          <button onClick={() => goBack()}
             className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 text-sm">
-            <ArrowLeft size={16} /> К списку игр
+            <ArrowLeft size={16} /> Назад
           </button>
         }
       />
@@ -44,7 +44,7 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
     <div>
       {/* Header */}
       <div className="flex items-center gap-3 mb-1">
-        <button onClick={() => navigate("games")}
+        <button onClick={() => goBack()}
           className="p-1.5 hover:bg-gray-100 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
@@ -99,6 +99,9 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                         className="text-indigo-600 hover:text-indigo-800 hover:underline">
                         {player?.nickname || "?"}
                       </button>
+                      {game.firstKilled === gp.playerId && (
+                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-600 font-medium">ПУ</span>
+                      )}
                     </td>
                     <td className="px-3 py-2.5">
                       <Badge variant={ROLE_BADGE_VARIANT[gp.role]}>{ROLE_NAMES[gp.role]}</Badge>

@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
 import { ArrowLeft, ArrowRightLeft, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { EmptyState } from "../components/ui";
-import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend } from "../lib/metrics";
+import { EmptyState, PlayerSelect } from "../components/ui";
+import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate } from "../lib/metrics";
 import { ROLE_NAMES } from "../lib/constants";
 
-export function PlayerCompare({ players, allGames, games, seasons, currentSeasonId, navigate, preselectedId }) {
+export function PlayerCompare({ players, allGames, games, seasons, currentSeasonId, navigate, preselectedId, goBack }) {
   const [playerAId, setPlayerAId] = useState(preselectedId || "");
   const [playerBId, setPlayerBId] = useState("");
   const [seasonFilter, setSeasonFilter] = useState("all");
@@ -27,6 +27,8 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
   const pairStats = useMemo(() => bothSelected ? calcPairStats(playerAId, playerBId, activeGames) : null, [playerAId, playerBId, activeGames, bothSelected]);
   const formA = useMemo(() => bothSelected ? calcFormTrend(playerAId, activeGames) : null, [playerAId, activeGames, bothSelected]);
   const formB = useMemo(() => bothSelected ? calcFormTrend(playerBId, activeGames) : null, [playerBId, activeGames, bothSelected]);
+  const krA = useMemo(() => bothSelected ? calcKillRate(playerAId, activeGames, seasons) : null, [playerAId, activeGames, seasons, bothSelected]);
+  const krB = useMemo(() => bothSelected ? calcKillRate(playerBId, activeGames, seasons) : null, [playerBId, activeGames, seasons, bothSelected]);
 
   const roleChartData = useMemo(() => {
     if (!bothSelected) return [];
@@ -49,7 +51,7 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
 
   const fmtScore = (v) => (v % 1 === 0 ? v : v.toFixed(1));
   const fmtWr = (v) => `${v.toFixed(0)}%`;
-  const fmtPairCell = (g, w) => g > 0 ? `${g} / ${fmtWr(w)}` : "—";
+  const fmtPairCell = (games, wins, winrate) => games > 0 ? `${games} / ${wins} (${winrate.toFixed(0)}%)` : "—";
 
   const renderBetter = (valA, valB, higherIsBetter = true) => {
     if (!valA || !valB) return ["", ""];
@@ -72,12 +74,14 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
     { label: "Winrate %", a: statsA.winrate, b: statsB.winrate, better: true, fmt: (v) => fmtWr(v) },
     { label: "Баллы", a: statsA.totalScore, b: statsB.totalScore, better: true, fmt: fmtScore },
     { label: "Ср. балл", a: statsA.avgScore, b: statsB.avgScore, better: true, fmt: (v) => v.toFixed(2) },
+    { label: "Ср. доп.", a: statsA.avgBonus, b: statsB.avgBonus, better: true, fmt: (v) => v.toFixed(2) },
+    { label: "KillRate", a: krA?.killRate ?? null, b: krB?.killRate ?? null, better: false, fmt: (v) => v != null ? `${v.toFixed(1)}%` : "—" },
   ] : [];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate("rating")} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
+        <button onClick={() => goBack()} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
         <h2 className="text-xl font-bold">Сравнение игроков</h2>
@@ -86,24 +90,22 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
       {/* Player selectors */}
       <div className="bg-white rounded-xl shadow-sm p-4">
         <div className="flex items-center gap-3">
-          <select value={playerAId} onChange={(e) => setPlayerAId(e.target.value)}
-            className="flex-1 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="">Игрок A...</option>
-            {players.filter((p) => p.id !== playerBId).map((p) => (
-              <option key={p.id} value={p.id}>{p.nickname}</option>
-            ))}
-          </select>
+          <PlayerSelect
+            value={playerAId}
+            onChange={setPlayerAId}
+            players={players.filter((p) => p.id !== playerBId)}
+            placeholder="Игрок A..."
+          />
           <button onClick={handleSwap} disabled={!bothSelected}
             className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-30 transition-colors">
             <ArrowRightLeft size={16} />
           </button>
-          <select value={playerBId} onChange={(e) => setPlayerBId(e.target.value)}
-            className="flex-1 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="">Игрок B...</option>
-            {players.filter((p) => p.id !== playerAId).map((p) => (
-              <option key={p.id} value={p.id}>{p.nickname}</option>
-            ))}
-          </select>
+          <PlayerSelect
+            value={playerBId}
+            onChange={setPlayerBId}
+            players={players.filter((p) => p.id !== playerAId)}
+            placeholder="Игрок B..."
+          />
         </div>
         <div className="mt-3">
           <select value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)}
@@ -177,30 +179,25 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-2 font-medium text-gray-500">Комбинация</th>
-                      <th className="text-center py-2 font-medium text-gray-500">Игр</th>
-                      <th className="text-center py-2 font-medium text-gray-500">Побед / WR%</th>
+                      <th className="text-center py-2 font-medium text-gray-500">Игр / Побед (WR%)</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr className="border-b">
                       <td className="py-2">Оба 🔴</td>
-                      <td className="py-2 text-center">{pairStats.bothRed.games}</td>
-                      <td className="py-2 text-center">{fmtPairCell(pairStats.bothRed.games, pairStats.bothRed.winrate)}</td>
+                      <td className="py-2 text-center">{fmtPairCell(pairStats.bothRed.games, pairStats.bothRed.wins, pairStats.bothRed.winrate)}</td>
                     </tr>
                     <tr className="border-b">
                       <td className="py-2">Оба ⚫</td>
-                      <td className="py-2 text-center">{pairStats.bothBlack.games}</td>
-                      <td className="py-2 text-center">{fmtPairCell(pairStats.bothBlack.games, pairStats.bothBlack.winrate)}</td>
+                      <td className="py-2 text-center">{fmtPairCell(pairStats.bothBlack.games, pairStats.bothBlack.wins, pairStats.bothBlack.winrate)}</td>
                     </tr>
                     <tr className="border-b">
                       <td className="py-2">{playerA?.nickname} 🔴 {playerB?.nickname} ⚫</td>
-                      <td className="py-2 text-center">{pairStats.aRedBBlack.games}</td>
-                      <td className="py-2 text-center">{fmtPairCell(pairStats.aRedBBlack.games, pairStats.aRedBBlack.winrateA)}</td>
+                      <td className="py-2 text-center">{fmtPairCell(pairStats.aRedBBlack.games, pairStats.aRedBBlack.winsA, pairStats.aRedBBlack.winrateA)}</td>
                     </tr>
                     <tr className="border-b last:border-b-0">
                       <td className="py-2">{playerA?.nickname} ⚫ {playerB?.nickname} 🔴</td>
-                      <td className="py-2 text-center">{pairStats.aBlackBRed.games}</td>
-                      <td className="py-2 text-center">{fmtPairCell(pairStats.aBlackBRed.games, pairStats.aBlackBRed.winrateA)}</td>
+                      <td className="py-2 text-center">{fmtPairCell(pairStats.aBlackBRed.games, pairStats.aBlackBRed.winsA, pairStats.aBlackBRed.winrateA)}</td>
                     </tr>
                   </tbody>
                 </table>

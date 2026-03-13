@@ -1,4 +1,4 @@
-import { LayoutDashboard, Trophy, Users, Settings, Sword } from "lucide-react";
+import { LayoutDashboard, Trophy, Users, Settings, Sword, Award } from "lucide-react";
 
 export const ROLE_NAMES = {
   citizen: "Мирный",
@@ -49,8 +49,9 @@ export const ROLE_COLORS = {
 
 export const TABS = [
   { id: "dashboard", label: "Дашборд", icon: LayoutDashboard },
-  { id: "games", label: "Игры", icon: Sword },
   { id: "rating", label: "Рейтинг", icon: Trophy },
+  { id: "tournaments", label: "Турниры", icon: Award },
+  { id: "games", label: "Игры", icon: Sword },
   { id: "players", label: "Игроки", icon: Users },
   { id: "settings", label: "Настройки", icon: Settings },
 ];

@@ -53,6 +53,7 @@ function toFrontendSeason(row) {
     startDate: row.start_date,
     endDate: row.end_date,
     isActive: row.is_active,
+    trackFirstKill: row.track_first_kill ?? false,
   };
 }
 
@@ -62,6 +63,7 @@ function toDbSeason(obj) {
   if (obj.startDate !== undefined) row.start_date = obj.startDate;
   if (obj.endDate !== undefined) row.end_date = obj.endDate;
   if (obj.isActive !== undefined) row.is_active = obj.isActive;
+  if (obj.trackFirstKill !== undefined) row.track_first_kill = obj.trackFirstKill;
   return row;
 }
 
@@ -105,6 +107,7 @@ function toFrontendGame(row) {
     date: row.date,
     winner: row.winner,
     notes: row.notes,
+    firstKilled: row.first_killed ?? null,
     createdAt: row.created_at,
     players: (row.game_players || []).map(toFrontendGamePlayer),
   };
@@ -116,6 +119,7 @@ function toFrontendTournament(row) {
     seasonId: row.season_id,
     name: row.name,
     date: row.date,
+    notes: row.notes || null,
     createdAt: row.created_at,
   };
 }
@@ -193,10 +197,28 @@ export async function getTournamentsBySeason(seasonId) {
   return data.map(toFrontendTournament);
 }
 
-export async function createTournament({ seasonId, name, date }) {
+export async function getAllTournaments() {
+  const data = await rest('tournaments?select=*&order=date.desc');
+  return data.map(toFrontendTournament);
+}
+
+export async function createTournament({ seasonId, name, date, notes }) {
   const row = await rest('tournaments', {
     method: 'POST',
-    body: { season_id: seasonId, name, date },
+    body: { season_id: seasonId, name, date, notes: notes || null },
+    single: true,
+  });
+  return toFrontendTournament(row);
+}
+
+export async function updateTournament(id, updates) {
+  const body = {};
+  if (updates.name !== undefined) body.name = updates.name;
+  if (updates.date !== undefined) body.date = updates.date;
+  if (updates.notes !== undefined) body.notes = updates.notes || null;
+  const row = await rest(`tournaments?id=eq.${id}`, {
+    method: 'PATCH',
+    body,
     single: true,
   });
   return toFrontendTournament(row);
@@ -231,6 +253,7 @@ export async function createGame(game) {
       date: game.date,
       winner: game.winner,
       notes: game.notes || null,
+      first_killed: game.firstKilled || null,
     },
     single: true,
   });
@@ -264,6 +287,7 @@ export async function updateGame(game) {
       date: game.date,
       winner: game.winner,
       notes: game.notes || null,
+      first_killed: game.firstKilled || null,
     },
   });
 

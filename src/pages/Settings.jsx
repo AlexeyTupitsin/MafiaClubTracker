@@ -48,6 +48,7 @@ export function SettingsPage({
   const [confirmImport, setConfirmImport] = useState(null);
   const [editingSeasonId, setEditingSeasonId] = useState(null);
   const [editingSeasonName, setEditingSeasonName] = useState("");
+  const [trackFirstKill, setTrackFirstKill] = useState(true);
 
   // --- Season handlers ---
   const handleCreateSeason = async () => {
@@ -60,6 +61,7 @@ export function SettingsPage({
         startDate: seasonStart,
         endDate: null,
         isActive: true,
+        trackFirstKill,
       });
       await refreshSeasons();
       setCurrentSeasonId(newSeason.id);
@@ -491,6 +493,18 @@ export function SettingsPage({
               <input type="date" value={seasonStart}
                 onChange={(e) => setSeasonStart(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="trackFirstKill"
+                checked={trackFirstKill}
+                onChange={(e) => setTrackFirstKill(e.target.checked)}
+                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label htmlFor="trackFirstKill" className="text-sm text-gray-700">
+                Отслеживать первоубиенного (ПУ)
+              </label>
             </div>
             {seasons.some((s) => s.isActive) && (
               <p className="text-sm text-amber-600 flex items-center gap-1">

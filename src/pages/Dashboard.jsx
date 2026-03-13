@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Plus, Shield, Sword, ChevronUp, ChevronDown, Users } from "lucide-react";
 import { StatCard, Badge, EmptyState } from "../components/ui";
-import { calcDashboardStats, calcRoleNominations, calcPlayerStats } from "../lib/metrics";
+import { calcDashboardStats, calcRoleNominations, calcPlayerStats, calcKillRate } from "../lib/metrics";
 import { NOMINATION_CONFIG, TEAM_NAMES, ROLE_NAMES } from "../lib/constants";
 import { AdminOnly } from "../components/auth/AuthGuard";
 
@@ -29,7 +29,8 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
     return Array.from(playerIds).map((pid) => {
       const player = players.find((p) => p.id === pid);
       const stats = calcPlayerStats(pid, activeGames);
-      return { id: pid, nickname: player?.nickname || "?", ...stats };
+      const kr = calcKillRate(pid, activeGames, seasons);
+      return { id: pid, nickname: player?.nickname || "?", ...stats, killRate: kr };
     });
   }, [activeGames, players]);
 
@@ -65,7 +66,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
     return (
       <div className="text-center py-12">
         <div className="text-5xl mb-4">{"\u{1F3AD}"}</div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Добро пожаловать в Mafia Club!</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Добро пожаловать в Iron Maf!</h2>
         <p className="text-gray-500 mb-8 max-w-md mx-auto">
           Начните работу с приложением — добавьте игроков клуба и проведите первую игру.
         </p>
@@ -187,6 +188,10 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
                       <th className="px-2 py-2 text-center font-medium text-gray-500 cursor-pointer select-none" onClick={() => handleSort("avgScore")}>
                         Ср. балл<SortIcon col="avgScore" />
                       </th>
+                      <th className="px-2 py-2 text-center font-medium text-gray-500 cursor-pointer select-none" onClick={() => handleSort("avgBonus")}>
+                        Ср. доп.<SortIcon col="avgBonus" />
+                      </th>
+                      <th className="px-2 py-2 text-center font-medium text-gray-500">ПУ%</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -208,6 +213,24 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
                           {row.totalScore % 1 === 0 ? row.totalScore : row.totalScore.toFixed(1)}
                         </td>
                         <td className="px-2 py-2 text-center">{row.avgScore.toFixed(2)}</td>
+                        <td className="px-2 py-2 text-center">
+                          <span className={
+                            row.avgBonus > 0 ? "text-green-600" :
+                            row.avgBonus < 0 ? "text-red-500" : ""
+                          }>
+                            {row.avgBonus.toFixed(2)}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2 text-center text-xs">
+                          {row.killRate ? (
+                            <span className={
+                              row.killRate.killRate > 25 ? "text-red-500" :
+                              row.killRate.killRate < 10 ? "text-green-600" : ""
+                            }>
+                              {row.killRate.killRate.toFixed(1)}%
+                            </span>
+                          ) : "—"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

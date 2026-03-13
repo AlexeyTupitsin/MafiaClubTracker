@@ -7,6 +7,7 @@ export function calcPlayerStats(playerId, games) {
   const totalGames = playerGames.length;
   const wins = playerGames.filter((p) => p.result === "win").length;
   const totalScore = playerGames.reduce((sum, p) => sum + p.totalScore, 0);
+  const totalBonus = playerGames.reduce((sum, p) => sum + p.bonusScore, 0);
   return {
     totalGames,
     wins,
@@ -14,6 +15,8 @@ export function calcPlayerStats(playerId, games) {
     winrate: totalGames > 0 ? (wins / totalGames) * 100 : 0,
     totalScore,
     avgScore: totalGames > 0 ? totalScore / totalGames : 0,
+    totalBonus,
+    avgBonus: totalGames > 0 ? totalBonus / totalGames : 0,
   };
 }
 
@@ -47,12 +50,14 @@ export function calcRoleStats(playerId, games) {
     const total = roleGames.length;
     const wins = roleGames.filter((p) => p.result === "win").length;
     const score = roleGames.reduce((sum, p) => sum + p.totalScore, 0);
+    const bonus = roleGames.reduce((sum, p) => sum + p.bonusScore, 0);
     return {
       role,
       games: total,
       wins,
       winrate: total > 0 ? (wins / total) * 100 : 0,
       avgScore: total > 0 ? score / total : 0,
+      avgBonus: total > 0 ? bonus / total : 0,
     };
   });
 }
@@ -139,6 +144,39 @@ export function calcRoleNominations(games, players) {
   return { nominations: result, minGames };
 }
 
+export function calcExtendedNominations(games, players) {
+  const roles = ["citizen", "sheriff", "mafia", "don"];
+  const totalGames = games.length;
+  const minGames = Math.max(1, Math.floor(totalGames * 0.1));
+  const result = {};
+
+  for (const role of roles) {
+    const playerScores = [];
+    for (const player of players) {
+      const roleGames = games.flatMap((g) =>
+        g.players.filter((p) => p.playerId === player.id && p.role === role)
+      );
+      if (roleGames.length < minGames) continue;
+
+      const wins = roleGames.filter((p) => p.result === "win").length;
+      const totalScore = roleGames.reduce((sum, p) => sum + p.totalScore, 0);
+      const totalBonus = roleGames.reduce((sum, p) => sum + p.bonusScore, 0);
+
+      playerScores.push({
+        playerId: player.id,
+        nickname: player.nickname,
+        games: roleGames.length,
+        wins,
+        winrate: (wins / roleGames.length) * 100,
+        avgScore: totalScore / roleGames.length,
+        avgBonus: totalBonus / roleGames.length,
+      });
+    }
+    result[role] = playerScores.sort((a, b) => b.avgScore - a.avgScore).slice(0, 5);
+  }
+  return { nominations: result, minGames };
+}
+
 export function calcFormTrend(playerId, games, lastN = 10) {
   const playerGames = games
     .filter((g) => g.players.some((p) => p.playerId === playerId))
@@ -166,4 +204,49 @@ export function calcFormTrend(playerId, games, lastN = 10) {
     trend,
     diff,
   };
+}
+
+export function calcKillRate(playerId, games, seasons) {
+  const trackingSeasonIds = new Set(
+    seasons.filter((s) => s.trackFirstKill).map((s) => s.id)
+  );
+
+  const eligibleGames = games.filter((g) =>
+    trackingSeasonIds.has(g.seasonId) &&
+    g.players.some((p) => p.playerId === playerId)
+  );
+
+  if (eligibleGames.length === 0) return null;
+
+  const killedCount = eligibleGames.filter((g) => g.firstKilled === playerId).length;
+
+  return {
+    gamesTracked: eligibleGames.length,
+    timesKilled: killedCount,
+    killRate: (killedCount / eligibleGames.length) * 100,
+  };
+}
+
+export function calcRoleKillRate(playerId, games, seasons) {
+  const trackingSeasonIds = new Set(
+    seasons.filter((s) => s.trackFirstKill).map((s) => s.id)
+  );
+  const roles = ["citizen", "sheriff", "mafia", "don"];
+
+  return roles.map((role) => {
+    const eligibleGames = games.filter((g) => {
+      if (!trackingSeasonIds.has(g.seasonId)) return false;
+      return g.players.some((p) => p.playerId === playerId && p.role === role);
+    });
+
+    if (eligibleGames.length === 0) return { role, killRate: null };
+
+    const killedCount = eligibleGames.filter((g) => g.firstKilled === playerId).length;
+    return {
+      role,
+      gamesTracked: eligibleGames.length,
+      timesKilled: killedCount,
+      killRate: (killedCount / eligibleGames.length) * 100,
+    };
+  });
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus, Sword } from "lucide-react";
 import { Badge, EmptyState } from "../components/ui";
 import { AdminOnly } from "../components/auth/AuthGuard";
@@ -11,6 +11,8 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
   const [seasonFilter, setSeasonFilter] = useState("all");
   const [playerFilter, setPlayerFilter] = useState("all");
   const [tournamentFilter, setTournamentFilter] = useState("all");
+  const PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   // Use allGames for display, default to all seasons
   const sourceGames = useMemo(() => {
@@ -27,6 +29,15 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
     else if (tournamentFilter !== "all") result = result.filter((g) => g.tournamentId === tournamentFilter);
     return result;
   }, [sourceGames, winnerFilter, playerFilter, tournamentFilter]);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [winnerFilter, seasonFilter, playerFilter, tournamentFilter]);
+
+  const visibleGames = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount]
+  );
 
   const getSeasonName = (seasonId) => {
     const s = seasons.find((x) => x.id === seasonId);
@@ -153,7 +164,7 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((game) => (
+                {visibleGames.map((game) => (
                   <tr key={game.id}
                     className="border-b last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors"
                     onClick={() => navigate("gameDetail", game.id)}>
@@ -183,6 +194,20 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {filtered.length > 0 && (
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-sm text-gray-500">
+            Показано {Math.min(visibleCount, filtered.length)} из {filtered.length}
+          </span>
+          {visibleCount < filtered.length && (
+            <button onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+              className="px-4 py-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium hover:bg-indigo-50 rounded-lg transition-colors">
+              Показать ещё {Math.min(PAGE_SIZE, filtered.length - visibleCount)}
+            </button>
+          )}
         </div>
       )}
     </div>

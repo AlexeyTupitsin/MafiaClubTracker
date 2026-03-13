@@ -2,20 +2,20 @@ import { useState, useMemo } from "react";
 import { ArrowLeft, ArrowRightLeft, TrendingUp, TrendingDown, Minus, User, Sword } from "lucide-react";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
 import { Badge, StatCard, EmptyState } from "../components/ui";
-import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend } from "../lib/metrics";
+import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate, calcRoleKillRate } from "../lib/metrics";
 import { ROLE_NAMES, ROLE_BADGE_VARIANT, RESULT_NAMES, ROLE_COLORS } from "../lib/constants";
 import { formatDate } from "../lib/utils";
 
-export function PlayerProfile({ player, games, players, navigate, seasons, currentSeasonId, allGames, tournaments }) {
+export function PlayerProfile({ player, games, players, navigate, seasons, currentSeasonId, allGames, tournaments, goBack }) {
   if (!player) {
     return (
       <EmptyState
         icon={User}
         title="Игрок не найден"
         action={
-          <button onClick={() => navigate("players")}
+          <button onClick={() => goBack()}
             className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 text-sm">
-            <ArrowLeft size={16} /> К списку игроков
+            <ArrowLeft size={16} /> Назад
           </button>
         }
       />
@@ -33,6 +33,8 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
   const stats = useMemo(() => calcPlayerStats(player.id, activeGames), [player.id, activeGames]);
   const roleStats = useMemo(() => calcRoleStats(player.id, activeGames), [player.id, activeGames]);
   const formTrend = useMemo(() => calcFormTrend(player.id, activeGames), [player.id, activeGames]);
+  const killRateData = useMemo(() => calcKillRate(player.id, activeGames, seasons), [player.id, activeGames, seasons]);
+  const roleKillRates = useMemo(() => calcRoleKillRate(player.id, activeGames, seasons), [player.id, activeGames, seasons]);
 
   // Tournament stats: last 3 tournaments where player participated
   const tournamentStats = useMemo(() => {
@@ -110,7 +112,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
     return (
       <div>
         <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => navigate("players")} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
+          <button onClick={() => goBack()} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
             <ArrowLeft size={20} />
           </button>
           <div>
@@ -137,13 +139,13 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
 
   const fmtScore = (v) => (v % 1 === 0 ? v : v.toFixed(1));
   const fmtWr = (v) => `${v.toFixed(0)}%`;
-  const fmtPairCell = (g, w) => g > 0 ? `${g} / ${fmtWr(w)}` : "—";
+  const fmtPairCell = (games, wins, winrate) => games > 0 ? `${games} / ${wins} (${winrate.toFixed(0)}%)` : "—";
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate("players")} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
+        <button onClick={() => goBack()} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
         <div>
@@ -170,13 +172,32 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
         <StatCard label="Игры" value={stats.totalGames} />
         <StatCard label="Победы" value={stats.wins} />
         <StatCard label="Поражения" value={stats.losses} />
         <StatCard label="Winrate" value={fmtWr(stats.winrate)} />
         <StatCard label="Баллы" value={fmtScore(stats.totalScore)} />
         <StatCard label="Ср. балл" value={stats.avgScore.toFixed(2)} />
+        <StatCard label="Ср. доп." value={
+          <span className={
+            stats.avgBonus > 0 ? "text-green-600" :
+            stats.avgBonus < 0 ? "text-red-500" : ""
+          }>
+            {stats.avgBonus.toFixed(2)}
+          </span>
+        } />
+        {killRateData && (
+          <StatCard label="ПУ%" value={
+            <span className={
+              killRateData.killRate > 25 ? "text-red-500" :
+              killRateData.killRate < 10 ? "text-green-600" : ""
+            }>
+              {killRateData.killRate.toFixed(1)}%
+              <span className="text-xs text-gray-400 ml-1">({killRateData.timesKilled}/{killRateData.gamesTracked})</span>
+            </span>
+          } />
+        )}
       </div>
 
       {/* Tournament stats */}
@@ -281,6 +302,8 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
                 <th className="text-center py-1.5 font-medium text-gray-500">Побед</th>
                 <th className="text-center py-1.5 font-medium text-gray-500">WR%</th>
                 <th className="text-center py-1.5 font-medium text-gray-500">Ср. балл</th>
+                <th className="text-center py-1.5 font-medium text-gray-500">Ср. доп.</th>
+                <th className="text-center py-1.5 font-medium text-gray-500">ПУ%</th>
               </tr>
             </thead>
             <tbody>
@@ -296,6 +319,27 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
                   </td>
                   <td className="py-1.5 text-center">
                     {r.games > 0 ? r.avgScore.toFixed(2) : "—"}
+                  </td>
+                  <td className="py-1.5 text-center">
+                    {r.games > 0 ? (
+                      <span className={
+                        r.avgBonus > 0 ? "text-green-600" :
+                        r.avgBonus < 0 ? "text-red-500" : ""
+                      }>
+                        {r.avgBonus.toFixed(2)}
+                      </span>
+                    ) : "—"}
+                  </td>
+                  <td className="py-1.5 text-center text-xs">
+                    {(() => {
+                      const rk = roleKillRates.find((x) => x.role === r.role);
+                      if (!rk || rk.killRate === null) return "—";
+                      return (
+                        <span className={rk.killRate > 25 ? "text-red-500" : rk.killRate < 10 ? "text-green-600" : ""}>
+                          {rk.killRate.toFixed(1)}%
+                        </span>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))}
@@ -351,16 +395,16 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
                     </td>
                     <td className="px-2 py-1.5 text-center font-medium">{p.totalGames}</td>
                     <td className="px-2 py-1.5 text-center text-xs">
-                      {fmtPairCell(p.bothRed.games, p.bothRed.winrate)}
+                      {fmtPairCell(p.bothRed.games, p.bothRed.wins, p.bothRed.winrate)}
                     </td>
                     <td className="px-2 py-1.5 text-center text-xs">
-                      {fmtPairCell(p.bothBlack.games, p.bothBlack.winrate)}
+                      {fmtPairCell(p.bothBlack.games, p.bothBlack.wins, p.bothBlack.winrate)}
                     </td>
                     <td className="px-2 py-1.5 text-center text-xs">
-                      {fmtPairCell(p.aRedBBlack.games, p.aRedBBlack.winrateA)}
+                      {fmtPairCell(p.aRedBBlack.games, p.aRedBBlack.winsA, p.aRedBBlack.winrateA)}
                     </td>
                     <td className="px-2 py-1.5 text-center text-xs">
-                      {fmtPairCell(p.aBlackBRed.games, p.aBlackBRed.winrateA)}
+                      {fmtPairCell(p.aBlackBRed.games, p.aBlackBRed.winsA, p.aBlackBRed.winrateA)}
                     </td>
                   </tr>
                 ))}

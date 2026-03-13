@@ -6,7 +6,8 @@ export function TabBar({ currentPage, navigate }) {
   const getIsActive = (tabId) =>
     currentPage === tabId ||
     (tabId === "games" && ["gameDetail", "gameForm"].includes(currentPage)) ||
-    (tabId === "players" && ["playerProfile", "compare"].includes(currentPage));
+    (tabId === "players" && ["playerProfile", "compare"].includes(currentPage)) ||
+    (tabId === "tournaments" && ["tournamentDetail", "tournamentForm"].includes(currentPage));
 
   return (
     <>

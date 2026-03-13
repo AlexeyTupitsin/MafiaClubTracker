@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Loader } from "lucide-react";
 
-import { getSeasons, getPlayers, getGamesBySeason, getAllGames, getTournamentsBySeason } from "./lib/queries";
+import { getSeasons, getPlayers, getGamesBySeason, getAllGames, getTournamentsBySeason, getAllTournaments } from "./lib/queries";
 import { Toast, EmptyState } from "./components/ui";
 import { Header } from "./components/layout/Header";
 import { TabBar } from "./components/layout/TabBar";
@@ -17,6 +17,9 @@ import { PlayerList } from "./pages/PlayerList";
 import { PlayerProfile } from "./pages/PlayerProfile";
 import { PlayerCompare } from "./pages/PlayerCompare";
 import { SettingsPage } from "./pages/Settings";
+import { TournamentList } from "./pages/TournamentList";
+import { TournamentDetail } from "./pages/TournamentDetail";
+import { TournamentForm } from "./pages/TournamentForm";
 
 export default function App() {
   const { isAdmin } = useAuth();
@@ -25,21 +28,37 @@ export default function App() {
   const [games, setGames] = useState([]);
   const [allGames, setAllGames] = useState([]);
   const [tournaments, setTournaments] = useState([]);
+  const [allTournaments, setAllTournaments] = useState([]);
   const [currentSeasonId, setCurrentSeasonId] = useState(null);
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
+  const [previousPage, setPreviousPage] = useState(null);
 
   const showToast = useCallback((msg) => {
     setToastMessage(msg);
   }, []);
 
   const navigate = useCallback((page, id = null) => {
+    if (["playerProfile", "gameDetail", "compare", "tournamentDetail", "tournamentForm"].includes(page)) {
+      setPreviousPage({ page: currentPage, id: selectedId });
+    }
     setCurrentPage(page);
     setSelectedId(id);
-  }, []);
+  }, [currentPage, selectedId]);
+
+  const goBack = useCallback(() => {
+    if (previousPage) {
+      setCurrentPage(previousPage.page);
+      setSelectedId(previousPage.id);
+      setPreviousPage(null);
+    } else {
+      setCurrentPage("dashboard");
+      setSelectedId(null);
+    }
+  }, [previousPage]);
 
   // Refresh individual data sets from Supabase
   const refreshSeasons = useCallback(async () => {
@@ -76,6 +95,12 @@ export default function App() {
     return data;
   }, [currentSeasonId]);
 
+  const refreshAllTournaments = useCallback(async () => {
+    const data = await getAllTournaments();
+    setAllTournaments(data);
+    return data;
+  }, []);
+
   // Full data refresh (used after import/reset/demo)
   const refreshData = useCallback(async () => {
     const loadedSeasons = await getSeasons();
@@ -96,6 +121,8 @@ export default function App() {
     }
     const all = await getAllGames();
     setAllGames(all);
+    const allT = await getAllTournaments();
+    setAllTournaments(allT);
     setCurrentPage("dashboard");
   }, []);
 
@@ -125,6 +152,9 @@ export default function App() {
 
         const all = await getAllGames();
         if (!cancelled) setAllGames(all);
+
+        const allT = await getAllTournaments();
+        if (!cancelled) setAllTournaments(allT);
       } catch (error) {
         console.error("Failed to load data:", error);
         if (!cancelled) setLoadError(error?.message || String(error));
@@ -217,6 +247,7 @@ export default function App() {
             refreshGames={refreshGames}
             refreshAllGames={refreshAllGames}
             tournaments={tournaments}
+            goBack={goBack}
           />
         );
       case "gameForm":
@@ -247,6 +278,42 @@ export default function App() {
             tournaments={tournaments}
           />
         );
+      case "tournaments":
+        return (
+          <TournamentList
+            allTournaments={allTournaments}
+            allGames={allGames}
+            seasons={seasons}
+            navigate={navigate}
+          />
+        );
+      case "tournamentDetail":
+        return (
+          <TournamentDetail
+            tournament={allTournaments.find((t) => t.id === selectedId)}
+            allGames={allGames}
+            players={players}
+            navigate={navigate}
+            seasons={seasons}
+            goBack={goBack}
+            showToast={showToast}
+            refreshTournaments={refreshTournaments}
+            refreshAllTournaments={refreshAllTournaments}
+          />
+        );
+      case "tournamentForm":
+        return (
+          <TournamentForm
+            seasons={seasons}
+            currentSeasonId={currentSeasonId}
+            navigate={navigate}
+            goBack={goBack}
+            editingTournament={selectedId ? allTournaments.find((t) => t.id === selectedId) : null}
+            showToast={showToast}
+            refreshTournaments={refreshTournaments}
+            refreshAllTournaments={refreshAllTournaments}
+          />
+        );
       case "players":
         return (
           <PlayerList
@@ -269,6 +336,7 @@ export default function App() {
             currentSeasonId={currentSeasonId}
             allGames={allGames}
             tournaments={tournaments}
+            goBack={goBack}
           />
         );
       case "compare":
@@ -281,6 +349,7 @@ export default function App() {
             currentSeasonId={currentSeasonId}
             navigate={navigate}
             preselectedId={selectedId}
+            goBack={goBack}
           />
         );
       case "settings":

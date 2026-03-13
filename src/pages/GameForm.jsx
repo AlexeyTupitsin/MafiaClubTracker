@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { ArrowLeft, Check, Users, X, AlertTriangle, Shield, Sword } from "lucide-react";
-import { Badge } from "../components/ui";
+import { Badge, PlayerSelect } from "../components/ui";
 import { ROLE_NAMES, ROLE_OPTIONS, ROLE_REQUIRED, ROLE_BADGE_VARIANT, RESULT_NAMES } from "../lib/constants";
 import { getTeam } from "../lib/utils";
 import { createGame, updateGame, createTournament } from "../lib/queries";
@@ -27,6 +27,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
   const [bonusComments, setBonusComments] = useState(Array(10).fill(""));
   const [notes, setNotes] = useState("");
   const [gameDate, setGameDate] = useState(new Date().toISOString().split("T")[0]);
+  const [firstKilled, setFirstKilled] = useState(null);
 
   // Pre-fill for editing
   useEffect(() => {
@@ -40,6 +41,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     setNotes(editingGame.notes || "");
     setGameDate(editingGame.date.split("T")[0]);
     setTournamentId(editingGame.tournamentId || "");
+    setFirstKilled(editingGame.firstKilled || null);
   }, [editingGame]);
 
   const activePlayers = useMemo(() => {
@@ -143,6 +145,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           winner,
           players: gamePlayers,
           notes: notes.trim() || null,
+          firstKilled: currentSeason?.trackFirstKill ? firstKilled : null,
         });
         await refreshGames();
         await refreshAllGames();
@@ -158,6 +161,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           winner,
           players: gamePlayers,
           notes: notes.trim() || null,
+          firstKilled: currentSeason?.trackFirstKill ? firstKilled : null,
         });
         await refreshGames();
         await refreshAllGames();
@@ -289,29 +293,12 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                 <span className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-sm font-medium text-gray-600 shrink-0">
                   {seat.seat}
                 </span>
-                <select
+                <PlayerSelect
                   value={seat.playerId}
-                  onChange={(e) => handleSeatChange(idx, e.target.value)}
-                  className={`flex-1 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 ${
-                    !seat.playerId ? "text-gray-400" : ""
-                  }`}
-                >
-                  <option value="">Выберите игрока...</option>
-                  {activePlayers.map((p) => {
-                    const taken = selectedIds.includes(p.id) && p.id !== seat.playerId;
-                    return (
-                      <option key={p.id} value={p.id} disabled={taken}>
-                        {p.nickname}{p.realName ? ` (${p.realName})` : ""}{taken ? " — уже выбран" : ""}
-                      </option>
-                    );
-                  })}
-                </select>
-                {seat.playerId && (
-                  <button onClick={() => handleSeatChange(idx, "")}
-                    className="p-1 hover:bg-gray-100 rounded text-gray-400 transition-colors">
-                    <X size={16} />
-                  </button>
-                )}
+                  onChange={(id) => handleSeatChange(idx, id)}
+                  players={activePlayers}
+                  disabledIds={selectedIds.filter((id) => id !== seat.playerId)}
+                />
               </div>
             ))}
           </div>
@@ -426,6 +413,9 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                   <th className="text-center px-2 py-2 font-medium text-gray-500">Доп.</th>
                   <th className="text-center px-2 py-2 font-medium text-gray-500">Итого</th>
                   <th className="text-left px-2 py-2 font-medium text-gray-500">Комментарий</th>
+                  {currentSeason?.trackFirstKill && (
+                    <th className="text-center px-2 py-2 font-medium text-gray-500">ПУ</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -438,7 +428,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                   const total = baseScore + bonus;
 
                   return (
-                    <tr key={idx} className="border-b last:border-b-0">
+                    <tr key={idx} className={`border-b last:border-b-0 ${firstKilled === seat.playerId ? "bg-red-50" : ""}`}>
                       <td className="px-2 py-2 text-center font-medium">{seat.seat}</td>
                       <td className="px-2 py-2 font-medium">{getPlayerName(seat.playerId)}</td>
                       <td className="px-2 py-2">
@@ -471,6 +461,23 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                           placeholder="—"
                         />
                       </td>
+                      {currentSeason?.trackFirstKill && (
+                        <td className="px-2 py-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setFirstKilled(firstKilled === seat.playerId ? null : seat.playerId)}
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors mx-auto ${
+                              firstKilled === seat.playerId
+                                ? "border-red-500 bg-red-500"
+                                : "border-gray-300 hover:border-red-300"
+                            }`}
+                          >
+                            {firstKilled === seat.playerId && (
+                              <span className="w-2 h-2 rounded-full bg-white" />
+                            )}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

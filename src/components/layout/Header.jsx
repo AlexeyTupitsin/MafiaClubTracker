@@ -12,9 +12,12 @@ export function Header({ seasons, currentSeasonId, setCurrentSeasonId }) {
     <>
       <header className="bg-white border-b shadow-sm sticky top-0 z-30">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900">
-            <span className="mr-1.5">🎭</span>Mafia Club
-          </h1>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center text-white text-xs font-bold">
+              IM
+            </div>
+            <h1 className="text-xl font-bold text-gray-900">Iron Maf</h1>
+          </div>
           <div className="flex items-center gap-3">
             <div className="relative">
               <select
