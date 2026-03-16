@@ -191,14 +191,14 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
-          <div className="flex items-center justify-center gap-2 text-gray-500">
+          <div className="flex items-center justify-center gap-2 text-zinc-400">
             <Loader size={20} className="animate-spin" />
             Загрузка...
           </div>
           {loadError && (
-            <div className="mt-4 max-w-md mx-auto bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+            <div className="mt-4 max-w-md mx-auto bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
               <p className="font-medium mb-1">Ошибка загрузки данных:</p>
               <p className="font-mono text-xs">{loadError}</p>
             </div>
@@ -384,7 +384,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16 sm:pb-0">
+    <div className="min-h-screen bg-[#0a0a0a] pb-16 sm:pb-0">
       <Header
         seasons={seasons}
         currentSeasonId={currentSeasonId}
@@ -392,7 +392,7 @@ export default function App() {
       />
       <TabBar currentPage={currentPage} navigate={navigate} />
 
-      <main className="max-w-4xl mx-auto px-4 py-6" key={currentPage + (selectedId || "")}>
+      <main className="max-w-6xl mx-auto px-4 py-6 animate-page-enter" key={currentPage + (selectedId || "")}>
         {renderPage()}
       </main>
 

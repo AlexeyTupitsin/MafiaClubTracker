@@ -27,7 +27,7 @@ export function LoginForm({ onClose }) {
         placeholder="Логин"
         value={login}
         onChange={(e) => setLogin(e.target.value)}
-        className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:ring-2 focus:ring-violet-500 outline-none"
         autoFocus
       />
       <input
@@ -35,14 +35,14 @@ export function LoginForm({ onClose }) {
         placeholder="Пароль"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:ring-2 focus:ring-violet-500 outline-none"
         onKeyDown={(e) => e.key === 'Enter' && !loading && login && password && handleSubmit()}
       />
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {error && <p className="text-red-400 text-sm">{error}</p>}
       <button
         onClick={handleSubmit}
         disabled={loading || !login || !password}
-        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white rounded-lg py-2 text-sm font-medium transition-colors"
+        className="w-full bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg py-2 text-sm font-medium transition-colors"
       >
         {loading ? 'Вход...' : 'Войти'}
       </button>

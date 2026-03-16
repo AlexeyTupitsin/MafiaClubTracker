@@ -14,7 +14,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
         title="Игрок не найден"
         action={
           <button onClick={() => goBack()}
-            className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 text-sm">
+            className="flex items-center gap-2 text-violet-400 hover:text-violet-300 text-sm">
             <ArrowLeft size={16} /> Назад
           </button>
         }
@@ -112,19 +112,19 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
     return (
       <div>
         <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => goBack()} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
+          <button onClick={() => goBack()} className="p-1.5 hover:bg-zinc-800 rounded transition-colors">
             <ArrowLeft size={20} />
           </button>
           <div>
             <h2 className="text-xl font-bold">{player.nickname}</h2>
-            {player.realName && <p className="text-sm text-gray-500">{player.realName}</p>}
+            {player.realName && <p className="text-sm text-zinc-400">{player.realName}</p>}
           </div>
         </div>
         <div className="flex flex-wrap gap-2 mb-4">
           <select
             value={periodFilter}
             onChange={(e) => setPeriodFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm border outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            className="px-3 py-1.5 rounded-lg text-sm bg-zinc-900 border-zinc-700 text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
           >
             <option value="all">Все сезоны</option>
             {seasons.map((s) => (
@@ -145,12 +145,12 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => goBack()} className="p-1.5 hover:bg-gray-100 rounded transition-colors">
+        <button onClick={() => goBack()} className="p-1.5 hover:bg-zinc-800 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
         <div>
           <h2 className="text-xl font-bold">{player.nickname}</h2>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-zinc-400">
             {player.realName ? `${player.realName} · ` : ""}
             {stats.totalGames} игр · {stats.wins} побед · {fmtWr(stats.winrate)} · {fmtScore(stats.totalScore)} баллов
           </p>
@@ -162,7 +162,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
         <select
           value={periodFilter}
           onChange={(e) => setPeriodFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-sm border outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          className="px-3 py-1.5 rounded-lg text-sm bg-zinc-900 border-zinc-700 text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
         >
           <option value="all">Все сезоны</option>
           {seasons.map((s) => (
@@ -194,7 +194,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
               killRateData.killRate < 10 ? "text-green-600" : ""
             }>
               {killRateData.killRate.toFixed(1)}%
-              <span className="text-xs text-gray-400 ml-1">({killRateData.timesKilled}/{killRateData.gamesTracked})</span>
+              <span className="text-xs text-zinc-500 ml-1">({killRateData.timesKilled}/{killRateData.gamesTracked})</span>
             </span>
           } />
         )}
@@ -202,26 +202,26 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
 
       {/* Tournament stats */}
       {tournamentStats.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
           <h3 className="font-semibold mb-3">Последние турниры</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b">
-                  <th className="text-left px-2 py-1.5 font-medium text-gray-500">Турнир</th>
-                  <th className="text-left px-2 py-1.5 font-medium text-gray-500">Дата</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-gray-500">Игр</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-gray-500">Побед</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-gray-500">WR%</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-gray-500">Баллы</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-gray-500">Ср. балл</th>
+                <tr className="border-b border-zinc-800">
+                  <th className="text-left px-2 py-1.5 font-medium text-zinc-500">Турнир</th>
+                  <th className="text-left px-2 py-1.5 font-medium text-zinc-500">Дата</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Игр</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Побед</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-zinc-500">WR%</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Баллы</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Ср. балл</th>
                 </tr>
               </thead>
               <tbody>
                 {tournamentStats.map((t) => (
-                  <tr key={t.id} className="border-b last:border-b-0">
+                  <tr key={t.id} className="border-b border-zinc-800 last:border-b-0">
                     <td className="px-2 py-1.5 font-medium">{t.name}</td>
-                    <td className="px-2 py-1.5 text-gray-500">{formatDate(t.date)}</td>
+                    <td className="px-2 py-1.5 text-zinc-400">{formatDate(t.date)}</td>
                     <td className="px-2 py-1.5 text-center">{t.games}</td>
                     <td className="px-2 py-1.5 text-center">{t.wins}</td>
                     <td className="px-2 py-1.5 text-center">
@@ -241,12 +241,12 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
 
       {/* Form trend */}
       {formTrend && formTrend.recentGames >= 3 && (
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
           <h3 className="font-semibold mb-3">Тренд формы (последние {formTrend.recentGames} игр)</h3>
           <div className="flex flex-wrap items-center gap-1.5 mb-3">
             {formTrend.recentResults.map((r, i) => (
               <span key={i} className={`w-7 h-7 flex items-center justify-center rounded text-sm ${
-                r === "win" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"
+                r === "win" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
               }`}>
                 {r === "win" ? "✅" : "❌"}
               </span>
@@ -254,28 +254,28 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
           </div>
           <div className="flex flex-wrap gap-4 text-sm">
             <div>
-              <span className="text-gray-500">WR за {formTrend.recentGames}:</span>{" "}
+              <span className="text-zinc-400">WR за {formTrend.recentGames}:</span>{" "}
               <span className="font-medium">{formTrend.recentWinrate.toFixed(0)}%</span>
-              <span className="text-gray-400"> vs {formTrend.overallWinrate.toFixed(0)}%</span>
+              <span className="text-zinc-500"> vs {formTrend.overallWinrate.toFixed(0)}%</span>
             </div>
             <div>
-              <span className="text-gray-500">Ср. балл за {formTrend.recentGames}:</span>{" "}
+              <span className="text-zinc-400">Ср. балл за {formTrend.recentGames}:</span>{" "}
               <span className="font-medium">{formTrend.recentAvgScore.toFixed(2)}</span>
-              <span className="text-gray-400"> vs {formTrend.overallAvgScore.toFixed(2)}</span>
+              <span className="text-zinc-500"> vs {formTrend.overallAvgScore.toFixed(2)}</span>
             </div>
             <div>
               {formTrend.trend === "up" && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium">
                   <TrendingUp size={12} /> На подъёме
                 </span>
               )}
               {formTrend.trend === "stable" && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-medium">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 text-xs font-medium">
                   <Minus size={12} /> Стабильно
                 </span>
               )}
               {formTrend.trend === "down" && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 text-xs font-medium">
                   <TrendingDown size={12} /> В спаде
                 </span>
               )}
@@ -286,29 +286,29 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
 
       {/* Compare button */}
       <button onClick={() => navigate("compare", player.id)}
-        className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm transition-colors">
+        className="flex items-center gap-2 px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm transition-colors">
         <ArrowRightLeft size={16} /> Сравнить с...
       </button>
 
       {/* Role stats table + chart */}
-      <div className="bg-white rounded-xl shadow-sm p-4">
+      <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
         <h3 className="font-semibold mb-3">Статистика по ролям</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b">
-                <th className="text-left py-1.5 font-medium text-gray-500">Роль</th>
-                <th className="text-center py-1.5 font-medium text-gray-500">Игр</th>
-                <th className="text-center py-1.5 font-medium text-gray-500">Побед</th>
-                <th className="text-center py-1.5 font-medium text-gray-500">WR%</th>
-                <th className="text-center py-1.5 font-medium text-gray-500">Ср. балл</th>
-                <th className="text-center py-1.5 font-medium text-gray-500">Ср. доп.</th>
-                <th className="text-center py-1.5 font-medium text-gray-500">ПУ%</th>
+              <tr className="border-b border-zinc-800">
+                <th className="text-left py-1.5 font-medium text-zinc-500">Роль</th>
+                <th className="text-center py-1.5 font-medium text-zinc-500">Игр</th>
+                <th className="text-center py-1.5 font-medium text-zinc-500">Побед</th>
+                <th className="text-center py-1.5 font-medium text-zinc-500">WR%</th>
+                <th className="text-center py-1.5 font-medium text-zinc-500">Ср. балл</th>
+                <th className="text-center py-1.5 font-medium text-zinc-500">Ср. доп.</th>
+                <th className="text-center py-1.5 font-medium text-zinc-500">ПУ%</th>
               </tr>
             </thead>
             <tbody>
               {roleStats.map((r) => (
-                <tr key={r.role} className="border-b last:border-b-0">
+                <tr key={r.role} className="border-b border-zinc-800 last:border-b-0">
                   <td className="py-1.5">
                     <Badge variant={ROLE_BADGE_VARIANT[r.role]}>{ROLE_NAMES[r.role]}</Badge>
                   </td>
@@ -351,12 +351,13 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={roleChartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} unit="%" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#a1a1aa' }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#a1a1aa' }} unit="%" />
                   <Tooltip
                     formatter={(v, name) => [`${v}%`, "Winrate"]}
                     labelFormatter={(l) => l}
+                    contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #3f3f46', borderRadius: '8px', color: '#fafafa' }}
                   />
                   <Bar dataKey="winrate" radius={[4, 4, 0, 0]}>
                     {roleChartData.map((entry) => (
@@ -372,26 +373,26 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
 
       {/* Pair stats */}
       {pairData.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
           <h3 className="font-semibold mb-3">Статистика по парам</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b">
-                  <th className="text-left px-2 py-1.5 font-medium text-gray-500">Партнёр</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-gray-500">Игр</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-gray-500 whitespace-nowrap">🔴🔴</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-gray-500 whitespace-nowrap">⚫⚫</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-gray-500 whitespace-nowrap">Я🔴 Он⚫</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-gray-500 whitespace-nowrap">Я⚫ Он🔴</th>
+                <tr className="border-b border-zinc-800">
+                  <th className="text-left px-2 py-1.5 font-medium text-zinc-500">Партнёр</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Игр</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-zinc-500 whitespace-nowrap">🔴🔴</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-zinc-500 whitespace-nowrap">⚫⚫</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-zinc-500 whitespace-nowrap">Я🔴 Он⚫</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-zinc-500 whitespace-nowrap">Я⚫ Он🔴</th>
                 </tr>
               </thead>
               <tbody>
                 {pairData.map((p) => (
-                  <tr key={p.id} className="border-b last:border-b-0">
+                  <tr key={p.id} className="border-b border-zinc-800 last:border-b-0">
                     <td className="px-2 py-1.5">
                       <button onClick={() => navigate("playerProfile", p.id)}
-                        className="text-indigo-600 hover:underline">{p.nickname}</button>
+                        className="text-violet-400 hover:text-violet-300">{p.nickname}</button>
                     </td>
                     <td className="px-2 py-1.5 text-center font-medium">{p.totalGames}</td>
                     <td className="px-2 py-1.5 text-center text-xs">
@@ -415,31 +416,31 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
       )}
 
       {/* Game history */}
-      <div className="bg-white rounded-xl shadow-sm p-4">
+      <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
         <h3 className="font-semibold mb-3">История игр</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b">
-                <th className="text-left px-2 py-1.5 font-medium text-gray-500">№</th>
-                <th className="text-left px-2 py-1.5 font-medium text-gray-500">Дата</th>
-                <th className="text-left px-2 py-1.5 font-medium text-gray-500">Роль</th>
-                <th className="text-left px-2 py-1.5 font-medium text-gray-500">Результат</th>
-                <th className="text-center px-2 py-1.5 font-medium text-gray-500">База</th>
-                <th className="text-center px-2 py-1.5 font-medium text-gray-500">Бонус</th>
-                <th className="text-center px-2 py-1.5 font-medium text-gray-500">Итого</th>
+              <tr className="border-b border-zinc-800">
+                <th className="text-left px-2 py-1.5 font-medium text-zinc-500">№</th>
+                <th className="text-left px-2 py-1.5 font-medium text-zinc-500">Дата</th>
+                <th className="text-left px-2 py-1.5 font-medium text-zinc-500">Роль</th>
+                <th className="text-left px-2 py-1.5 font-medium text-zinc-500">Результат</th>
+                <th className="text-center px-2 py-1.5 font-medium text-zinc-500">База</th>
+                <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Бонус</th>
+                <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Итого</th>
               </tr>
             </thead>
             <tbody>
               {gameHistory.map((h) => (
-                <tr key={h.game.id} className="border-b last:border-b-0 hover:bg-gray-50">
+                <tr key={h.game.id} className="border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800/50">
                   <td className="px-2 py-1.5">
                     <button onClick={() => navigate("gameDetail", h.game.id)}
-                      className="text-indigo-600 hover:underline font-medium">
+                      className="text-violet-400 hover:text-violet-300 font-medium">
                       #{h.game.gameNumber}
                     </button>
                   </td>
-                  <td className="px-2 py-1.5 text-gray-500">{formatDate(h.game.date)}</td>
+                  <td className="px-2 py-1.5 text-zinc-400">{formatDate(h.game.date)}</td>
                   <td className="px-2 py-1.5">
                     <Badge variant={ROLE_BADGE_VARIANT[h.role]}>{ROLE_NAMES[h.role]}</Badge>
                   </td>

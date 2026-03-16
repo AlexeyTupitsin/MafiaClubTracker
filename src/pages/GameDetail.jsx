@@ -16,7 +16,7 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
         title="Игра не найдена"
         action={
           <button onClick={() => goBack()}
-            className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 text-sm">
+            className="flex items-center gap-2 text-violet-400 hover:text-violet-300 text-sm">
             <ArrowLeft size={16} /> Назад
           </button>
         }
@@ -45,7 +45,7 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
       {/* Header */}
       <div className="flex items-center gap-3 mb-1">
         <button onClick={() => goBack()}
-          className="p-1.5 hover:bg-gray-100 rounded transition-colors">
+          className="p-1.5 hover:bg-zinc-800 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
         <h2 className="text-xl font-bold">Игра #{game.gameNumber}</h2>
@@ -53,35 +53,35 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
           {TEAM_NAMES[game.winner]} победили
         </Badge>
       </div>
-      <p className="text-sm text-gray-500 mb-1 ml-11">{formatDate(game.date)}</p>
+      <p className="text-sm text-zinc-400 mb-1 ml-11">{formatDate(game.date)}</p>
       {game.tournamentId && (() => {
         const t = (tournaments || []).find((x) => x.id === game.tournamentId);
-        return t ? <p className="text-sm text-indigo-600 mb-4 ml-11">{t.name}</p> : null;
+        return t ? <p className="text-sm text-violet-400 mb-4 ml-11">{t.name}</p> : null;
       })()}
       {!game.tournamentId && <div className="mb-3" />}
 
       {/* Notes */}
       {game.notes && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-800">
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 mb-4 text-sm text-amber-300">
           {game.notes}
         </div>
       )}
 
       {/* Players table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-4">
+      <div className="bg-[#151515] border border-zinc-800 rounded-xl overflow-hidden mb-4">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-gray-50">
-                <th className="text-center px-3 py-2.5 font-medium text-gray-500">Место</th>
-                <th className="text-left px-3 py-2.5 font-medium text-gray-500">Игрок</th>
-                <th className="text-left px-3 py-2.5 font-medium text-gray-500">Роль</th>
-                <th className="text-left px-3 py-2.5 font-medium text-gray-500">Команда</th>
-                <th className="text-left px-3 py-2.5 font-medium text-gray-500">Результат</th>
-                <th className="text-center px-3 py-2.5 font-medium text-gray-500">База</th>
-                <th className="text-center px-3 py-2.5 font-medium text-gray-500">Бонус</th>
-                <th className="text-center px-3 py-2.5 font-medium text-gray-500">Итого</th>
-                <th className="text-left px-3 py-2.5 font-medium text-gray-500">Комментарий</th>
+              <tr className="border-b border-zinc-800 bg-zinc-900/50">
+                <th className="text-center px-3 py-2.5 font-medium text-zinc-500">Место</th>
+                <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Игрок</th>
+                <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Роль</th>
+                <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Команда</th>
+                <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Результат</th>
+                <th className="text-center px-3 py-2.5 font-medium text-zinc-500">База</th>
+                <th className="text-center px-3 py-2.5 font-medium text-zinc-500">Бонус</th>
+                <th className="text-center px-3 py-2.5 font-medium text-zinc-500">Итого</th>
+                <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Комментарий</th>
               </tr>
             </thead>
             <tbody>
@@ -90,17 +90,17 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                 const team = getTeam(gp.role);
                 return (
                   <tr key={gp.seat}
-                    className={`border-b last:border-b-0 ${
-                      team === "red" ? "bg-red-50/40" : "bg-gray-50/40"
+                    className={`border-b border-zinc-800 last:border-b-0 ${
+                      team === "red" ? "bg-red-500/5" : "bg-zinc-800/30"
                     }`}>
                     <td className="px-3 py-2.5 text-center font-medium">{gp.seat}</td>
                     <td className="px-3 py-2.5 font-medium">
                       <button onClick={() => navigate("playerProfile", gp.playerId)}
-                        className="text-indigo-600 hover:text-indigo-800 hover:underline">
+                        className="text-violet-400 hover:text-violet-300 hover:underline">
                         {player?.nickname || "?"}
                       </button>
                       {game.firstKilled === gp.playerId && (
-                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-600 font-medium">ПУ</span>
+                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-medium">ПУ</span>
                       )}
                     </td>
                     <td className="px-3 py-2.5">
@@ -129,7 +129,7 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                     <td className="px-3 py-2.5 text-center font-semibold">
                       {gp.totalScore % 1 === 0 ? gp.totalScore : gp.totalScore.toFixed(1)}
                     </td>
-                    <td className="px-3 py-2.5 text-gray-500 text-xs">{gp.bonusComment || ""}</td>
+                    <td className="px-3 py-2.5 text-zinc-400 text-xs">{gp.bonusComment || ""}</td>
                   </tr>
                 );
               })}
@@ -142,11 +142,11 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
       <AdminOnly>
         <div className="flex gap-2">
           <button onClick={() => navigate("gameForm", game.id)}
-            className="flex items-center gap-1.5 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">
+            className="flex items-center gap-1.5 px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm">
             <Pencil size={14} /> Редактировать
           </button>
           <button onClick={() => setConfirmDelete(true)}
-            className="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-sm">
+            className="flex items-center gap-1.5 px-4 py-2 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 text-sm">
             <Trash2 size={14} /> Удалить
           </button>
         </div>

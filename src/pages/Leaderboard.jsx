@@ -122,7 +122,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
         <select
           value={seasonFilter}
           onChange={(e) => setSeasonFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-sm border outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          className="px-3 py-1.5 rounded-lg text-sm bg-zinc-900 border-zinc-700 text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
         >
           <option value="all">Все сезоны</option>
           {seasons.map((s) => (
@@ -135,7 +135,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
           <select
             value={tournamentFilter}
             onChange={(e) => setTournamentFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm border outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            className="px-3 py-1.5 rounded-lg text-sm bg-zinc-900 border-zinc-700 text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
           >
             <option value="all">Все турниры</option>
             <option value="__none__">Без турнира</option>
@@ -148,16 +148,16 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
 
       {/* Threshold info */}
       {ratingCalc.totalGamesInPeriod > 0 && (
-        <div className="flex items-center justify-between mb-4 bg-gray-50 rounded-lg px-3 py-2">
-          <span className="text-sm text-gray-500">
+        <div className="flex items-center justify-between mb-4 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+          <span className="text-sm text-zinc-400">
             Порог: {ratingCalc.minGames} из {ratingCalc.totalGamesInPeriod} игр (50%)
             {!showAll && belowThreshold.length > 0 && (
-              <span className="text-gray-400"> · {belowThreshold.length} игрок{belowThreshold.length > 4 ? "ов" : belowThreshold.length > 1 ? "а" : ""} не прошли порог</span>
+              <span className="text-zinc-500"> · {belowThreshold.length} игрок{belowThreshold.length > 4 ? "ов" : belowThreshold.length > 1 ? "а" : ""} не прошли порог</span>
             )}
           </span>
           <button
             onClick={() => setShowAll(!showAll)}
-            className="text-sm text-indigo-600 hover:text-indigo-700 font-medium whitespace-nowrap ml-2"
+            className="text-sm text-violet-400 hover:text-violet-300 font-medium whitespace-nowrap ml-2"
           >
             {showAll ? "Только прошедшие порог" : "Показать всех"}
           </button>
@@ -171,16 +171,16 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
           description="Добавьте игры, чтобы увидеть рейтинг игроков"
         />
       ) : (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-[#151515] border border-zinc-800 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b bg-gray-50">
+                <tr className="border-b border-zinc-800 bg-zinc-900/50">
                   {columns.map((col) => (
                     <th key={col.key}
-                      className={`px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap ${
+                      className={`px-3 py-2.5 font-medium text-zinc-500 whitespace-nowrap ${
                         col.key === "nickname" ? "text-left" : "text-center"
-                      } ${col.sortable ? "cursor-pointer hover:text-gray-700 select-none" : ""}`}
+                      } ${col.sortable ? "cursor-pointer hover:text-zinc-300 select-none" : ""}`}
                       onClick={col.sortable ? () => handleSort(col.key) : undefined}>
                       {col.label}
                       {col.sortable && <SortIcon col={col.key} />}
@@ -191,13 +191,13 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
               <tbody>
                 {sorted.map((row, idx) => (
                   <tr key={row.id}
-                    className={`border-b last:border-b-0 hover:bg-gray-50 transition-colors ${
-                      idx % 2 === 1 ? "bg-gray-50/50" : ""
+                    className={`border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800/50 transition-colors ${
+                      idx % 2 === 1 ? "bg-zinc-900/30" : ""
                     }`}>
                     <td className="px-3 py-2.5 text-center font-medium">{medalEmoji(idx)}</td>
                     <td className="px-3 py-2.5 text-left font-medium">
                       <button onClick={() => navigate("playerProfile", row.id)}
-                        className="text-indigo-600 hover:text-indigo-800 hover:underline">
+                        className="text-violet-400 hover:text-violet-300 hover:underline">
                         {row.nickname}
                       </button>
                     </td>
@@ -251,31 +251,31 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
             {NOMINATION_CONFIG.map(({ role, emoji, label }) => {
               const top = extNominations[role] || [];
               return (
-                <div key={role} className="bg-white rounded-xl shadow-sm p-4">
+                <div key={role} className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
                   <div className="font-semibold mb-2">{emoji} {label}</div>
                   {top.length === 0 ? (
-                    <p className="text-sm text-gray-400">Мин. {nomMinGames} игр за роль</p>
+                    <p className="text-sm text-zinc-500">Мин. {nomMinGames} игр за роль</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="border-b">
-                            <th className="text-left py-1 font-medium text-gray-500">#</th>
-                            <th className="text-left py-1 font-medium text-gray-500">Ник</th>
-                            <th className="text-center py-1 font-medium text-gray-500">Игр</th>
-                            <th className="text-center py-1 font-medium text-gray-500">Побед</th>
-                            <th className="text-center py-1 font-medium text-gray-500">WR%</th>
-                            <th className="text-center py-1 font-medium text-gray-500">Ср. балл</th>
-                            <th className="text-center py-1 font-medium text-gray-500">Ср. доп.</th>
+                          <tr className="border-b border-zinc-800">
+                            <th className="text-left py-1 font-medium text-zinc-500">#</th>
+                            <th className="text-left py-1 font-medium text-zinc-500">Ник</th>
+                            <th className="text-center py-1 font-medium text-zinc-500">Игр</th>
+                            <th className="text-center py-1 font-medium text-zinc-500">Побед</th>
+                            <th className="text-center py-1 font-medium text-zinc-500">WR%</th>
+                            <th className="text-center py-1 font-medium text-zinc-500">Ср. балл</th>
+                            <th className="text-center py-1 font-medium text-zinc-500">Ср. доп.</th>
                           </tr>
                         </thead>
                         <tbody>
                           {top.map((p, i) => (
-                            <tr key={p.playerId} className="border-b last:border-b-0">
+                            <tr key={p.playerId} className="border-b border-zinc-800 last:border-b-0">
                               <td className="py-1 font-medium">{i + 1}</td>
                               <td className="py-1">
                                 <button onClick={() => navigate("playerProfile", p.playerId)}
-                                  className="text-indigo-600 hover:underline">{p.nickname}</button>
+                                  className="text-violet-400 hover:text-violet-300">{p.nickname}</button>
                               </td>
                               <td className="py-1 text-center">{p.games}</td>
                               <td className="py-1 text-center">{p.wins}</td>
