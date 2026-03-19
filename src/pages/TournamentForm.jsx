@@ -46,7 +46,7 @@ export function TournamentForm({
         navigate("tournamentDetail", t.id);
       }
     } catch (err) {
-      showToast?.("Ошибка: " + (err.message || "неизвестная ошибка"));
+      showToast?.("Ошибка: " + (err.message || "неизвестная ошибка"), "error");
     }
   };
 

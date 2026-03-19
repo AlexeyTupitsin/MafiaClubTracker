@@ -34,11 +34,11 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [toastMessage, setToastMessage] = useState(null);
+  const [toast, setToast] = useState(null);
   const [previousPage, setPreviousPage] = useState(null);
 
-  const showToast = useCallback((msg) => {
-    setToastMessage(msg);
+  const showToast = useCallback((msg, type = "success") => {
+    setToast({ message: msg, type });
   }, []);
 
   const navigate = useCallback((page, id = null) => {
@@ -396,8 +396,8 @@ export default function App() {
         {renderPage()}
       </main>
 
-      {toastMessage && (
-        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
     </div>
   );

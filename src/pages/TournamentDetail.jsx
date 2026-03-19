@@ -83,7 +83,7 @@ export function TournamentDetail({
       showToast?.(`Турнир "${tournament.name}" удалён`);
       goBack();
     } catch (err) {
-      showToast?.("Ошибка: " + (err.message || "неизвестная ошибка"));
+      showToast?.("Ошибка: " + (err.message || "неизвестная ошибка"), "error");
     }
   };
 

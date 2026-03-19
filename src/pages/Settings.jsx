@@ -11,6 +11,7 @@ import {
   CheckCircle,
   Pencil,
   Check,
+  Loader,
 } from "lucide-react";
 import { Modal, ConfirmDialog, Badge } from "../components/ui";
 import { getTeam, formatDate } from "../lib/utils";
@@ -49,12 +50,17 @@ export function SettingsPage({
   const [editingSeasonId, setEditingSeasonId] = useState(null);
   const [editingSeasonName, setEditingSeasonName] = useState("");
   const [trackFirstKill, setTrackFirstKill] = useState(true);
+  const [savingSeason, setSavingSeason] = useState(false);
+  const [deletingSeason, setDeletingSeason] = useState(null);
+  const [generatingDemo, setGeneratingDemo] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   // --- Season handlers ---
   const handleCreateSeason = async () => {
     const trimmed = seasonName.trim();
     if (!trimmed) { setError("Введите название сезона"); return; }
 
+    setSavingSeason(true);
     try {
       const newSeason = await createSeason({
         name: trimmed,
@@ -72,6 +78,9 @@ export function SettingsPage({
       showToast("Сезон создан");
     } catch (err) {
       setError(err.message || "Ошибка создания сезона");
+      showToast("Ошибка создания сезона: " + (err.message || "неизвестная ошибка"), "error");
+    } finally {
+      setSavingSeason(false);
     }
   };
 
@@ -90,10 +99,12 @@ export function SettingsPage({
   };
 
   const handleDeleteSeason = async (season) => {
+    setDeletingSeason(season.id);
     try {
       const gameCount = await getGameCountBySeason(season.id);
       if (gameCount > 0) {
         setError("Нельзя удалить сезон с играми");
+        showToast("Нельзя удалить сезон с играми", "error");
         setConfirmDelete(null);
         return;
       }
@@ -111,6 +122,9 @@ export function SettingsPage({
       showToast("Сезон удалён");
     } catch (err) {
       setError(err.message || "Ошибка удаления сезона");
+      showToast("Ошибка удаления сезона: " + (err.message || "неизвестная ошибка"), "error");
+    } finally {
+      setDeletingSeason(null);
     }
   };
 
@@ -144,6 +158,7 @@ export function SettingsPage({
       { nickname: "Ягуар", realName: "Светлана" },
     ];
 
+    setGeneratingDemo(true);
     try {
       // Create missing players
       const newPlayers = demoNicknames.filter(
@@ -230,6 +245,9 @@ export function SettingsPage({
       showToast(`Создано ${newPlayers.length} игроков и ${numGames} игр`);
     } catch (err) {
       setError(err.message || "Ошибка генерации демо-данных");
+      showToast("Ошибка генерации демо-данных: " + (err.message || "неизвестная ошибка"), "error");
+    } finally {
+      setGeneratingDemo(false);
     }
   };
 
@@ -242,6 +260,7 @@ export function SettingsPage({
       setExportData(JSON.stringify(data, null, 2));
     } catch (err) {
       setError(err.message || "Ошибка экспорта");
+      showToast("Ошибка экспорта: " + (err.message || "неизвестная ошибка"), "error");
     }
   };
 
@@ -250,7 +269,7 @@ export function SettingsPage({
     navigator.clipboard.writeText(exportData).then(() => {
       showToast("Скопировано в буфер обмена");
     }).catch(() => {
-      showToast("Не удалось скопировать — выделите текст вручную");
+      showToast("Не удалось скопировать — выделите текст вручную", "warning");
     });
   };
 
@@ -274,12 +293,16 @@ export function SettingsPage({
       try {
         const data = JSON.parse(ev.target.result);
         if (!data.seasons || !data.players || !data.games) {
-          setError("Некорректный формат файла: отсутствуют seasons, players или games");
+          const msg = "Некорректный формат файла: отсутствуют seasons, players или games";
+          setError(msg);
+          showToast(msg, "error");
           return;
         }
         setConfirmImport(data);
       } catch {
-        setError("Ошибка чтения файла: некорректный JSON");
+        const msg = "Ошибка чтения файла: некорректный JSON";
+        setError(msg);
+        showToast(msg, "error");
       }
     };
     reader.readAsText(file);
@@ -296,11 +319,13 @@ export function SettingsPage({
       console.error("Import error:", err);
       setConfirmImport(null);
       setError(err.message || "Ошибка импорта");
+      showToast("Ошибка импорта: " + (err.message || "неизвестная ошибка"), "error");
     }
   };
 
   // --- Reset ---
   const handleReset = async () => {
+    setResetting(true);
     try {
       const firstSeason = await resetAllData();
       await refreshData();
@@ -309,6 +334,9 @@ export function SettingsPage({
       showToast("Все данные сброшены");
     } catch (err) {
       setError(err.message || "Ошибка сброса");
+      showToast("Ошибка сброса: " + (err.message || "неизвестная ошибка"), "error");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -448,8 +476,10 @@ export function SettingsPage({
           Создать тестовых игроков и игры для проверки работы приложения.
         </p>
         <button onClick={() => setConfirmDemo(true)}
-          className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm">
-          <Database size={16} /> Сгенерировать демо-данные
+          disabled={generatingDemo}
+          className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-600 disabled:cursor-not-allowed text-zinc-300 px-4 py-2 rounded-lg text-sm">
+          {generatingDemo ? <Loader size={16} className="animate-spin" /> : <Database size={16} />}
+          {generatingDemo ? "Генерация..." : "Сгенерировать демо-данные"}
         </button>
       </div>
 
@@ -473,9 +503,14 @@ export function SettingsPage({
           footer={
             <>
               <button onClick={() => setShowNewSeason(false)}
-                className="px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm">Отмена</button>
+                disabled={savingSeason}
+                className="px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Отмена</button>
               <button onClick={handleCreateSeason}
-                className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm">Создать</button>
+                disabled={savingSeason}
+                className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
+                {savingSeason && <Loader size={14} className="animate-spin" />}
+                {savingSeason ? "Создание..." : "Создать"}
+              </button>
             </>
           }>
           <div className="space-y-4">
@@ -548,11 +583,13 @@ export function SettingsPage({
           footer={
             <>
               <button onClick={() => setConfirmReset(false)}
-                className="px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm">Отмена</button>
+                disabled={resetting}
+                className="px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Отмена</button>
               <button onClick={handleReset}
-                disabled={resetWord !== "УДАЛИТЬ"}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
-                Сбросить
+                disabled={resetWord !== "УДАЛИТЬ" || resetting}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
+                {resetting && <Loader size={14} className="animate-spin" />}
+                {resetting ? "Сброс..." : "Сбросить"}
               </button>
             </>
           }>

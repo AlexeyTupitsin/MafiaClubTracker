@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { ArrowLeft, Check, Users, X, AlertTriangle, Shield, Sword } from "lucide-react";
+import { ArrowLeft, Check, Users, X, AlertTriangle, Shield, Sword, Loader } from "lucide-react";
 import { Badge, PlayerSelect } from "../components/ui";
 import { ROLE_NAMES, ROLE_OPTIONS, ROLE_REQUIRED, ROLE_BADGE_VARIANT, RESULT_NAMES } from "../lib/constants";
 import { getTeam } from "../lib/utils";
@@ -7,6 +7,7 @@ import { createGame, updateGame, createTournament } from "../lib/queries";
 
 export function GameForm({ players, games, currentSeasonId, currentSeason, navigate, editingGame, showToast, refreshGames, refreshAllGames, tournaments, refreshTournaments }) {
   const [step, setStep] = useState(1);
+  const [saving, setSaving] = useState(false);
 
   // Tournament selection
   const [tournamentId, setTournamentId] = useState("");
@@ -124,6 +125,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
       };
     });
 
+    setSaving(true);
     try {
       // Resolve tournament ID (create new if needed)
       let resolvedTournamentId = tournamentId || null;
@@ -170,7 +172,9 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
       }
     } catch (err) {
       console.error("Failed to save game:", err);
-      showToast?.("Ошибка сохранения: " + (err.message || "неизвестная ошибка"));
+      showToast?.("Ошибка сохранения: " + (err.message || "неизвестная ошибка"), "error");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -534,8 +538,10 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           </button>
         ) : (
           <button onClick={handleSave}
-            className="flex items-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm">
-            <Check size={16} /> Сохранить игру
+            disabled={saving}
+            className="flex items-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
+            {saving ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
+            {saving ? "Сохранение..." : "Сохранить игру"}
           </button>
         )}
       </div>
