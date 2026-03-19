@@ -16,7 +16,7 @@ export function Header({ seasons, currentSeasonId, setCurrentSeasonId }) {
             <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-violet-700 rounded-lg flex items-center justify-center text-white text-xs font-bold">
               IM
             </div>
-            <h1 className="text-xl font-bold text-zinc-50">Iron Maf</h1>
+            <h1 className="text-xl font-bold text-zinc-50">IronMaf <span className="hidden sm:inline text-sm font-normal text-zinc-500">| Спортивная мафия | Череповец</span></h1>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">

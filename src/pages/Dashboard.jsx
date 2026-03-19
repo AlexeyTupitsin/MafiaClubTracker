@@ -61,7 +61,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
     return (
       <div className="text-center py-12">
         <div className="text-5xl mb-4">{"\u{1F3AD}"}</div>
-        <h2 className="text-2xl font-bold text-zinc-50 mb-2">Добро пожаловать в Iron Maf!</h2>
+        <h2 className="text-2xl font-bold text-zinc-50 mb-2">Добро пожаловать в IronMaf!</h2>
         <p className="text-zinc-400 mb-8 max-w-md mx-auto">
           Начните работу с приложением — добавьте игроков клуба и проведите первую игру.
         </p>
