@@ -7,5 +7,10 @@ dist/
 .DS_Store
 backup/
 .claude/
+.superpowers/
+CLAUDE.md
+docs/superpowers/
+games.json
+sql/
 MafiaClubTracker.jsx
 nul
