@@ -134,11 +134,12 @@ export default function App() {
     let cancelled = false;
     async function loadData() {
       try {
-        let loadedSeasons = await getSeasons();
-        const loadedPlayers = await getPlayers();
-
+        // Wave 1: independent calls
+        const [loadedSeasons, loadedPlayers] = await Promise.all([
+          getSeasons(),
+          getPlayers(),
+        ]);
         if (cancelled) return;
-
         setSeasons(loadedSeasons);
         setPlayers(loadedPlayers);
 
@@ -146,18 +147,22 @@ export default function App() {
         const seasonId = active?.id || loadedSeasons[loadedSeasons.length - 1]?.id;
         setCurrentSeasonId(seasonId);
 
+        // Wave 2: all parallel
+        const promises = [getAllGames(), getAllTournaments()];
         if (seasonId) {
-          const loadedGames = await getGamesBySeason(seasonId);
-          if (!cancelled) setGames(loadedGames);
-          const loadedTournaments = await getTournamentsBySeason(seasonId);
-          if (!cancelled) setTournaments(loadedTournaments);
+          promises.unshift(getGamesBySeason(seasonId), getTournamentsBySeason(seasonId));
         }
 
-        const all = await getAllGames();
-        if (!cancelled) setAllGames(all);
+        const results = await Promise.all(promises);
+        if (cancelled) return;
 
-        const allT = await getAllTournaments();
-        if (!cancelled) setAllTournaments(allT);
+        let i = 0;
+        if (seasonId) {
+          setGames(results[i++]);
+          setTournaments(results[i++]);
+        }
+        setAllGames(results[i++]);
+        setAllTournaments(results[i++]);
       } catch (error) {
         console.error("Failed to load data:", error);
         if (!cancelled) setLoadError(error?.message || String(error));
@@ -194,11 +199,28 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-2 text-zinc-400">
-            <Loader size={20} className="animate-spin" />
-            Загрузка...
+      <div className="min-h-screen bg-[#0a0a0a]">
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          {/* Skeleton stat cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-[#151515] border border-zinc-800 rounded-xl p-4 animate-pulse">
+                <div className="h-4 bg-zinc-800 rounded w-20 mb-3" />
+                <div className="h-8 bg-zinc-800 rounded w-16" />
+              </div>
+            ))}
+          </div>
+          {/* Skeleton table */}
+          <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="flex gap-4 py-3 border-b border-zinc-800/50 last:border-0 animate-pulse">
+                <div className="h-4 bg-zinc-800 rounded w-8" />
+                <div className="h-4 bg-zinc-800 rounded w-24" />
+                <div className="h-4 bg-zinc-800 rounded w-12" />
+                <div className="h-4 bg-zinc-800 rounded w-12" />
+                <div className="h-4 bg-zinc-800 rounded w-16" />
+              </div>
+            ))}
           </div>
           {loadError && (
             <div className="mt-4 max-w-md mx-auto bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
