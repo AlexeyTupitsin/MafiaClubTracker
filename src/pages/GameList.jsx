@@ -2,10 +2,12 @@ import { useState, useMemo, useEffect } from "react";
 import { Plus, Sword } from "lucide-react";
 import { Badge, EmptyState } from "../components/ui";
 import { AdminOnly } from "../components/auth/AuthGuard";
+import { useAuth } from "../hooks/useAuth";
 import { TEAM_NAMES } from "../lib/constants";
 import { formatDate } from "../lib/utils";
 
 export function GameList({ games, players, navigate, currentSeason, seasons, currentSeasonId, allGames, tournaments }) {
+  const { isAdmin } = useAuth();
   const canAdd = currentSeason?.isActive;
   const [winnerFilter, setWinnerFilter] = useState("all");
   const [seasonFilter, setSeasonFilter] = useState("all");
@@ -139,14 +141,12 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
           description={sourceGames.length === 0
             ? (canAdd ? "Добавьте первую игру!" : "Пока нет игр")
             : "Нет игр по выбранным фильтрам"}
-          action={canAdd && sourceGames.length === 0 && (
-            <AdminOnly>
-              <button onClick={() => navigate("gameForm")}
-                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-lg text-sm">
-                <Plus size={16} /> Добавить игру
-              </button>
-            </AdminOnly>
-          )}
+          action={isAdmin && canAdd && sourceGames.length === 0 ? (
+            <button onClick={() => navigate("gameForm")}
+              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+              <Plus size={16} /> Новая игра
+            </button>
+          ) : null}
         />
       ) : (
         <div className="bg-[#151515] border border-zinc-800 rounded-xl overflow-hidden">

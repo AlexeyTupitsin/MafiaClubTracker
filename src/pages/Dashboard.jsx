@@ -4,35 +4,30 @@ import { StatCard, Badge, EmptyState } from "../components/ui";
 import { calcDashboardStats, calcRoleNominations, calcPlayerStats, calcKillRate } from "../lib/metrics";
 import { NOMINATION_CONFIG, TEAM_NAMES, ROLE_NAMES } from "../lib/constants";
 import { AdminOnly } from "../components/auth/AuthGuard";
+import { useAuth } from "../hooks/useAuth";
 
 export function Dashboard({ games, players, navigate, currentSeason, seasons, currentSeasonId, allGames }) {
+  const { isAdmin } = useAuth();
   const hasPlayers = players.length > 0;
-  const [seasonFilter, setSeasonFilter] = useState("all");
   const [showAll, setShowAll] = useState(false);
   const [sortCol, setSortCol] = useState("totalScore");
   const [sortDir, setSortDir] = useState("desc");
 
-  const activeGames = useMemo(() => {
-    if (seasonFilter === "all") return allGames || games;
-    if (seasonFilter === currentSeasonId) return games;
-    return (allGames || games).filter((g) => g.seasonId === seasonFilter);
-  }, [seasonFilter, games, currentSeasonId, allGames]);
-
-  const hasGames = activeGames.length > 0;
-  const dashStats = useMemo(() => calcDashboardStats(activeGames), [activeGames]);
-  const { nominations, minGames: nominationMinGames } = useMemo(() => calcRoleNominations(activeGames, players), [activeGames, players]);
+  const hasGames = games.length > 0;
+  const dashStats = useMemo(() => calcDashboardStats(games), [games]);
+  const { nominations, minGames: nominationMinGames } = useMemo(() => calcRoleNominations(games, players), [games, players]);
 
   // Full rating data
   const ratingData = useMemo(() => {
     const playerIds = new Set();
-    activeGames.forEach((g) => g.players.forEach((p) => playerIds.add(p.playerId)));
+    games.forEach((g) => g.players.forEach((p) => playerIds.add(p.playerId)));
     return Array.from(playerIds).map((pid) => {
       const player = players.find((p) => p.id === pid);
-      const stats = calcPlayerStats(pid, activeGames);
-      const kr = calcKillRate(pid, activeGames, seasons);
+      const stats = calcPlayerStats(pid, games);
+      const kr = calcKillRate(pid, games, seasons);
       return { id: pid, nickname: player?.nickname || "?", ...stats, killRate: kr };
     });
-  }, [activeGames, players]);
+  }, [games, players]);
 
   // Threshold: 50% of max games (rounded down)
   const maxGames = useMemo(() => Math.max(...ratingData.map((r) => r.totalGames), 0), [ratingData]);
@@ -86,35 +81,20 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
 
   return (
     <div className="space-y-6">
-      {/* Season filter */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">Дашборд</h2>
-        <select
-          value={seasonFilter}
-          onChange={(e) => setSeasonFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-sm bg-zinc-900 border-zinc-700 text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
-        >
-          <option value="all">Все сезоны</option>
-          {seasons.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-      </div>
+      <h2 className="text-xl font-bold">Дашборд</h2>
 
       {!hasGames ? (
-        <div className="text-center py-12">
-          <div className="text-5xl mb-4">{"\u{1F3AD}"}</div>
-          <h2 className="text-xl font-bold text-zinc-50 mb-2">Нет игр</h2>
-          <p className="text-zinc-400 mb-6">Добавьте первую игру!</p>
-          {currentSeason?.isActive && (
-            <AdminOnly>
-              <button onClick={() => navigate("gameForm")}
-                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-5 py-2.5 rounded-lg text-sm font-medium mx-auto">
-                <Plus size={18} /> Добавить игру
-              </button>
-            </AdminOnly>
-          )}
-        </div>
+        <EmptyState
+          icon={Sword}
+          title="Нет игр в этом сезоне"
+          description="Запишите первую игру, чтобы увидеть статистику"
+          action={isAdmin && currentSeason?.isActive ? (
+            <button onClick={() => navigate("gameForm")}
+              className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm transition-colors">
+              Записать игру
+            </button>
+          ) : null}
+        />
       ) : (
         <>
           {/* Stat cards — 3 cards */}
@@ -179,19 +159,19 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
                       <th className="px-2 py-2 text-center font-medium text-zinc-500 cursor-pointer select-none" onClick={() => handleSort("wins")}>
                         Побед<SortIcon col="wins" />
                       </th>
-                      <th className="px-2 py-2 text-center font-medium text-zinc-500 cursor-pointer select-none" onClick={() => handleSort("winrate")}>
+                      <th className="px-2 py-2 text-center font-medium text-zinc-500 cursor-pointer select-none" onClick={() => handleSort("winrate")} title="Процент побед">
                         WR%<SortIcon col="winrate" />
                       </th>
                       <th className="px-2 py-2 text-center font-medium text-zinc-500 cursor-pointer select-none" onClick={() => handleSort("totalScore")}>
                         Баллы<SortIcon col="totalScore" />
                       </th>
-                      <th className="px-2 py-2 text-center font-medium text-zinc-500 cursor-pointer select-none" onClick={() => handleSort("avgScore")}>
+                      <th className="px-2 py-2 text-center font-medium text-zinc-500 cursor-pointer select-none" onClick={() => handleSort("avgScore")} title="Средний балл за игру">
                         Ср. балл<SortIcon col="avgScore" />
                       </th>
-                      <th className="px-2 py-2 text-center font-medium text-zinc-500 cursor-pointer select-none hidden md:table-cell" onClick={() => handleSort("avgBonus")}>
+                      <th className="px-2 py-2 text-center font-medium text-zinc-500 cursor-pointer select-none hidden md:table-cell" onClick={() => handleSort("avgBonus")} title="Средний дополнительный балл">
                         Ср. доп.<SortIcon col="avgBonus" />
                       </th>
-                      <th className="px-2 py-2 text-center font-medium text-zinc-500 hidden md:table-cell">ПУ%</th>
+                      <th className="px-2 py-2 text-center font-medium text-zinc-500 hidden md:table-cell" title="Процент первых убийств">ПУ%</th>
                     </tr>
                   </thead>
                   <tbody>

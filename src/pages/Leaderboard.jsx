@@ -97,11 +97,11 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     { key: "nickname", label: "Ник", sortable: true },
     { key: "totalGames", label: "Игры", sortable: true },
     { key: "wins", label: "Победы", sortable: true },
-    { key: "winrate", label: "WR%", sortable: true },
+    { key: "winrate", label: "WR%", sortable: true, title: "Процент побед" },
     { key: "totalScore", label: "Баллы", sortable: true },
-    { key: "avgScore", label: "Ср. балл", sortable: true },
-    { key: "avgBonus", label: "Ср. доп.", sortable: true },
-    { key: "killRate", label: "ПУ%", sortable: false },
+    { key: "avgScore", label: "Ср. балл", sortable: true, title: "Средний балл за игру" },
+    { key: "avgBonus", label: "Ср. доп.", sortable: true, title: "Средний дополнительный балл" },
+    { key: "killRate", label: "ПУ%", sortable: false, title: "Процент первых убийств" },
   ];
 
   const medalEmoji = (idx) => {
@@ -181,7 +181,8 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                       className={`px-3 py-2.5 font-medium text-zinc-500 whitespace-nowrap ${
                         col.key === "nickname" ? "text-left" : "text-center"
                       } ${col.sortable ? "cursor-pointer hover:text-zinc-300 select-none" : ""}`}
-                      onClick={col.sortable ? () => handleSort(col.key) : undefined}>
+                      onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                      title={col.title}>
                       {col.label}
                       {col.sortable && <SortIcon col={col.key} />}
                     </th>

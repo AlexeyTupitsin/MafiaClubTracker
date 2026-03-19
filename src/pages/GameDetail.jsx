@@ -78,9 +78,9 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                 <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Роль</th>
                 <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Команда</th>
                 <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Результат</th>
-                <th className="text-center px-3 py-2.5 font-medium text-zinc-500">База</th>
-                <th className="text-center px-3 py-2.5 font-medium text-zinc-500">Бонус</th>
-                <th className="text-center px-3 py-2.5 font-medium text-zinc-500">Итого</th>
+                <th className="text-center px-3 py-2.5 font-medium text-zinc-500" title="Базовый балл">База</th>
+                <th className="text-center px-3 py-2.5 font-medium text-zinc-500" title="Дополнительный балл">Бонус</th>
+                <th className="text-center px-3 py-2.5 font-medium text-zinc-500" title="Итоговый балл">Итого</th>
                 <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Комментарий</th>
               </tr>
             </thead>
@@ -100,7 +100,7 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                         {player?.nickname || "?"}
                       </button>
                       {game.firstKilled === gp.playerId && (
-                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-medium">ПУ</span>
+                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-medium" title="Первое убийство">ПУ</span>
                       )}
                     </td>
                     <td className="px-3 py-2.5">
