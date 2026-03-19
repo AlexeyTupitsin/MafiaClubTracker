@@ -8,18 +8,18 @@ export function ConfirmDialog({
     <Modal title={title} onClose={onCancel} footer={
       <>
         <button onClick={onCancel}
-          className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">
+          className="px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm">
           {cancelText}
         </button>
         <button onClick={onConfirm}
           className={`px-4 py-2 rounded-lg text-white text-sm ${
-            danger ? "bg-red-600 hover:bg-red-700" : "bg-indigo-600 hover:bg-indigo-700"
+            danger ? "bg-red-600 hover:bg-red-700" : "bg-violet-600 hover:bg-violet-500"
           }`}>
           {confirmText}
         </button>
       </>
     }>
-      <p className="text-gray-600">{message}</p>
+      <p className="text-zinc-400">{message}</p>
     </Modal>
   );
 }

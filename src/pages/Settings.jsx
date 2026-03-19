@@ -11,6 +11,7 @@ import {
   CheckCircle,
   Pencil,
   Check,
+  Loader,
 } from "lucide-react";
 import { Modal, ConfirmDialog, Badge } from "../components/ui";
 import { getTeam, formatDate } from "../lib/utils";
@@ -49,12 +50,17 @@ export function SettingsPage({
   const [editingSeasonId, setEditingSeasonId] = useState(null);
   const [editingSeasonName, setEditingSeasonName] = useState("");
   const [trackFirstKill, setTrackFirstKill] = useState(true);
+  const [savingSeason, setSavingSeason] = useState(false);
+  const [deletingSeason, setDeletingSeason] = useState(null);
+  const [generatingDemo, setGeneratingDemo] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   // --- Season handlers ---
   const handleCreateSeason = async () => {
     const trimmed = seasonName.trim();
     if (!trimmed) { setError("Введите название сезона"); return; }
 
+    setSavingSeason(true);
     try {
       const newSeason = await createSeason({
         name: trimmed,
@@ -72,6 +78,9 @@ export function SettingsPage({
       showToast("Сезон создан");
     } catch (err) {
       setError(err.message || "Ошибка создания сезона");
+      showToast("Ошибка создания сезона: " + (err.message || "неизвестная ошибка"), "error");
+    } finally {
+      setSavingSeason(false);
     }
   };
 
@@ -90,10 +99,12 @@ export function SettingsPage({
   };
 
   const handleDeleteSeason = async (season) => {
+    setDeletingSeason(season.id);
     try {
       const gameCount = await getGameCountBySeason(season.id);
       if (gameCount > 0) {
         setError("Нельзя удалить сезон с играми");
+        showToast("Нельзя удалить сезон с играми", "error");
         setConfirmDelete(null);
         return;
       }
@@ -111,6 +122,9 @@ export function SettingsPage({
       showToast("Сезон удалён");
     } catch (err) {
       setError(err.message || "Ошибка удаления сезона");
+      showToast("Ошибка удаления сезона: " + (err.message || "неизвестная ошибка"), "error");
+    } finally {
+      setDeletingSeason(null);
     }
   };
 
@@ -144,6 +158,7 @@ export function SettingsPage({
       { nickname: "Ягуар", realName: "Светлана" },
     ];
 
+    setGeneratingDemo(true);
     try {
       // Create missing players
       const newPlayers = demoNicknames.filter(
@@ -230,11 +245,15 @@ export function SettingsPage({
       showToast(`Создано ${newPlayers.length} игроков и ${numGames} игр`);
     } catch (err) {
       setError(err.message || "Ошибка генерации демо-данных");
+      showToast("Ошибка генерации демо-данных: " + (err.message || "неизвестная ошибка"), "error");
+    } finally {
+      setGeneratingDemo(false);
     }
   };
 
   // --- Export ---
   const [exportData, setExportData] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const handleExport = async () => {
     try {
@@ -242,6 +261,7 @@ export function SettingsPage({
       setExportData(JSON.stringify(data, null, 2));
     } catch (err) {
       setError(err.message || "Ошибка экспорта");
+      showToast("Ошибка экспорта: " + (err.message || "неизвестная ошибка"), "error");
     }
   };
 
@@ -249,8 +269,10 @@ export function SettingsPage({
     if (!exportData) return;
     navigator.clipboard.writeText(exportData).then(() => {
       showToast("Скопировано в буфер обмена");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }).catch(() => {
-      showToast("Не удалось скопировать — выделите текст вручную");
+      showToast("Не удалось скопировать — выделите текст вручную", "warning");
     });
   };
 
@@ -274,12 +296,16 @@ export function SettingsPage({
       try {
         const data = JSON.parse(ev.target.result);
         if (!data.seasons || !data.players || !data.games) {
-          setError("Некорректный формат файла: отсутствуют seasons, players или games");
+          const msg = "Некорректный формат файла: отсутствуют seasons, players или games";
+          setError(msg);
+          showToast(msg, "error");
           return;
         }
         setConfirmImport(data);
       } catch {
-        setError("Ошибка чтения файла: некорректный JSON");
+        const msg = "Ошибка чтения файла: некорректный JSON";
+        setError(msg);
+        showToast(msg, "error");
       }
     };
     reader.readAsText(file);
@@ -296,11 +322,13 @@ export function SettingsPage({
       console.error("Import error:", err);
       setConfirmImport(null);
       setError(err.message || "Ошибка импорта");
+      showToast("Ошибка импорта: " + (err.message || "неизвестная ошибка"), "error");
     }
   };
 
   // --- Reset ---
   const handleReset = async () => {
+    setResetting(true);
     try {
       const firstSeason = await resetAllData();
       await refreshData();
@@ -309,6 +337,9 @@ export function SettingsPage({
       showToast("Все данные сброшены");
     } catch (err) {
       setError(err.message || "Ошибка сброса");
+      showToast("Ошибка сброса: " + (err.message || "неизвестная ошибка"), "error");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -317,31 +348,31 @@ export function SettingsPage({
       <h2 className="text-xl font-bold">Настройки</h2>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2 text-red-700 text-sm">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2 text-red-400 text-sm">
           <AlertTriangle size={16} /> {error}
-          <button onClick={() => setError("")} className="ml-auto p-0.5 hover:bg-red-100 rounded">
+          <button onClick={() => setError("")} className="ml-auto p-0.5 hover:bg-red-500/20 rounded">
             <X size={14} />
           </button>
         </div>
       )}
 
       {/* Seasons */}
-      <div className="bg-white rounded-xl shadow-sm p-4">
+      <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Сезоны</h3>
           <button onClick={() => { setShowNewSeason(true); setError(""); setSeasonName(""); }}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm">
+            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg text-sm">
             <Plus size={14} /> Новый сезон
           </button>
         </div>
         {seasons.length === 0 ? (
-          <p className="text-gray-500 text-sm">Нет сезонов</p>
+          <p className="text-zinc-400 text-sm">Нет сезонов</p>
         ) : (
           <div className="space-y-2">
             {seasons.map((season) => (
               <div key={season.id}
-                className={`flex items-center justify-between p-3 border rounded-lg ${
-                  season.id === currentSeasonId ? "border-indigo-200 bg-indigo-50" : ""
+                className={`flex items-center justify-between p-3 border border-zinc-700 rounded-lg ${
+                  season.id === currentSeasonId ? "border-violet-500/30 bg-violet-500/5" : ""
                 }`}>
                 <div className="min-w-0">
                   {editingSeasonId === season.id ? (
@@ -351,28 +382,29 @@ export function SettingsPage({
                         value={editingSeasonName}
                         onChange={(e) => setEditingSeasonName(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") handleRenameSeason(season.id); if (e.key === "Escape") setEditingSeasonId(null); }}
-                        className="border rounded px-2 py-0.5 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"
+                        onFocus={(e) => e.target.select()}
+                        className="bg-zinc-900 border border-zinc-700 text-zinc-100 rounded px-2 py-0.5 text-sm font-medium outline-none focus:ring-2 focus:ring-violet-500"
                         autoFocus
                       />
                       <button onClick={() => handleRenameSeason(season.id)}
-                        className="p-1 hover:bg-green-100 rounded transition-colors" title="Сохранить">
-                        <Check size={14} className="text-green-600" />
+                        className="p-1 hover:bg-emerald-500/20 rounded transition-colors" title="Сохранить">
+                        <Check size={14} className="text-emerald-400" />
                       </button>
                       <button onClick={() => setEditingSeasonId(null)}
-                        className="p-1 hover:bg-gray-100 rounded transition-colors" title="Отмена">
-                        <X size={14} className="text-gray-400" />
+                        className="p-1 hover:bg-zinc-800 rounded transition-colors" title="Отмена">
+                        <X size={14} className="text-zinc-500" />
                       </button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1">
                       <span className="font-medium truncate">{season.name}</span>
                       <button onClick={() => { setEditingSeasonId(season.id); setEditingSeasonName(season.name); }}
-                        className="p-1 hover:bg-gray-100 rounded transition-colors" title="Переименовать">
-                        <Pencil size={12} className="text-gray-400" />
+                        className="p-1 hover:bg-zinc-800 rounded transition-colors" title="Переименовать">
+                        <Pencil size={12} className="text-zinc-500" />
                       </button>
                     </div>
                   )}
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-zinc-400">
                     {formatDate(season.startDate)}
                     {season.endDate ? ` — ${formatDate(season.endDate)}` : " — ..."}
                   </div>
@@ -383,13 +415,13 @@ export function SettingsPage({
                   </Badge>
                   {season.isActive && (
                     <button onClick={() => setConfirmEnd(season)}
-                      className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border rounded hover:bg-gray-50">
+                      className="text-xs text-zinc-500 hover:text-zinc-300 px-2 py-1 border border-zinc-700 rounded hover:bg-zinc-800">
                       Завершить
                     </button>
                   )}
                   <button onClick={() => setConfirmDelete(season)}
-                    className="p-1.5 hover:bg-gray-100 rounded transition-colors" title="Удалить">
-                    <Trash2 size={14} className="text-gray-400" />
+                    className="p-1.5 hover:bg-zinc-800 rounded transition-colors" title="Удалить">
+                    <Trash2 size={14} className="text-zinc-500" />
                   </button>
                 </div>
               </div>
@@ -399,14 +431,14 @@ export function SettingsPage({
       </div>
 
       {/* Export / Import */}
-      <div className="bg-white rounded-xl shadow-sm p-4">
+      <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
         <h3 className="text-lg font-semibold mb-3">Данные</h3>
         <div className="flex flex-wrap gap-3">
           <button onClick={handleExport}
-            className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm">
+            className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm">
             <Download size={16} /> Экспорт в JSON
           </button>
-          <label className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm cursor-pointer">
+          <label className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm cursor-pointer">
             <Upload size={16} /> Импорт из JSON
             <input type="file" accept=".json" onChange={handleImportFile} className="hidden" />
           </label>
@@ -414,18 +446,18 @@ export function SettingsPage({
         {exportData && (
           <div className="mt-3">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-gray-500">Скопируйте данные или скачайте файл:</span>
+              <span className="text-sm text-zinc-400">Скопируйте данные или скачайте файл:</span>
               <div className="flex gap-2">
                 <button onClick={handleDownloadExport}
-                  className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                  className="flex items-center gap-1 text-sm text-violet-400 hover:text-violet-300 font-medium">
                   <Download size={14} /> Скачать
                 </button>
                 <button onClick={handleCopyExport}
-                  className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-                  <CheckCircle size={14} /> Копировать
+                  className="flex items-center gap-1 text-sm text-violet-400 hover:text-violet-300 font-medium">
+                  <CheckCircle size={14} /> {copied ? "Скопировано ✓" : "Копировать"}
                 </button>
                 <button onClick={() => setExportData(null)}
-                  className="text-sm text-gray-400 hover:text-gray-600">
+                  className="text-sm text-zinc-500 hover:text-zinc-300">
                   <X size={14} />
                 </button>
               </div>
@@ -434,36 +466,38 @@ export function SettingsPage({
               readOnly
               value={exportData}
               rows={8}
-              className="w-full border rounded-lg px-3 py-2 text-xs font-mono bg-gray-50 outline-none"
+              className="w-full border border-zinc-700 rounded-lg px-3 py-2 text-xs font-mono bg-zinc-900 text-zinc-300 outline-none"
               onClick={(e) => e.target.select()}
             />
           </div>
         )}
       </div>
 
-      {/* Demo Data */}
-      <div className="bg-white rounded-xl shadow-sm p-4">
+      {/* Demo Data - hidden */}
+      {/* <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
         <h3 className="text-lg font-semibold mb-2">Демо-данные</h3>
-        <p className="text-sm text-gray-500 mb-3">
+        <p className="text-sm text-zinc-400 mb-3">
           Создать тестовых игроков и игры для проверки работы приложения.
         </p>
         <button onClick={() => setConfirmDemo(true)}
-          className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm">
-          <Database size={16} /> Сгенерировать демо-данные
+          disabled={generatingDemo}
+          className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-600 disabled:cursor-not-allowed text-zinc-300 px-4 py-2 rounded-lg text-sm">
+          {generatingDemo ? <Loader size={16} className="animate-spin" /> : <Database size={16} />}
+          {generatingDemo ? "Генерация..." : "Сгенерировать демо-данные"}
         </button>
-      </div>
+      </div> */}
 
-      {/* Danger Zone */}
-      <div className="bg-white rounded-xl shadow-sm p-4 border border-red-100">
-        <h3 className="text-lg font-semibold text-red-600 mb-2">Опасная зона</h3>
-        <p className="text-sm text-gray-500 mb-3">
+      {/* Danger Zone - hidden */}
+      {/* <div className="bg-[#151515] border border-red-500/20 rounded-xl p-4">
+        <h3 className="text-lg font-semibold text-red-400 mb-2">Опасная зона</h3>
+        <p className="text-sm text-zinc-400 mb-3">
           Удаление всех данных приложения. Это действие необратимо.
         </p>
         <button onClick={() => { setConfirmReset(true); setResetWord(""); }}
-          className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-sm">
+          className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-4 py-2 rounded-lg text-sm">
           <RefreshCw size={16} /> Сбросить все данные
         </button>
-      </div>
+      </div> */}
 
       {/* Modals */}
       {showNewSeason && (
@@ -473,26 +507,31 @@ export function SettingsPage({
           footer={
             <>
               <button onClick={() => setShowNewSeason(false)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">Отмена</button>
+                disabled={savingSeason}
+                className="px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Отмена</button>
               <button onClick={handleCreateSeason}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm">Создать</button>
+                disabled={savingSeason}
+                className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
+                {savingSeason && <Loader size={14} className="animate-spin" />}
+                {savingSeason ? "Создание..." : "Создать"}
+              </button>
             </>
           }>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
                 Название <span className="text-red-500">*</span>
               </label>
               <input type="text" value={seasonName}
                 onChange={(e) => setSeasonName(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"
                 placeholder="Сезон 2 — Лето 2026" autoFocus />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Дата начала</label>
+              <label className="block text-sm font-medium text-zinc-300 mb-1">Дата начала</label>
               <input type="date" value={seasonStart}
                 onChange={(e) => setSeasonStart(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none" />
             </div>
             <div className="flex items-center gap-2">
               <input
@@ -500,14 +539,14 @@ export function SettingsPage({
                 id="trackFirstKill"
                 checked={trackFirstKill}
                 onChange={(e) => setTrackFirstKill(e.target.checked)}
-                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                className="rounded border-zinc-600 text-violet-600 focus:ring-violet-500"
               />
-              <label htmlFor="trackFirstKill" className="text-sm text-gray-700">
+              <label htmlFor="trackFirstKill" className="text-sm text-zinc-200">
                 Отслеживать первоубиенного (ПУ)
               </label>
             </div>
             {seasons.some((s) => s.isActive) && (
-              <p className="text-sm text-amber-600 flex items-center gap-1">
+              <p className="text-sm text-amber-400 flex items-center gap-1">
                 <AlertTriangle size={14} /> Текущий активный сезон будет автоматически завершён
               </p>
             )}
@@ -548,25 +587,27 @@ export function SettingsPage({
           footer={
             <>
               <button onClick={() => setConfirmReset(false)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm">Отмена</button>
+                disabled={resetting}
+                className="px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Отмена</button>
               <button onClick={handleReset}
-                disabled={resetWord !== "УДАЛИТЬ"}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg text-sm">
-                Сбросить
+                disabled={resetWord !== "УДАЛИТЬ" || resetting}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
+                {resetting && <Loader size={14} className="animate-spin" />}
+                {resetting ? "Сброс..." : "Сбросить"}
               </button>
             </>
           }>
           <div className="space-y-3">
-            <p className="text-gray-600">
+            <p className="text-zinc-300">
               Все сезоны, игроки и игры будут удалены. Будет создан новый пустой «Сезон 1».
             </p>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Введите <span className="font-mono font-bold text-red-600">УДАЛИТЬ</span> для подтверждения
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
+                Введите <span className="font-mono font-bold text-red-400">УДАЛИТЬ</span> для подтверждения
               </label>
               <input type="text" value={resetWord}
                 onChange={(e) => setResetWord(e.target.value)}
-                className="w-full border border-red-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none"
+                className="w-full bg-zinc-900 border border-red-500/30 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none"
                 placeholder="УДАЛИТЬ" autoFocus />
             </div>
           </div>

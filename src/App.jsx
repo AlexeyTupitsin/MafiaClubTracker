@@ -34,31 +34,34 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [toastMessage, setToastMessage] = useState(null);
-  const [previousPage, setPreviousPage] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [navStack, setNavStack] = useState([]);
 
-  const showToast = useCallback((msg) => {
-    setToastMessage(msg);
+  const showToast = useCallback((msg, type = "success") => {
+    setToast({ message: msg, type });
   }, []);
 
   const navigate = useCallback((page, id = null) => {
-    if (["playerProfile", "gameDetail", "compare", "tournamentDetail", "tournamentForm"].includes(page)) {
-      setPreviousPage({ page: currentPage, id: selectedId });
-    }
+    setNavStack(prev => {
+      const entry = { page: currentPage, id: selectedId };
+      const stack = [...prev, entry];
+      return stack.slice(-10); // limit to 10 entries
+    });
     setCurrentPage(page);
     setSelectedId(id);
   }, [currentPage, selectedId]);
 
   const goBack = useCallback(() => {
-    if (previousPage) {
-      setCurrentPage(previousPage.page);
-      setSelectedId(previousPage.id);
-      setPreviousPage(null);
+    if (navStack.length > 0) {
+      const prev = navStack[navStack.length - 1];
+      setNavStack(s => s.slice(0, -1));
+      setCurrentPage(prev.page);
+      setSelectedId(prev.id);
     } else {
       setCurrentPage("dashboard");
       setSelectedId(null);
     }
-  }, [previousPage]);
+  }, [navStack]);
 
   // Refresh individual data sets from Supabase
   const refreshSeasons = useCallback(async () => {
@@ -131,11 +134,12 @@ export default function App() {
     let cancelled = false;
     async function loadData() {
       try {
-        let loadedSeasons = await getSeasons();
-        const loadedPlayers = await getPlayers();
-
+        // Wave 1: independent calls
+        const [loadedSeasons, loadedPlayers] = await Promise.all([
+          getSeasons(),
+          getPlayers(),
+        ]);
         if (cancelled) return;
-
         setSeasons(loadedSeasons);
         setPlayers(loadedPlayers);
 
@@ -143,18 +147,22 @@ export default function App() {
         const seasonId = active?.id || loadedSeasons[loadedSeasons.length - 1]?.id;
         setCurrentSeasonId(seasonId);
 
+        // Wave 2: all parallel
+        const promises = [getAllGames(), getAllTournaments()];
         if (seasonId) {
-          const loadedGames = await getGamesBySeason(seasonId);
-          if (!cancelled) setGames(loadedGames);
-          const loadedTournaments = await getTournamentsBySeason(seasonId);
-          if (!cancelled) setTournaments(loadedTournaments);
+          promises.unshift(getGamesBySeason(seasonId), getTournamentsBySeason(seasonId));
         }
 
-        const all = await getAllGames();
-        if (!cancelled) setAllGames(all);
+        const results = await Promise.all(promises);
+        if (cancelled) return;
 
-        const allT = await getAllTournaments();
-        if (!cancelled) setAllTournaments(allT);
+        let i = 0;
+        if (seasonId) {
+          setGames(results[i++]);
+          setTournaments(results[i++]);
+        }
+        setAllGames(results[i++]);
+        setAllTournaments(results[i++]);
       } catch (error) {
         console.error("Failed to load data:", error);
         if (!cancelled) setLoadError(error?.message || String(error));
@@ -191,14 +199,31 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-2 text-gray-500">
-            <Loader size={20} className="animate-spin" />
-            Загрузка...
+      <div className="min-h-screen bg-[#0a0a0a]">
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          {/* Skeleton stat cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-[#151515] border border-zinc-800 rounded-xl p-4 animate-pulse">
+                <div className="h-4 bg-zinc-800 rounded w-20 mb-3" />
+                <div className="h-8 bg-zinc-800 rounded w-16" />
+              </div>
+            ))}
+          </div>
+          {/* Skeleton table */}
+          <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="flex gap-4 py-3 border-b border-zinc-800/50 last:border-0 animate-pulse">
+                <div className="h-4 bg-zinc-800 rounded w-8" />
+                <div className="h-4 bg-zinc-800 rounded w-24" />
+                <div className="h-4 bg-zinc-800 rounded w-12" />
+                <div className="h-4 bg-zinc-800 rounded w-12" />
+                <div className="h-4 bg-zinc-800 rounded w-16" />
+              </div>
+            ))}
           </div>
           {loadError && (
-            <div className="mt-4 max-w-md mx-auto bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+            <div className="mt-4 max-w-md mx-auto bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
               <p className="font-medium mb-1">Ошибка загрузки данных:</p>
               <p className="font-mono text-xs">{loadError}</p>
             </div>
@@ -384,7 +409,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16 sm:pb-0">
+    <div className="min-h-screen bg-[#0a0a0a] pb-16 sm:pb-0">
       <Header
         seasons={seasons}
         currentSeasonId={currentSeasonId}
@@ -392,12 +417,12 @@ export default function App() {
       />
       <TabBar currentPage={currentPage} navigate={navigate} />
 
-      <main className="max-w-4xl mx-auto px-4 py-6" key={currentPage + (selectedId || "")}>
+      <main className="max-w-6xl mx-auto px-4 py-6 animate-page-enter" key={currentPage + (selectedId || "")}>
         {renderPage()}
       </main>
 
-      {toastMessage && (
-        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
     </div>
   );
