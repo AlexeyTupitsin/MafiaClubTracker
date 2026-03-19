@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { ArrowLeft, ArrowRightLeft, TrendingUp, TrendingDown, Minus, User, Sword, ChevronRight } from "lucide-react";
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend } from "recharts";
 import { Badge, StatCard, EmptyState } from "../components/ui";
 import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate, calcRoleKillRate } from "../lib/metrics";
 import { ROLE_NAMES, ROLE_BADGE_VARIANT, RESULT_NAMES, ROLE_COLORS } from "../lib/constants";
@@ -317,25 +317,28 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
             </table>
 
             {/* Bar chart for winrate by role */}
-            {roleChartData.length > 0 && (
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={roleChartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#a1a1aa' }} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#a1a1aa' }} unit="%" />
-                    <Tooltip
-                      formatter={(v, name) => [`${v}%`, "Winrate"]}
-                      labelFormatter={(l) => l}
-                      contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #3f3f46', borderRadius: '8px', color: '#fafafa' }}
-                    />
-                    <Bar dataKey="winrate" radius={[4, 4, 0, 0]}>
-                      {roleChartData.map((entry) => (
-                        <Cell key={entry.role} fill={ROLE_COLORS[entry.role]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+            {roleChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={192}>
+                <BarChart data={roleChartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#a1a1aa' }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#a1a1aa' }} unit="%" />
+                  <Tooltip
+                    formatter={(v, name) => [`${v}%`, "Winrate"]}
+                    labelFormatter={(l) => l}
+                    contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #3f3f46', borderRadius: '8px', color: '#fafafa' }}
+                  />
+                  <Legend />
+                  <Bar dataKey="winrate" radius={[4, 4, 0, 0]}>
+                    {roleChartData.map((entry) => (
+                      <Cell key={entry.role} fill={ROLE_COLORS[entry.role]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
+                Недостаточно данных для графика
               </div>
             )}
           </div>

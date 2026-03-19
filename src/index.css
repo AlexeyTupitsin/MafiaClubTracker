@@ -152,3 +152,9 @@ button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
+
+/* === Global transitions === */
+button, a, [role="tab"] {
+  transition-property: color, background-color, border-color;
+  transition-duration: 150ms;
+}

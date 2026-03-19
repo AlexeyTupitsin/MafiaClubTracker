@@ -253,6 +253,7 @@ export function SettingsPage({
 
   // --- Export ---
   const [exportData, setExportData] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const handleExport = async () => {
     try {
@@ -268,6 +269,8 @@ export function SettingsPage({
     if (!exportData) return;
     navigator.clipboard.writeText(exportData).then(() => {
       showToast("Скопировано в буфер обмена");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }).catch(() => {
       showToast("Не удалось скопировать — выделите текст вручную", "warning");
     });
@@ -379,6 +382,7 @@ export function SettingsPage({
                         value={editingSeasonName}
                         onChange={(e) => setEditingSeasonName(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") handleRenameSeason(season.id); if (e.key === "Escape") setEditingSeasonId(null); }}
+                        onFocus={(e) => e.target.select()}
                         className="bg-zinc-900 border border-zinc-700 text-zinc-100 rounded px-2 py-0.5 text-sm font-medium outline-none focus:ring-2 focus:ring-violet-500"
                         autoFocus
                       />
@@ -450,7 +454,7 @@ export function SettingsPage({
                 </button>
                 <button onClick={handleCopyExport}
                   className="flex items-center gap-1 text-sm text-violet-400 hover:text-violet-300 font-medium">
-                  <CheckCircle size={14} /> Копировать
+                  <CheckCircle size={14} /> {copied ? "Скопировано ✓" : "Копировать"}
                 </button>
                 <button onClick={() => setExportData(null)}
                   className="text-sm text-zinc-500 hover:text-zinc-300">
