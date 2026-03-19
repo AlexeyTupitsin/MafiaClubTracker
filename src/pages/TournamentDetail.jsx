@@ -49,6 +49,8 @@ export function TournamentDetail({
       .sort((a, b) => b.avgScore - a.avgScore);
   }, [tournamentGames, players, seasons, totalGames]);
 
+  const minGames = useMemo(() => Math.max(1, Math.floor(totalGames * 0.5)), [totalGames]);
+
   const nominations = useMemo(() => {
     const roles = ["citizen", "sheriff", "mafia", "don"];
     const result = {};
@@ -185,6 +187,9 @@ export function TournamentDetail({
       {totalGames > 0 && (
         <div>
           <h3 className="font-semibold mb-3">Номинации турнира</h3>
+          <p className="text-xs text-zinc-500 mb-3">
+            Минимум {minGames} {minGames === 1 ? "игра" : minGames < 5 ? "игры" : "игр"} для участия в номинации
+          </p>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {NOMINATION_CONFIG.map(({ role, emoji, label }) => {
               const top = nominations[role] || [];

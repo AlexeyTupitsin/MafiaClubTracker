@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Users, UserPlus, Pencil, X, Check } from "lucide-react";
 import { Modal, ConfirmDialog, EmptyState, Badge } from "../components/ui";
 import { AdminOnly } from "../components/auth/AuthGuard";
@@ -11,6 +11,16 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
   const [realName, setRealName] = useState("");
   const [error, setError] = useState("");
   const [confirmDeactivate, setConfirmDeactivate] = useState(null);
+  const [search, setSearch] = useState("");
+
+  const filteredPlayers = useMemo(() => {
+    if (!search.trim()) return players;
+    const q = search.toLowerCase();
+    return players.filter(p =>
+      p.nickname.toLowerCase().includes(q) ||
+      (p.realName && p.realName.toLowerCase().includes(q))
+    );
+  }, [players, search]);
 
   const openAdd = () => {
     setEditingPlayer(null);
@@ -92,6 +102,18 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
         </AdminOnly>
       </div>
 
+      {players.length > 0 && (
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Поиск игрока..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-500 w-48 focus:ring-2 focus:ring-violet-500 outline-none"
+          />
+        </div>
+      )}
+
       {players.length === 0 ? (
         <EmptyState
           icon={Users}
@@ -120,7 +142,7 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
                 </tr>
               </thead>
               <tbody>
-                {players.map((player) => (
+                {filteredPlayers.map((player) => (
                   <tr key={player.id}
                     className={`border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800/50 transition-colors ${
                       !player.isActive ? "opacity-50" : ""
