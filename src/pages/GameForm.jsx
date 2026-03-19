@@ -6,6 +6,8 @@ import { getTeam } from "../lib/utils";
 import { createGame, updateGame, createTournament } from "../lib/queries";
 
 export function GameForm({ players, games, currentSeasonId, currentSeason, navigate, editingGame, showToast, refreshGames, refreshAllGames, tournaments, refreshTournaments }) {
+  const DRAFT_KEY = `gameform-draft-${currentSeasonId}`;
+
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
 
@@ -30,6 +32,36 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
   const [gameDate, setGameDate] = useState(new Date().toISOString().split("T")[0]);
   const [firstKilled, setFirstKilled] = useState(null);
 
+  // Restore draft on mount (only for new games)
+  useEffect(() => {
+    if (editingGame) return;
+    const saved = localStorage.getItem(DRAFT_KEY);
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved);
+        if (window.confirm("Восстановить предыдущую форму?")) {
+          if (draft.step) setStep(draft.step);
+          if (draft.tournamentId) setTournamentId(draft.tournamentId);
+          if (draft.newTournamentMode !== undefined) setNewTournamentMode(draft.newTournamentMode);
+          if (draft.newTournamentName) setNewTournamentName(draft.newTournamentName);
+          if (draft.newTournamentDate) setNewTournamentDate(draft.newTournamentDate);
+          if (draft.seats) setSeats(draft.seats);
+          if (draft.roles) setRoles(draft.roles);
+          if (draft.winner) setWinner(draft.winner);
+          if (draft.bonusScores) setBonusScores(draft.bonusScores);
+          if (draft.bonusComments) setBonusComments(draft.bonusComments);
+          if (draft.notes) setNotes(draft.notes);
+          if (draft.gameDate) setGameDate(draft.gameDate);
+          if (draft.firstKilled) setFirstKilled(draft.firstKilled);
+        } else {
+          localStorage.removeItem(DRAFT_KEY);
+        }
+      } catch {
+        localStorage.removeItem(DRAFT_KEY);
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Pre-fill for editing
   useEffect(() => {
     if (!editingGame) return;
@@ -44,6 +76,30 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     setTournamentId(editingGame.tournamentId || "");
     setFirstKilled(editingGame.firstKilled || null);
   }, [editingGame]);
+
+  // Auto-save draft on changes (debounced)
+  useEffect(() => {
+    if (editingGame) return;
+    const timer = setTimeout(() => {
+      const draft = {
+        step,
+        tournamentId,
+        newTournamentMode,
+        newTournamentName,
+        newTournamentDate,
+        seats,
+        roles,
+        winner,
+        bonusScores,
+        bonusComments,
+        notes,
+        gameDate,
+        firstKilled,
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [editingGame, step, tournamentId, newTournamentMode, newTournamentName, newTournamentDate, seats, roles, winner, bonusScores, bonusComments, notes, gameDate, firstKilled, DRAFT_KEY]);
 
   const activePlayers = useMemo(() => {
     const active = players.filter((p) => p.isActive);
@@ -167,6 +223,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
         });
         await refreshGames();
         await refreshAllGames();
+        localStorage.removeItem(DRAFT_KEY);
         showToast?.(`Игра #${gameNumber} сохранена`);
         navigate("games");
       }
