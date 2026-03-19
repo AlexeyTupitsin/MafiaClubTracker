@@ -146,3 +146,9 @@ select option {
 input:focus, select:focus, textarea:focus {
   outline: none;
 }
+
+/* === Disabled button styles === */
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

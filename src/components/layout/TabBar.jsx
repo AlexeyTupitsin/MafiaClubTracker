@@ -12,7 +12,7 @@ export function TabBar({ currentPage, navigate }) {
   return (
     <>
       {/* Desktop Navigation Tabs */}
-      <nav className="bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-zinc-800 hidden sm:block">
+      <nav className="bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-zinc-800 hidden sm:block" role="tablist" aria-label="Навигация">
         <div className="max-w-6xl mx-auto px-4 flex overflow-x-auto">
           {TABS.filter((tab) => tab.id !== "settings" || isAdmin).map((tab) => {
             const Icon = tab.icon;
@@ -26,6 +26,8 @@ export function TabBar({ currentPage, navigate }) {
                     ? "border-violet-500 text-violet-400"
                     : "border-transparent text-zinc-500 hover:text-zinc-300"
                 }`}
+                role="tab"
+                aria-selected={isActive}
               >
                 <Icon size={16} />
                 {tab.label}
@@ -36,7 +38,7 @@ export function TabBar({ currentPage, navigate }) {
       </nav>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-zinc-800 sm:hidden z-30 pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-zinc-800 sm:hidden z-30 pb-[env(safe-area-inset-bottom)]" role="tablist" aria-label="Навигация">
         <div className="flex justify-around">
           {TABS.filter((tab) => tab.id !== "settings" || isAdmin).map((tab) => {
             const Icon = tab.icon;
@@ -48,6 +50,8 @@ export function TabBar({ currentPage, navigate }) {
                 className={`flex flex-col items-center gap-1 px-2 py-3 flex-1 text-xs font-medium transition-colors ${
                   isActive ? "text-violet-400" : "text-zinc-600"
                 }`}
+                role="tab"
+                aria-selected={isActive}
               >
                 <Icon size={20} />
                 {tab.label}
