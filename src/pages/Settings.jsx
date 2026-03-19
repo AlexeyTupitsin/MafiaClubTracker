@@ -469,8 +469,8 @@ export function SettingsPage({
         )}
       </div>
 
-      {/* Demo Data */}
-      <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+      {/* Demo Data - hidden */}
+      {/* <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
         <h3 className="text-lg font-semibold mb-2">Демо-данные</h3>
         <p className="text-sm text-zinc-400 mb-3">
           Создать тестовых игроков и игры для проверки работы приложения.
@@ -481,10 +481,10 @@ export function SettingsPage({
           {generatingDemo ? <Loader size={16} className="animate-spin" /> : <Database size={16} />}
           {generatingDemo ? "Генерация..." : "Сгенерировать демо-данные"}
         </button>
-      </div>
+      </div> */}
 
-      {/* Danger Zone */}
-      <div className="bg-[#151515] border border-red-500/20 rounded-xl p-4">
+      {/* Danger Zone - hidden */}
+      {/* <div className="bg-[#151515] border border-red-500/20 rounded-xl p-4">
         <h3 className="text-lg font-semibold text-red-400 mb-2">Опасная зона</h3>
         <p className="text-sm text-zinc-400 mb-3">
           Удаление всех данных приложения. Это действие необратимо.
@@ -493,7 +493,7 @@ export function SettingsPage({
           className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-4 py-2 rounded-lg text-sm">
           <RefreshCw size={16} /> Сбросить все данные
         </button>
-      </div>
+      </div> */}
 
       {/* Modals */}
       {showNewSeason && (

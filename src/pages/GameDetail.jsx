@@ -96,7 +96,7 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                     <td className="px-3 py-2.5 text-center font-medium">{gp.seat}</td>
                     <td className="px-3 py-2.5 font-medium">
                       <button onClick={() => navigate("playerProfile", gp.playerId)}
-                        className="text-violet-400 hover:text-violet-300 hover:underline">
+                        className="text-violet-400 hover:text-violet-300 cursor-pointer transition-colors">
                         {player?.nickname || "?"}
                       </button>
                       {game.firstKilled === gp.playerId && (

@@ -13,6 +13,7 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
   const [seasonFilter, setSeasonFilter] = useState("all");
   const [playerFilter, setPlayerFilter] = useState("all");
   const [tournamentFilter, setTournamentFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState("date-desc");
   const PAGE_SIZE = 20;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
@@ -32,13 +33,22 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
     return result;
   }, [sourceGames, winnerFilter, playerFilter, tournamentFilter]);
 
+  const sortedGames = useMemo(() => {
+    const sorted = [...filtered];
+    switch (sortOrder) {
+      case "date-asc": return sorted.reverse();
+      case "number": return sorted.sort((a, b) => (a.gameNumber || 0) - (b.gameNumber || 0));
+      default: return sorted; // date-desc is the default order
+    }
+  }, [filtered, sortOrder]);
+
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
   }, [winnerFilter, seasonFilter, playerFilter, tournamentFilter]);
 
   const visibleGames = useMemo(
-    () => filtered.slice(0, visibleCount),
-    [filtered, visibleCount]
+    () => sortedGames.slice(0, visibleCount),
+    [sortedGames, visibleCount]
   );
 
   const getSeasonName = (seasonId) => {
@@ -127,6 +137,14 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
           </select>
         )}
 
+        {/* Sort order */}
+        <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}
+          className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-100 focus:ring-2 focus:ring-violet-500 outline-none">
+          <option value="date-desc">По дате ↓</option>
+          <option value="date-asc">По дате ↑</option>
+          <option value="number">По номеру</option>
+        </select>
+
         {filtered.length !== sourceGames.length && (
           <span className="text-sm text-zinc-500 ml-1">
             {filtered.length} из {sourceGames.length}
@@ -184,10 +202,16 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-zinc-400 text-sm truncate max-w-xs">
-                      {game.players.map((p) => {
-                        const pl = players.find((x) => x.id === p.playerId);
-                        return pl?.nickname || "?";
-                      }).join(", ")}
+                      {(() => {
+                        const playerNames = game.players.map((p) => {
+                          const player = players.find((pl) => pl.id === p.playerId);
+                          return player?.nickname || "?";
+                        });
+                        const display = playerNames.length <= 3
+                          ? playerNames.join(", ")
+                          : `${playerNames.slice(0, 2).join(", ")} и ещё ${playerNames.length - 2}`;
+                        return <span title={playerNames.join(", ")}>{display}</span>;
+                      })()}
                     </td>
                   </tr>
                 ))}
