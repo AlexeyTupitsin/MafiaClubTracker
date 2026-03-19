@@ -147,7 +147,18 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
   };
 
   const handleBonusChange = (idx, value) => {
-    setBonusScores((prev) => prev.map((b, i) => (i === idx ? value : b)));
+    // Allow empty string, "-", ".", "-." (partial typing)
+    if (value === "" || value === "-" || value === "." || value === "-." || value === ",") {
+      setBonusScores((prev) => prev.map((b, i) => (i === idx ? value : b)));
+      return;
+    }
+    // Parse and validate range -5 to +5
+    const normalized = value.replace(",", ".");
+    const n = parseFloat(normalized);
+    if (!isNaN(n) && n >= -5 && n <= 5) {
+      setBonusScores((prev) => prev.map((b, i) => (i === idx ? value : b)));
+    }
+    // Otherwise reject silently (don't update state)
   };
 
   const handleBonusCommentChange = (idx, value) => {
@@ -159,6 +170,13 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     const normalized = val.replace(",", ".");
     const n = parseFloat(normalized);
     return isNaN(n) ? 0 : n;
+  };
+
+  const isBonusInvalid = (val) => {
+    if (!val || val === "" || val === "-" || val === "." || val === "-." || val === ",") return false;
+    const normalized = val.replace(",", ".");
+    const n = parseFloat(normalized);
+    return isNaN(n) || n < -5 || n > 5;
   };
 
   // --- Save ---
@@ -320,7 +338,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
               }`}
             >
               {step > n ? <Check size={14} /> : <span>{n}</span>}
-              {label}
+              <span className="hidden sm:inline ml-1">{label}</span>
             </button>
             {i < 2 && (
               <div className={`flex-1 h-0.5 mx-1 ${step > n ? "bg-emerald-500" : "bg-zinc-700"}`} />
@@ -396,6 +414,50 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                 </div>
               );
             })}
+          </div>
+
+          {/* Auto-assign buttons */}
+          <div className="flex gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => {
+                const ROLE_SET = ["citizen","citizen","citizen","citizen","citizen","citizen","sheriff","mafia","mafia","don"];
+                const newRoles = [...roles];
+                // Find unassigned slots
+                const unassigned = [];
+                for (let i = 0; i < 10; i++) {
+                  if (!newRoles[i]) unassigned.push(i);
+                }
+                // Figure out what roles are still needed
+                const neededRoles = [...ROLE_SET];
+                newRoles.forEach(r => {
+                  if (r) {
+                    const idx = neededRoles.indexOf(r);
+                    if (idx !== -1) neededRoles.splice(idx, 1);
+                  }
+                });
+                // Shuffle
+                for (let i = neededRoles.length - 1; i > 0; i--) {
+                  const j = Math.floor(Math.random() * (i + 1));
+                  [neededRoles[i], neededRoles[j]] = [neededRoles[j], neededRoles[i]];
+                }
+                // Assign
+                unassigned.forEach((slotIdx, i) => {
+                  if (i < neededRoles.length) newRoles[slotIdx] = neededRoles[i];
+                });
+                setRoles(newRoles);
+              }}
+              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-sm transition-colors"
+            >
+              Заполнить случайно
+            </button>
+            <button
+              type="button"
+              onClick={() => setRoles(Array(10).fill(""))}
+              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-sm transition-colors"
+            >
+              Очистить роли
+            </button>
           </div>
 
           {/* Role assignment */}
@@ -495,7 +557,10 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                         inputMode="decimal"
                         value={bonusScores[idx]}
                         onChange={(e) => handleBonusChange(idx, e.target.value)}
-                        className="w-14 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-center text-zinc-200"
+                        placeholder="0.0"
+                        className={`w-14 bg-zinc-800 border rounded px-1 py-0.5 text-center text-zinc-200 ${
+                          isBonusInvalid(bonusScores[idx]) ? "border-red-500" : "border-zinc-700"
+                        }`}
                       />
                     </div>
                     <div>Итого: <span className="text-zinc-200 font-medium">{total % 1 === 0 ? total : total.toFixed(1)}</span></div>
@@ -578,7 +643,10 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                           inputMode="decimal"
                           value={bonusScores[idx]}
                           onChange={(e) => handleBonusChange(idx, e.target.value)}
-                          className="w-16 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-center text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
+                          placeholder="0.0"
+                          className={`w-16 bg-zinc-900 border rounded px-2 py-1 text-center text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500 ${
+                            isBonusInvalid(bonusScores[idx]) ? "border-red-500" : "border-zinc-700"
+                          }`}
                         />
                       </td>
                       <td className="px-2 py-2 text-center font-semibold">
@@ -627,6 +695,21 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                 onChange={(e) => setGameDate(e.target.value)}
                 className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
               />
+              <div className="flex gap-2 mt-1">
+                <button type="button"
+                  onClick={() => setGameDate(new Date().toISOString().split("T")[0])}
+                  className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded text-xs transition-colors">
+                  Сегодня
+                </button>
+                <button type="button"
+                  onClick={() => {
+                    const d = new Date(); d.setDate(d.getDate() - 1);
+                    setGameDate(d.toISOString().split("T")[0]);
+                  }}
+                  className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded text-xs transition-colors">
+                  Вчера
+                </button>
+              </div>
             </div>
           </div>
 
