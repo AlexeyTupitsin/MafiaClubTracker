@@ -35,30 +35,33 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [toast, setToast] = useState(null);
-  const [previousPage, setPreviousPage] = useState(null);
+  const [navStack, setNavStack] = useState([]);
 
   const showToast = useCallback((msg, type = "success") => {
     setToast({ message: msg, type });
   }, []);
 
   const navigate = useCallback((page, id = null) => {
-    if (["playerProfile", "gameDetail", "compare", "tournamentDetail", "tournamentForm"].includes(page)) {
-      setPreviousPage({ page: currentPage, id: selectedId });
-    }
+    setNavStack(prev => {
+      const entry = { page: currentPage, id: selectedId };
+      const stack = [...prev, entry];
+      return stack.slice(-10); // limit to 10 entries
+    });
     setCurrentPage(page);
     setSelectedId(id);
   }, [currentPage, selectedId]);
 
   const goBack = useCallback(() => {
-    if (previousPage) {
-      setCurrentPage(previousPage.page);
-      setSelectedId(previousPage.id);
-      setPreviousPage(null);
+    if (navStack.length > 0) {
+      const prev = navStack[navStack.length - 1];
+      setNavStack(s => s.slice(0, -1));
+      setCurrentPage(prev.page);
+      setSelectedId(prev.id);
     } else {
       setCurrentPage("dashboard");
       setSelectedId(null);
     }
-  }, [previousPage]);
+  }, [navStack]);
 
   // Refresh individual data sets from Supabase
   const refreshSeasons = useCallback(async () => {

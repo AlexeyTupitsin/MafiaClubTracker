@@ -36,7 +36,7 @@ export function TabBar({ currentPage, navigate }) {
       </nav>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-zinc-800 sm:hidden z-30">
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-zinc-800 sm:hidden z-30 pb-[env(safe-area-inset-bottom)]">
         <div className="flex justify-around">
           {TABS.filter((tab) => tab.id !== "settings" || isAdmin).map((tab) => {
             const Icon = tab.icon;
@@ -45,7 +45,7 @@ export function TabBar({ currentPage, navigate }) {
               <button
                 key={tab.id}
                 onClick={() => navigate(tab.id)}
-                className={`flex flex-col items-center gap-0.5 px-2 py-3 flex-1 text-xs font-medium transition-colors ${
+                className={`flex flex-col items-center gap-1 px-2 py-3 flex-1 text-xs font-medium transition-colors ${
                   isActive ? "text-violet-400" : "text-zinc-600"
                 }`}
               >
