@@ -78,6 +78,33 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
     { label: "KillRate", a: krA?.killRate ?? null, b: krB?.killRate ?? null, better: false, fmt: (v) => v != null ? `${v.toFixed(1)}%` : "—" },
   ] : [];
 
+  // Calculate wins for each player across compared metrics
+  const { winsA, winsB, totalMetrics } = useMemo(() => {
+    if (!statsA || !statsB) return { winsA: 0, winsB: 0, totalMetrics: 0 };
+
+    let winsA = 0;
+    let winsB = 0;
+    let totalMetrics = 0;
+
+    statRows.forEach(row => {
+      if (!row.better) return; // Skip non-comparable metrics
+      totalMetrics++;
+
+      const valA = row.a;
+      const valB = row.b;
+
+      if (valA == null || valB == null) return;
+
+      const diff = valA - valB;
+      if (Math.abs(diff) < 0.01) return; // Tie, no winner
+
+      if (diff > 0) winsA++;
+      else winsB++;
+    });
+
+    return { winsA, winsB, totalMetrics };
+  }, [statRows, statsA, statsB]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -149,6 +176,10 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
                 </tbody>
               </table>
             </div>
+            <div className="text-center text-sm text-zinc-400 mt-3 py-2">
+              <span className="text-violet-400 font-medium">{playerA?.nickname}</span> лидирует в {winsA} из {totalMetrics},{" "}
+              <span className="text-violet-400 font-medium">{playerB?.nickname}</span> — в {winsB}
+            </div>
           </div>
 
           {/* Role chart */}
@@ -171,9 +202,11 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
           )}
 
           {/* Head-to-head */}
-          {pairStats && pairStats.totalGames > 0 && (
-            <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
-              <h3 className="font-semibold mb-3">Head-to-head ({pairStats.totalGames} совместных игр)</h3>
+          <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+            <h3 className="font-semibold mb-3">
+              Head-to-head {pairStats && pairStats.totalGames > 0 && `(${pairStats.totalGames} совместных игр)`}
+            </h3>
+            {pairStats && pairStats.totalGames > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -202,8 +235,10 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-zinc-500 text-sm py-4 text-center">Эти игроки ещё не встречались за одним столом</p>
+            )}
+          </div>
 
           {/* Form trend */}
           <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
