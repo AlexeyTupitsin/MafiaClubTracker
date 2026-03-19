@@ -405,7 +405,78 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
       {step === 3 && (
         <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
           <h3 className="font-semibold mb-3">Дополнительные баллы</h3>
-          <div className="overflow-x-auto">
+
+          {/* Mobile card view for bonus table */}
+          <div className="sm:hidden space-y-3">
+            {seats.map((seat, idx) => {
+              const role = roles[idx];
+              const team = getTeam(role);
+              const result = team === winner ? "win" : "lose";
+              const baseScore = result === "win" ? 1 : 0;
+              const bonus = parseBonusScore(bonusScores[idx]);
+              const total = baseScore + bonus;
+
+              return (
+                <div key={idx} className={`bg-zinc-900/50 border border-zinc-800 rounded-lg p-3 space-y-2 ${firstKilled === seat.playerId ? "ring-2 ring-red-500/30 bg-red-500/5" : ""}`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-zinc-200">
+                      {seat.seat}. {getPlayerName(seat.playerId)}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={ROLE_BADGE_VARIANT[role]}>{ROLE_NAMES[role]}</Badge>
+                      <span className={result === "win" ? "text-emerald-400 text-xs" : "text-red-400 text-xs"}>
+                        {RESULT_NAMES[result]}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs text-zinc-400">
+                    <div>База: <span className="text-zinc-200">{baseScore}</span></div>
+                    <div>
+                      Доп.:{" "}
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={bonusScores[idx]}
+                        onChange={(e) => handleBonusChange(idx, e.target.value)}
+                        className="w-14 bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-center text-zinc-200"
+                      />
+                    </div>
+                    <div>Итого: <span className="text-zinc-200 font-medium">{total % 1 === 0 ? total : total.toFixed(1)}</span></div>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Комментарий..."
+                    value={bonusComments[idx]}
+                    onChange={(e) => handleBonusCommentChange(idx, e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 placeholder-zinc-600"
+                  />
+                  {currentSeason?.trackFirstKill && (
+                    <div className="flex items-center justify-center pt-1">
+                      <label className="flex items-center gap-2 text-xs text-zinc-400">
+                        <button
+                          type="button"
+                          onClick={() => setFirstKilled(firstKilled === seat.playerId ? null : seat.playerId)}
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                            firstKilled === seat.playerId
+                              ? "border-red-500 bg-red-500"
+                              : "border-zinc-600 hover:border-red-500/50"
+                          }`}
+                        >
+                          {firstKilled === seat.playerId && (
+                            <span className="w-2 h-2 rounded-full bg-white" />
+                          )}
+                        </button>
+                        Первый убитый
+                      </label>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table view */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-800 bg-zinc-900/50">
@@ -487,7 +558,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                 })}
               </tbody>
             </table>
-          </div>
+          </div> {/* End desktop table view */}
 
           {/* Game date */}
           <div className="mt-4 flex items-center gap-4">
