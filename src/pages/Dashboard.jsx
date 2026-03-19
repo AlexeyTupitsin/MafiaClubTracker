@@ -118,7 +118,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
       ) : (
         <>
           {/* Stat cards — 3 cards */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <StatCard label="Всего игр" value={dashStats.totalGames} icon={Sword} />
             <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
               <div className="flex items-center justify-between mb-1">
@@ -188,17 +188,17 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
                       <th className="px-2 py-2 text-center font-medium text-zinc-500 cursor-pointer select-none" onClick={() => handleSort("avgScore")}>
                         Ср. балл<SortIcon col="avgScore" />
                       </th>
-                      <th className="px-2 py-2 text-center font-medium text-zinc-500 cursor-pointer select-none" onClick={() => handleSort("avgBonus")}>
+                      <th className="px-2 py-2 text-center font-medium text-zinc-500 cursor-pointer select-none hidden md:table-cell" onClick={() => handleSort("avgBonus")}>
                         Ср. доп.<SortIcon col="avgBonus" />
                       </th>
-                      <th className="px-2 py-2 text-center font-medium text-zinc-500">ПУ%</th>
+                      <th className="px-2 py-2 text-center font-medium text-zinc-500 hidden md:table-cell">ПУ%</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredRating.map((row, idx) => (
                       <tr key={row.id} className={`border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800/50 transition-colors ${idx % 2 === 1 ? "bg-zinc-900/30" : ""}`}>
                         <td className="px-2 py-2 text-center font-medium">{medalEmoji(idx)}</td>
-                        <td className="px-2 py-2 text-left font-medium">
+                        <td className="px-2 py-2 text-left font-medium max-w-[120px] truncate">
                           <button onClick={() => navigate("playerProfile", row.id)}
                             className="text-violet-400 hover:text-violet-300">{row.nickname}</button>
                         </td>
@@ -213,7 +213,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
                           {row.totalScore % 1 === 0 ? row.totalScore : row.totalScore.toFixed(1)}
                         </td>
                         <td className="px-2 py-2 text-center">{row.avgScore.toFixed(2)}</td>
-                        <td className="px-2 py-2 text-center">
+                        <td className="px-2 py-2 text-center hidden md:table-cell">
                           <span className={
                             row.avgBonus > 0 ? "text-green-600" :
                             row.avgBonus < 0 ? "text-red-500" : ""
@@ -221,7 +221,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
                             {row.avgBonus.toFixed(2)}
                           </span>
                         </td>
-                        <td className="px-2 py-2 text-center text-xs">
+                        <td className="px-2 py-2 text-center text-xs hidden md:table-cell">
                           {row.killRate ? (
                             <span className={
                               row.killRate.killRate > 25 ? "text-red-500" :
