@@ -588,7 +588,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                             <span className="w-2 h-2 rounded-full bg-white" />
                           )}
                         </button>
-                        Первый убитый
+                        Первоубиенный
                       </label>
                     </div>
                   )}

@@ -100,7 +100,7 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                         {player?.nickname || "?"}
                       </button>
                       {game.firstKilled === gp.playerId && (
-                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-medium" title="Первое убийство">ПУ</span>
+                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-medium" title="Первоубиенный">ПУ</span>
                       )}
                     </td>
                     <td className="px-3 py-2.5">
