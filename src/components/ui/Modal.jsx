@@ -24,10 +24,12 @@ export function Modal({ title, children, onClose, footer }) {
       }
     };
     document.addEventListener("keydown", handleKeyDown);
-    const focusable = modalRef.current?.querySelectorAll(
+    const autoFocusEl = modalRef.current?.querySelector('[autofocus]');
+    const firstInput = modalRef.current?.querySelector('input, select, textarea');
+    const firstFocusable = modalRef.current?.querySelector(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     );
-    if (focusable?.length) focusable[0].focus();
+    (autoFocusEl || firstInput || firstFocusable)?.focus();
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
