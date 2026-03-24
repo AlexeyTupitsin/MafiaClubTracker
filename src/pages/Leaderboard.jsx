@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Trophy, ChevronUp, ChevronDown } from "lucide-react";
 import { Badge, EmptyState } from "../components/ui";
-import { calcPlayerStats, calcExtendedNominations, calcKillRate } from "../lib/metrics";
+import { calcPlayerStats, calcExtendedNominations, calcKillRate, calcThreshold } from "../lib/metrics";
 import { NOMINATION_CONFIG } from "../lib/constants";
 
 export function Leaderboard({ games, players, seasons, currentSeasonId, navigate, allGames, tournaments }) {
@@ -22,13 +22,18 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     return result;
   }, [seasonFilter, tournamentFilter, games, currentSeasonId, allGames]);
 
+  const selectedSeason = useMemo(() => {
+    if (seasonFilter === "all") return null;
+    return seasons.find((s) => s.id === seasonFilter) || null;
+  }, [seasonFilter, seasons]);
+
   // Build rating data
   const ratingCalc = useMemo(() => {
     const playerIds = new Set();
     activeGames.forEach((g) => g.players.forEach((p) => playerIds.add(p.playerId)));
 
     const totalGamesInPeriod = activeGames.length;
-    const minGames = Math.floor(totalGamesInPeriod * 0.5);
+    const minGames = calcThreshold(selectedSeason, totalGamesInPeriod);
 
     const all = Array.from(playerIds).map((pid) => {
       const player = players.find((p) => p.id === pid);
@@ -43,7 +48,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     });
 
     return { all, minGames, totalGamesInPeriod };
-  }, [activeGames, players]);
+  }, [activeGames, players, selectedSeason]);
 
   const [showAll, setShowAll] = useState(false);
 
@@ -147,10 +152,12 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
       </div>
 
       {/* Threshold info */}
-      {ratingCalc.totalGamesInPeriod > 0 && (
+      {ratingCalc.minGames > 0 && ratingCalc.totalGamesInPeriod > 0 && (
         <div className="flex items-center justify-between mb-4 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
           <span className="text-sm text-zinc-400">
-            Порог: {ratingCalc.minGames} из {ratingCalc.totalGamesInPeriod} игр (50%)
+            {selectedSeason?.ratingThresholdType === 'percent'
+              ? `Порог: ${ratingCalc.minGames} из ${ratingCalc.totalGamesInPeriod} игр (${selectedSeason.ratingThresholdValue}%)`
+              : `Порог: минимум ${ratingCalc.minGames} игр`}
             {!showAll && belowThreshold.length > 0 && (
               <span className="text-zinc-500"> · {belowThreshold.length} игрок{belowThreshold.length > 4 ? "ов" : belowThreshold.length > 1 ? "а" : ""} не прошли порог</span>
             )}
