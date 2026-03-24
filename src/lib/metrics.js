@@ -119,6 +119,14 @@ export function calcDashboardStats(games) {
   };
 }
 
+export function calcThreshold(season, totalGames) {
+  if (!season || season.ratingThresholdType === 'none') return 0;
+  if (season.ratingThresholdType === 'absolute') return season.ratingThresholdValue;
+  if (season.ratingThresholdType === 'percent')
+    return Math.floor(totalGames * season.ratingThresholdValue / 100);
+  return 0;
+}
+
 export function calcRoleNominations(games, players) {
   const roles = ["citizen", "sheriff", "mafia", "don"];
   const totalGames = games.length;
