@@ -50,6 +50,7 @@ export function SettingsPage({
   const [editSeasonName, setEditSeasonName] = useState("");
   const [editThresholdType, setEditThresholdType] = useState("none");
   const [editThresholdValue, setEditThresholdValue] = useState("");
+  const [editTrackFirstKill, setEditTrackFirstKill] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [trackFirstKill, setTrackFirstKill] = useState(true);
   const [thresholdType, setThresholdType] = useState("none");
@@ -151,6 +152,7 @@ export function SettingsPage({
     setEditThresholdValue(
       season.ratingThresholdType !== "none" ? String(season.ratingThresholdValue || "") : ""
     );
+    setEditTrackFirstKill(season.trackFirstKill ?? false);
   };
 
   const handleSaveEditSeason = async () => {
@@ -162,6 +164,7 @@ export function SettingsPage({
     try {
       await updateSeason(editingSeason.id, {
         name: trimmed,
+        trackFirstKill: editTrackFirstKill,
         ratingThresholdType: editThresholdType,
         ratingThresholdValue: editThresholdType === 'none' ? 0 : (parseInt(editThresholdValue, 10) || 0),
       });
@@ -637,6 +640,18 @@ export function SettingsPage({
                 onChange={(e) => setEditSeasonName(e.target.value)}
                 className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"
                 autoFocus />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="editTrackFirstKill"
+                checked={editTrackFirstKill}
+                onChange={(e) => setEditTrackFirstKill(e.target.checked)}
+                className="rounded border-zinc-600 text-violet-600 focus:ring-violet-500"
+              />
+              <label htmlFor="editTrackFirstKill" className="text-sm text-zinc-200">
+                Отслеживать первоубиенного (ПУ)
+              </label>
             </div>
             <div>
               <label className="block text-sm font-medium text-zinc-300 mb-1">Порог рейтинга</label>
