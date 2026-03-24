@@ -38,16 +38,14 @@ export function TournamentDetail({
   const ratingData = useMemo(() => {
     const playerIds = new Set();
     tournamentGames.forEach((g) => g.players.forEach((p) => playerIds.add(p.playerId)));
-    const minGames = Math.max(1, Math.floor(totalGames * 0.5));
 
     return Array.from(playerIds).map((pid) => {
       const player = players.find((p) => p.id === pid);
       const stats = calcPlayerStats(pid, tournamentGames);
       const kr = calcKillRate(pid, tournamentGames, seasons);
       return { id: pid, nickname: player?.nickname || "?", ...stats, killRate: kr };
-    }).filter((p) => p.totalGames >= minGames)
-      .sort((a, b) => b.avgScore - a.avgScore);
-  }, [tournamentGames, players, seasons, totalGames]);
+    }).sort((a, b) => b.avgScore - a.avgScore);
+  }, [tournamentGames, players, seasons]);
 
   const minGames = useMemo(() => Math.max(1, Math.floor(totalGames * 0.5)), [totalGames]);
 
