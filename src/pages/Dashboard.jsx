@@ -53,10 +53,11 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
   };
 
   const medalColors = ["text-yellow-400", "text-zinc-400", "text-amber-600"];
-  const renderRank = (idx) => {
-    if (idx < 3) return <MEDAL_ICON size={16} className={medalColors[idx]} />;
-    return idx + 1;
-  };
+  const renderRank = (idx) => (
+    <span className="inline-flex justify-center w-full">
+      {idx < 3 ? <MEDAL_ICON size={16} className={medalColors[idx]} /> : idx + 1}
+    </span>
+  );
 
   // Welcome screen
   if (!hasPlayers) {
