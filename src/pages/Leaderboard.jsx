@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Trophy, ChevronUp, ChevronDown } from "lucide-react";
 import { Badge, EmptyState } from "../components/ui";
 import { calcPlayerStats, calcExtendedNominations, calcKillRate, calcThreshold } from "../lib/metrics";
-import { NOMINATION_CONFIG } from "../lib/constants";
+import { NOMINATION_CONFIG, MEDAL_ICON } from "../lib/constants";
 
 export function Leaderboard({ games, players, seasons, currentSeasonId, navigate, allGames, tournaments }) {
   const [seasonFilter, setSeasonFilter] = useState("all");
@@ -109,10 +109,9 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     { key: "killRate", label: "ПУ%", sortable: false, title: "Процент первых убийств" },
   ];
 
-  const medalEmoji = (idx) => {
-    if (idx === 0) return "🥇";
-    if (idx === 1) return "🥈";
-    if (idx === 2) return "🥉";
+  const medalColors = ["text-yellow-400", "text-zinc-400", "text-amber-600"];
+  const renderRank = (idx) => {
+    if (idx < 3) return <MEDAL_ICON size={16} className={medalColors[idx]} />;
     return idx + 1;
   };
 
@@ -202,7 +201,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                     className={`border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800/50 transition-colors ${
                       idx % 2 === 1 ? "bg-zinc-900/30" : ""
                     }`}>
-                    <td className="px-3 py-2.5 text-center font-medium">{medalEmoji(idx)}</td>
+                    <td className="px-3 py-2.5 text-center font-medium">{renderRank(idx)}</td>
                     <td className="px-3 py-2.5 text-left font-medium">
                       <button onClick={() => navigate("playerProfile", row.id)}
                         className="text-violet-400 hover:text-violet-300 hover:underline">
@@ -256,11 +255,11 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
         <div className="mt-6">
           <h3 className="text-lg font-semibold mb-3">Номинации</h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {NOMINATION_CONFIG.map(({ role, emoji, label }) => {
+            {NOMINATION_CONFIG.map(({ role, icon: Icon, label }) => {
               const top = extNominations[role] || [];
               return (
                 <div key={role} className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
-                  <div className="font-semibold mb-2">{emoji} {label}</div>
+                  <div className="font-semibold mb-2 flex items-center gap-1.5"><Icon size={16} /> {label}</div>
                   {top.length === 0 ? (
                     <p className="text-sm text-zinc-500">Мин. {nomMinGames} игр за роль</p>
                   ) : (

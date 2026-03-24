@@ -1,4 +1,4 @@
-import { LayoutDashboard, Trophy, Users, Settings, Sword, Award } from "lucide-react";
+import { LayoutDashboard, Trophy, Users, Settings, Sword, Award, Heart, Star, BowArrow, HatGlasses, Medal } from "lucide-react";
 
 export const ROLE_NAMES = {
   citizen: "Мирный",
@@ -20,11 +20,13 @@ export const RESULT_NAMES = {
 export const ROLE_REQUIRED = { citizen: 6, sheriff: 1, mafia: 2, don: 1 };
 
 export const NOMINATION_CONFIG = [
-  { role: "citizen", emoji: "🏛️", label: "Лучший красный" },
-  { role: "sheriff", emoji: "🛡️", label: "Лучший шериф" },
-  { role: "mafia", emoji: "🔫", label: "Лучший чёрный" },
-  { role: "don", emoji: "👑", label: "Лучший дон" },
+  { role: "citizen", icon: Heart, label: "Лучший красный" },
+  { role: "sheriff", icon: Star, label: "Лучший шериф" },
+  { role: "mafia", icon: BowArrow, label: "Лучший чёрный" },
+  { role: "don", icon: HatGlasses, label: "Лучший дон" },
 ];
+
+export const MEDAL_ICON = Medal;
 
 export const ROLE_OPTIONS = [
   { value: "citizen", label: "Мирный" },
