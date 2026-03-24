@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Plus, Shield, Sword, ChevronUp, ChevronDown, Users } from "lucide-react";
 import { StatCard, Badge, EmptyState } from "../components/ui";
-import { calcDashboardStats, calcRoleNominations, calcPlayerStats, calcKillRate } from "../lib/metrics";
+import { calcDashboardStats, calcRoleNominations, calcPlayerStats, calcKillRate, calcThreshold } from "../lib/metrics";
 import { NOMINATION_CONFIG, TEAM_NAMES, ROLE_NAMES } from "../lib/constants";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { useAuth } from "../hooks/useAuth";
@@ -29,9 +29,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
     });
   }, [games, players]);
 
-  // Threshold: 50% of max games (rounded down)
-  const maxGames = useMemo(() => Math.max(...ratingData.map((r) => r.totalGames), 0), [ratingData]);
-  const threshold = Math.floor(maxGames / 2);
+  const threshold = useMemo(() => calcThreshold(currentSeason, games.length), [currentSeason, games.length]);
 
   const filteredRating = useMemo(() => {
     let data = showAll ? ratingData : ratingData.filter((r) => r.totalGames >= threshold);
