@@ -375,6 +375,9 @@ export async function importData(data) {
         start_date: s.startDate,
         end_date: s.endDate || null,
         is_active: s.isActive,
+        track_first_kill: s.trackFirstKill ?? false,
+        rating_threshold_type: s.ratingThresholdType || 'none',
+        rating_threshold_value: s.ratingThresholdValue || 0,
       },
       single: true,
     });
@@ -462,6 +465,8 @@ export async function resetAllData() {
       start_date: new Date().toISOString().split('T')[0],
       end_date: null,
       is_active: true,
+      rating_threshold_type: 'none',
+      rating_threshold_value: 0,
     },
     single: true,
   });
