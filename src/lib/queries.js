@@ -54,6 +54,8 @@ function toFrontendSeason(row) {
     endDate: row.end_date,
     isActive: row.is_active,
     trackFirstKill: row.track_first_kill ?? false,
+    ratingThresholdType: row.rating_threshold_type ?? 'none',
+    ratingThresholdValue: row.rating_threshold_value ?? 0,
   };
 }
 
@@ -64,6 +66,8 @@ function toDbSeason(obj) {
   if (obj.endDate !== undefined) row.end_date = obj.endDate;
   if (obj.isActive !== undefined) row.is_active = obj.isActive;
   if (obj.trackFirstKill !== undefined) row.track_first_kill = obj.trackFirstKill;
+  if (obj.ratingThresholdType !== undefined) row.rating_threshold_type = obj.ratingThresholdType;
+  if (obj.ratingThresholdValue !== undefined) row.rating_threshold_value = obj.ratingThresholdValue;
   return row;
 }
 
