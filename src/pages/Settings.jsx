@@ -10,7 +10,6 @@ import {
   RefreshCw,
   CheckCircle,
   Pencil,
-  Check,
   Loader,
 } from "lucide-react";
 import { Modal, ConfirmDialog, Badge } from "../components/ui";
@@ -47,15 +46,28 @@ export function SettingsPage({
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetWord, setResetWord] = useState("");
   const [confirmImport, setConfirmImport] = useState(null);
-  const [editingSeasonId, setEditingSeasonId] = useState(null);
-  const [editingSeasonName, setEditingSeasonName] = useState("");
+  const [editingSeason, setEditingSeason] = useState(null);
+  const [editSeasonName, setEditSeasonName] = useState("");
+  const [editThresholdType, setEditThresholdType] = useState("none");
+  const [editThresholdValue, setEditThresholdValue] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const [trackFirstKill, setTrackFirstKill] = useState(true);
+  const [thresholdType, setThresholdType] = useState("none");
+  const [thresholdValue, setThresholdValue] = useState("");
   const [savingSeason, setSavingSeason] = useState(false);
   const [deletingSeason, setDeletingSeason] = useState(null);
   const [generatingDemo, setGeneratingDemo] = useState(false);
   const [resetting, setResetting] = useState(false);
 
   // --- Season handlers ---
+  const isThresholdValid = (type, value) => {
+    if (type === "none") return true;
+    const num = parseInt(value, 10);
+    if (isNaN(num) || num < 1) return false;
+    if (type === "percent" && num > 100) return false;
+    return true;
+  };
+
   const handleCreateSeason = async () => {
     const trimmed = seasonName.trim();
     if (!trimmed) { setError("Введите название сезона"); return; }
@@ -68,12 +80,16 @@ export function SettingsPage({
         endDate: null,
         isActive: true,
         trackFirstKill,
+        ratingThresholdType: thresholdType,
+        ratingThresholdValue: thresholdType === 'none' ? 0 : parseInt(thresholdValue, 10),
       });
       await refreshSeasons();
       setCurrentSeasonId(newSeason.id);
       await refreshGames(newSeason.id);
       setShowNewSeason(false);
       setSeasonName("");
+      setThresholdType("none");
+      setThresholdValue("");
       setError("");
       showToast("Сезон создан");
     } catch (err) {
@@ -128,16 +144,34 @@ export function SettingsPage({
     }
   };
 
-  const handleRenameSeason = async (id) => {
-    const trimmed = editingSeasonName.trim();
-    if (!trimmed) return;
+  const openEditSeason = (season) => {
+    setEditingSeason(season);
+    setEditSeasonName(season.name);
+    setEditThresholdType(season.ratingThresholdType || "none");
+    setEditThresholdValue(
+      season.ratingThresholdType !== "none" ? String(season.ratingThresholdValue || "") : ""
+    );
+  };
+
+  const handleSaveEditSeason = async () => {
+    if (!editingSeason) return;
+    const trimmed = editSeasonName.trim();
+    if (!trimmed) { setError("Введите название сезона"); return; }
+
+    setSavingEdit(true);
     try {
-      await updateSeason(id, { name: trimmed });
+      await updateSeason(editingSeason.id, {
+        name: trimmed,
+        ratingThresholdType: editThresholdType,
+        ratingThresholdValue: editThresholdType === 'none' ? 0 : (parseInt(editThresholdValue, 10) || 0),
+      });
       await refreshSeasons();
-      setEditingSeasonId(null);
-      showToast("Сезон переименован");
+      setEditingSeason(null);
+      showToast("Сезон обновлён");
     } catch (err) {
-      setError(err.message || "Ошибка переименования");
+      setError(err.message || "Ошибка обновления сезона");
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -375,35 +409,13 @@ export function SettingsPage({
                   season.id === currentSeasonId ? "border-violet-500/30 bg-violet-500/5" : ""
                 }`}>
                 <div className="min-w-0">
-                  {editingSeasonId === season.id ? (
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        value={editingSeasonName}
-                        onChange={(e) => setEditingSeasonName(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") handleRenameSeason(season.id); if (e.key === "Escape") setEditingSeasonId(null); }}
-                        onFocus={(e) => e.target.select()}
-                        className="bg-zinc-900 border border-zinc-700 text-zinc-100 rounded px-2 py-0.5 text-sm font-medium outline-none focus:ring-2 focus:ring-violet-500"
-                        autoFocus
-                      />
-                      <button onClick={() => handleRenameSeason(season.id)}
-                        className="p-1 hover:bg-emerald-500/20 rounded transition-colors" title="Сохранить">
-                        <Check size={14} className="text-emerald-400" />
-                      </button>
-                      <button onClick={() => setEditingSeasonId(null)}
-                        className="p-1 hover:bg-zinc-800 rounded transition-colors" title="Отмена">
-                        <X size={14} className="text-zinc-500" />
-                      </button>
-                    </div>
-                  ) : (
                     <div className="flex items-center gap-1">
                       <span className="font-medium truncate">{season.name}</span>
-                      <button onClick={() => { setEditingSeasonId(season.id); setEditingSeasonName(season.name); }}
-                        className="p-1 hover:bg-zinc-800 rounded transition-colors" title="Переименовать">
+                      <button onClick={() => openEditSeason(season)}
+                        className="p-1 hover:bg-zinc-800 rounded transition-colors" title="Редактировать">
                         <Pencil size={12} className="text-zinc-500" />
                       </button>
                     </div>
-                  )}
                   <div className="text-sm text-zinc-400">
                     {formatDate(season.startDate)}
                     {season.endDate ? ` — ${formatDate(season.endDate)}` : " — ..."}
@@ -510,7 +522,7 @@ export function SettingsPage({
                 disabled={savingSeason}
                 className="px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Отмена</button>
               <button onClick={handleCreateSeason}
-                disabled={savingSeason}
+                disabled={savingSeason || !isThresholdValid(thresholdType, thresholdValue)}
                 className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
                 {savingSeason && <Loader size={14} className="animate-spin" />}
                 {savingSeason ? "Создание..." : "Создать"}
@@ -545,10 +557,128 @@ export function SettingsPage({
                 Отслеживать первоубиенного (ПУ)
               </label>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-1">Порог рейтинга</label>
+              <select
+                value={thresholdType}
+                onChange={(e) => {
+                  setThresholdType(e.target.value);
+                  if (e.target.value === "none") setThresholdValue("");
+                  else if (!thresholdValue) setThresholdValue("1");
+                }}
+                className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+              >
+                <option value="none">Без порога</option>
+                <option value="absolute">Минимум игр</option>
+                <option value="percent">Процент от игр сезона</option>
+              </select>
+            </div>
+            {thresholdType !== "none" && (
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                  {thresholdType === "absolute" ? "Минимальное количество игр" : "Процент от общего числа игр"}
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={thresholdValue}
+                    onChange={(e) => setThresholdValue(e.target.value)}
+                    min={1}
+                    max={thresholdType === "percent" ? 100 : undefined}
+                    placeholder={thresholdType === "absolute" ? "5" : "50"}
+                    className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                  />
+                  {thresholdType === "percent" && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">%</span>
+                  )}
+                </div>
+                <p className="text-xs text-zinc-500 mt-1">
+                  {thresholdType === "absolute"
+                    ? "Игроки с меньшим числом игр не попадут в рейтинг"
+                    : "Например, 50% при 20 играх = минимум 10 игр для рейтинга"}
+                </p>
+              </div>
+            )}
             {seasons.some((s) => s.isActive) && (
               <p className="text-sm text-amber-400 flex items-center gap-1">
                 <AlertTriangle size={14} /> Текущий активный сезон будет автоматически завершён
               </p>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {editingSeason && (
+        <Modal
+          title="Редактировать сезон"
+          onClose={() => setEditingSeason(null)}
+          footer={
+            <>
+              <button onClick={() => setEditingSeason(null)}
+                disabled={savingEdit}
+                className="px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm disabled:opacity-50">
+                Отмена
+              </button>
+              <button onClick={handleSaveEditSeason}
+                disabled={savingEdit || !editSeasonName.trim() || !isThresholdValid(editThresholdType, editThresholdValue)}
+                className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg text-sm">
+                {savingEdit && <Loader size={14} className="animate-spin" />}
+                {savingEdit ? "Сохранение..." : "Сохранить"}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
+                Название <span className="text-red-500">*</span>
+              </label>
+              <input type="text" value={editSeasonName}
+                onChange={(e) => setEditSeasonName(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                autoFocus />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-1">Порог рейтинга</label>
+              <select
+                value={editThresholdType}
+                onChange={(e) => {
+                  setEditThresholdType(e.target.value);
+                  if (e.target.value === "none") setEditThresholdValue("");
+                  else if (!editThresholdValue) setEditThresholdValue("1");
+                }}
+                className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+              >
+                <option value="none">Без порога</option>
+                <option value="absolute">Минимум игр</option>
+                <option value="percent">Процент от игр сезона</option>
+              </select>
+            </div>
+            {editThresholdType !== "none" && (
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                  {editThresholdType === "absolute" ? "Минимальное количество игр" : "Процент от общего числа игр"}
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={editThresholdValue}
+                    onChange={(e) => setEditThresholdValue(e.target.value)}
+                    min={1}
+                    max={editThresholdType === "percent" ? 100 : undefined}
+                    placeholder={editThresholdType === "absolute" ? "5" : "50"}
+                    className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                  />
+                  {editThresholdType === "percent" && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">%</span>
+                  )}
+                </div>
+                <p className="text-xs text-zinc-500 mt-1">
+                  {editThresholdType === "absolute"
+                    ? "Игроки с меньшим числом игр не попадут в рейтинг"
+                    : "Например, 50% при 20 играх = минимум 10 игр для рейтинга"}
+                </p>
+              </div>
             )}
           </div>
         </Modal>
