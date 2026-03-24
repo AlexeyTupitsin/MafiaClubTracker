@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { ArrowLeft, Pencil, Trash2, Award, Sword } from "lucide-react";
 import { StatCard, Badge, ConfirmDialog, EmptyState } from "../components/ui";
 import { calcPlayerStats, calcKillRate } from "../lib/metrics";
-import { NOMINATION_CONFIG, TEAM_NAMES } from "../lib/constants";
+import { NOMINATION_CONFIG, TEAM_NAMES, MEDAL_ICON } from "../lib/constants";
 import { formatDate } from "../lib/utils";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { deleteTournament } from "../lib/queries";
@@ -38,16 +38,14 @@ export function TournamentDetail({
   const ratingData = useMemo(() => {
     const playerIds = new Set();
     tournamentGames.forEach((g) => g.players.forEach((p) => playerIds.add(p.playerId)));
-    const minGames = Math.max(1, Math.floor(totalGames * 0.5));
 
     return Array.from(playerIds).map((pid) => {
       const player = players.find((p) => p.id === pid);
       const stats = calcPlayerStats(pid, tournamentGames);
       const kr = calcKillRate(pid, tournamentGames, seasons);
       return { id: pid, nickname: player?.nickname || "?", ...stats, killRate: kr };
-    }).filter((p) => p.totalGames >= minGames)
-      .sort((a, b) => b.avgScore - a.avgScore);
-  }, [tournamentGames, players, seasons, totalGames]);
+    }).sort((a, b) => b.avgScore - a.avgScore);
+  }, [tournamentGames, players, seasons]);
 
   const minGames = useMemo(() => Math.max(1, Math.floor(totalGames * 0.5)), [totalGames]);
 
@@ -89,7 +87,12 @@ export function TournamentDetail({
     }
   };
 
-  const medalEmoji = (idx) => idx === 0 ? "\u{1F947}" : idx === 1 ? "\u{1F948}" : idx === 2 ? "\u{1F949}" : idx + 1;
+  const medalColors = ["text-yellow-400", "text-zinc-400", "text-amber-600"];
+  const renderRank = (idx) => (
+    <span className="inline-flex justify-center w-full">
+      {idx < 3 ? <MEDAL_ICON size={16} className={medalColors[idx]} /> : idx + 1}
+    </span>
+  );
 
   return (
     <div className="space-y-6">
@@ -154,7 +157,7 @@ export function TournamentDetail({
               <tbody>
                 {ratingData.map((row, idx) => (
                   <tr key={row.id} className={`border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800/50 ${idx % 2 === 1 ? "bg-zinc-800/30" : ""}`}>
-                    <td className="px-2 py-2 text-center font-medium">{medalEmoji(idx)}</td>
+                    <td className="px-2 py-2 text-center font-medium">{renderRank(idx)}</td>
                     <td className="px-2 py-2 font-medium">
                       <button onClick={() => navigate("playerProfile", row.id)}
                         className="text-violet-400 hover:text-violet-300">{row.nickname}</button>
@@ -191,12 +194,12 @@ export function TournamentDetail({
             Минимум {minGames} {minGames === 1 ? "игра" : minGames < 5 ? "игры" : "игр"} для участия в номинации
           </p>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {NOMINATION_CONFIG.map(({ role, emoji, label }) => {
+            {NOMINATION_CONFIG.map(({ role, icon: Icon, label }) => {
               const top = nominations[role] || [];
               if (top.length === 0) return null;
               return (
                 <div key={role} className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
-                  <div className="font-semibold mb-2">{emoji} {label}</div>
+                  <div className="font-semibold mb-2 flex items-center gap-1.5"><Icon size={16} /> {label}</div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>

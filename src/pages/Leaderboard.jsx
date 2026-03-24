@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { Trophy, ChevronUp, ChevronDown } from "lucide-react";
 import { Badge, EmptyState } from "../components/ui";
-import { calcPlayerStats, calcExtendedNominations, calcKillRate } from "../lib/metrics";
-import { NOMINATION_CONFIG } from "../lib/constants";
+import { calcPlayerStats, calcExtendedNominations, calcKillRate, calcThreshold } from "../lib/metrics";
+import { NOMINATION_CONFIG, MEDAL_ICON } from "../lib/constants";
 
 export function Leaderboard({ games, players, seasons, currentSeasonId, navigate, allGames, tournaments }) {
   const [seasonFilter, setSeasonFilter] = useState("all");
@@ -22,13 +22,18 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     return result;
   }, [seasonFilter, tournamentFilter, games, currentSeasonId, allGames]);
 
+  const selectedSeason = useMemo(() => {
+    if (seasonFilter === "all") return null;
+    return seasons.find((s) => s.id === seasonFilter) || null;
+  }, [seasonFilter, seasons]);
+
   // Build rating data
   const ratingCalc = useMemo(() => {
     const playerIds = new Set();
     activeGames.forEach((g) => g.players.forEach((p) => playerIds.add(p.playerId)));
 
     const totalGamesInPeriod = activeGames.length;
-    const minGames = Math.floor(totalGamesInPeriod * 0.5);
+    const minGames = calcThreshold(selectedSeason, totalGamesInPeriod);
 
     const all = Array.from(playerIds).map((pid) => {
       const player = players.find((p) => p.id === pid);
@@ -43,7 +48,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     });
 
     return { all, minGames, totalGamesInPeriod };
-  }, [activeGames, players]);
+  }, [activeGames, players, selectedSeason]);
 
   const [showAll, setShowAll] = useState(false);
 
@@ -104,12 +109,12 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     { key: "killRate", label: "ПУ%", sortable: false, title: "Процент первых убийств" },
   ];
 
-  const medalEmoji = (idx) => {
-    if (idx === 0) return "🥇";
-    if (idx === 1) return "🥈";
-    if (idx === 2) return "🥉";
-    return idx + 1;
-  };
+  const medalColors = ["text-yellow-400", "text-zinc-400", "text-amber-600"];
+  const renderRank = (idx) => (
+    <span className="inline-flex justify-center w-full">
+      {idx < 3 ? <MEDAL_ICON size={16} className={medalColors[idx]} /> : idx + 1}
+    </span>
+  );
 
   return (
     <div>
@@ -147,10 +152,12 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
       </div>
 
       {/* Threshold info */}
-      {ratingCalc.totalGamesInPeriod > 0 && (
+      {ratingCalc.minGames > 0 && ratingCalc.totalGamesInPeriod > 0 && (
         <div className="flex items-center justify-between mb-4 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
           <span className="text-sm text-zinc-400">
-            Порог: {ratingCalc.minGames} из {ratingCalc.totalGamesInPeriod} игр (50%)
+            {selectedSeason?.ratingThresholdType === 'percent'
+              ? `Порог: ${ratingCalc.minGames} из ${ratingCalc.totalGamesInPeriod} игр (${selectedSeason.ratingThresholdValue}%)`
+              : `Порог: минимум ${ratingCalc.minGames} игр`}
             {!showAll && belowThreshold.length > 0 && (
               <span className="text-zinc-500"> · {belowThreshold.length} игрок{belowThreshold.length > 4 ? "ов" : belowThreshold.length > 1 ? "а" : ""} не прошли порог</span>
             )}
@@ -195,7 +202,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                     className={`border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800/50 transition-colors ${
                       idx % 2 === 1 ? "bg-zinc-900/30" : ""
                     }`}>
-                    <td className="px-3 py-2.5 text-center font-medium">{medalEmoji(idx)}</td>
+                    <td className="px-3 py-2.5 text-center font-medium">{renderRank(idx)}</td>
                     <td className="px-3 py-2.5 text-left font-medium">
                       <button onClick={() => navigate("playerProfile", row.id)}
                         className="text-violet-400 hover:text-violet-300 hover:underline">
@@ -249,11 +256,11 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
         <div className="mt-6">
           <h3 className="text-lg font-semibold mb-3">Номинации</h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {NOMINATION_CONFIG.map(({ role, emoji, label }) => {
+            {NOMINATION_CONFIG.map(({ role, icon: Icon, label }) => {
               const top = extNominations[role] || [];
               return (
                 <div key={role} className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
-                  <div className="font-semibold mb-2">{emoji} {label}</div>
+                  <div className="font-semibold mb-2 flex items-center gap-1.5"><Icon size={16} /> {label}</div>
                   {top.length === 0 ? (
                     <p className="text-sm text-zinc-500">Мин. {nomMinGames} игр за роль</p>
                   ) : (

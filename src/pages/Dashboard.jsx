@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { Plus, Shield, Sword, ChevronUp, ChevronDown, Users } from "lucide-react";
 import { StatCard, Badge, EmptyState } from "../components/ui";
-import { calcDashboardStats, calcRoleNominations, calcPlayerStats, calcKillRate } from "../lib/metrics";
-import { NOMINATION_CONFIG, TEAM_NAMES, ROLE_NAMES } from "../lib/constants";
+import { calcDashboardStats, calcRoleNominations, calcPlayerStats, calcKillRate, calcThreshold } from "../lib/metrics";
+import { NOMINATION_CONFIG, TEAM_NAMES, ROLE_NAMES, MEDAL_ICON } from "../lib/constants";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { useAuth } from "../hooks/useAuth";
 
@@ -29,9 +29,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
     });
   }, [games, players]);
 
-  // Threshold: 50% of max games (rounded down)
-  const maxGames = useMemo(() => Math.max(...ratingData.map((r) => r.totalGames), 0), [ratingData]);
-  const threshold = Math.floor(maxGames / 2);
+  const threshold = useMemo(() => calcThreshold(currentSeason, games.length), [currentSeason, games.length]);
 
   const filteredRating = useMemo(() => {
     let data = showAll ? ratingData : ratingData.filter((r) => r.totalGames >= threshold);
@@ -54,7 +52,12 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
       : <ChevronDown size={14} className="inline ml-0.5" />;
   };
 
-  const medalEmoji = (idx) => idx === 0 ? "\u{1F947}" : idx === 1 ? "\u{1F948}" : idx === 2 ? "\u{1F949}" : idx + 1;
+  const medalColors = ["text-yellow-400", "text-zinc-400", "text-amber-600"];
+  const renderRank = (idx) => (
+    <span className="inline-flex justify-center w-full">
+      {idx < 3 ? <MEDAL_ICON size={16} className={medalColors[idx]} /> : idx + 1}
+    </span>
+  );
 
   // Welcome screen
   if (!hasPlayers) {
@@ -177,7 +180,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
                   <tbody>
                     {filteredRating.map((row, idx) => (
                       <tr key={row.id} className={`border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800/50 transition-colors ${idx % 2 === 1 ? "bg-zinc-900/30" : ""}`}>
-                        <td className="px-2 py-2 text-center font-medium">{medalEmoji(idx)}</td>
+                        <td className="px-2 py-2 text-center font-medium">{renderRank(idx)}</td>
                         <td className="px-2 py-2 text-left font-medium max-w-[120px] truncate">
                           <button onClick={() => navigate("playerProfile", row.id)}
                             className="text-violet-400 hover:text-violet-300">{row.nickname}</button>
@@ -223,11 +226,11 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
           <div>
             <h3 className="font-semibold mb-3">Номинации</h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {NOMINATION_CONFIG.map(({ role, emoji, label }) => {
+              {NOMINATION_CONFIG.map(({ role, icon: Icon, label }) => {
                 const top = nominations[role] || [];
                 return (
                   <div key={role} className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
-                    <div className="text-sm font-semibold mb-2">{emoji} {label}</div>
+                    <div className="text-sm font-semibold mb-2 flex items-center gap-1.5"><Icon size={14} /> {label}</div>
                     {top.length === 0 ? (
                       <p className="text-xs text-zinc-500">Мин. {nominationMinGames} игр за роль</p>
                     ) : (
