@@ -33,7 +33,8 @@ export function TournamentDetail({
 
   const totalGames = tournamentGames.length;
   const redWins = tournamentGames.filter((g) => g.winner === "red").length;
-  const blackWins = totalGames - redWins;
+  const blackWins = tournamentGames.filter((g) => g.winner === "black").length;
+  const draws = tournamentGames.filter((g) => g.winner === "draw").length;
 
   const ratingData = useMemo(() => {
     const playerIds = new Set();
@@ -262,7 +263,7 @@ export function TournamentDetail({
                     <td className="px-2 py-2 text-center font-medium">#{g.gameNumber}</td>
                     <td className="px-2 py-2 text-zinc-400">{formatDate(g.date)}</td>
                     <td className="px-2 py-2">
-                      <Badge variant={g.winner === "red" ? "red" : "black"}>
+                      <Badge variant={g.winner === "red" ? "red" : g.winner === "draw" ? "yellow" : "black"}>
                         {TEAM_NAMES[g.winner]}
                       </Badge>
                     </td>

@@ -60,7 +60,7 @@ export function TournamentList({ allTournaments, allGames, seasons, navigate }) 
                 {activeTournaments.map((t) => {
                   const tGames = getTournamentGames(t.id);
                   const redWins = tGames.filter((g) => g.winner === "red").length;
-                  const blackWins = tGames.length - redWins;
+                  const blackWins = tGames.filter((g) => g.winner === "black").length;
                   return (
                     <tr key={t.id}
                       className="border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800/50 cursor-pointer transition-colors"

@@ -247,7 +247,7 @@ export function SettingsPage({
         const gamePlayers = shuffledPlayers.map((player, idx) => {
           const role = shuffledRoles[idx];
           const team = getTeam(role);
-          const result = team === winner ? "win" : "lose";
+          const result = winner === "draw" ? "draw" : team === winner ? "win" : "lose";
           const baseScore = result === "win" ? 1 : 0;
           const bonusScore = Math.random() > 0.7
             ? parseFloat((Math.random() * 1 - 0.5).toFixed(1)) : 0;
