@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { ArrowLeft, Check, Users, X, AlertTriangle, Shield, Sword, Loader } from "lucide-react";
+import { ArrowLeft, Check, Users, X, AlertTriangle, Shield, Sword, Loader, Scale } from "lucide-react";
 import { Badge, PlayerSelect } from "../components/ui";
 import { ROLE_NAMES, ROLE_OPTIONS, ROLE_REQUIRED, ROLE_BADGE_VARIANT, RESULT_NAMES } from "../lib/constants";
 import { getTeam } from "../lib/utils";
@@ -184,7 +184,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     const gamePlayers = seats.map((s, idx) => {
       const role = roles[idx];
       const team = getTeam(role);
-      const result = team === winner ? "win" : "lose";
+      const result = winner === "draw" ? "draw" : team === winner ? "win" : "lose";
       const baseScore = result === "win" ? 1 : 0;
       const bonus = parseBonusScore(bonusScores[idx]);
       return {
@@ -492,7 +492,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           {/* Winner selection */}
           <div>
             <h4 className="font-medium mb-2">Победитель</h4>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => setWinner("red")}
                 className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 text-sm font-semibold transition-all ${
@@ -503,6 +503,17 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
               >
                 <Shield size={20} />
                 Красные
+              </button>
+              <button
+                onClick={() => setWinner("draw")}
+                className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 text-sm font-semibold transition-all ${
+                  winner === "draw"
+                    ? "border-amber-500 bg-amber-500/10 text-amber-400 shadow-sm"
+                    : "border-zinc-700 text-zinc-500 hover:border-amber-500/30 hover:bg-amber-500/5"
+                }`}
+              >
+                <Scale size={20} />
+                Ничья
               </button>
               <button
                 onClick={() => setWinner("black")}
@@ -543,7 +554,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                     </span>
                     <div className="flex items-center gap-2">
                       <Badge variant={ROLE_BADGE_VARIANT[role]}>{ROLE_NAMES[role]}</Badge>
-                      <span className={result === "win" ? "text-emerald-400 text-xs" : "text-red-400 text-xs"}>
+                      <span className={result === "win" ? "text-emerald-400 text-xs" : result === "draw" ? "text-amber-400 text-xs" : "text-red-400 text-xs"}>
                         {RESULT_NAMES[result]}
                       </span>
                     </div>
@@ -632,7 +643,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                         <Badge variant={ROLE_BADGE_VARIANT[role]}>{ROLE_NAMES[role]}</Badge>
                       </td>
                       <td className="px-2 py-2">
-                        <span className={result === "win" ? "text-green-600 font-medium" : "text-red-500"}>
+                        <span className={result === "win" ? "text-green-600 font-medium" : result === "draw" ? "text-amber-400 font-medium" : "text-red-500"}>
                           {RESULT_NAMES[result]}
                         </span>
                       </td>
