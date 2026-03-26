@@ -351,9 +351,11 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
             <div className="flex flex-wrap items-center gap-1.5 mb-3">
               {formTrend.recentResults.map((r, i) => (
                 <span key={i} className={`w-7 h-7 flex items-center justify-center rounded text-sm ${
-                  r === "win" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                  r === "win" ? "bg-emerald-500/10 text-emerald-400" :
+                  r === "draw" ? "bg-amber-500/10 text-amber-400" :
+                  "bg-red-500/10 text-red-400"
                 }`}>
-                  {r === "win" ? "✅" : "❌"}
+                  {r === "win" ? "✅" : r === "draw" ? "➖" : "❌"}
                 </span>
               ))}
             </div>
@@ -472,7 +474,11 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
                       <Badge variant={ROLE_BADGE_VARIANT[h.role]}>{ROLE_NAMES[h.role]}</Badge>
                     </td>
                     <td className="px-2 py-1.5">
-                      <span className={h.result === "win" ? "text-green-600 font-medium" : "text-red-500"}>
+                      <span className={
+                        h.result === "win" ? "text-green-600 font-medium" :
+                        h.result === "draw" ? "text-amber-400 font-medium" :
+                        "text-red-500"
+                      }>
                         {RESULT_NAMES[h.result]}
                       </span>
                     </td>
