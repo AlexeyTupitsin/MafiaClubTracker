@@ -541,7 +541,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
             {seats.map((seat, idx) => {
               const role = roles[idx];
               const team = getTeam(role);
-              const result = team === winner ? "win" : "lose";
+              const result = winner === "draw" ? "draw" : team === winner ? "win" : "lose";
               const baseScore = result === "win" ? 1 : 0;
               const bonus = parseBonusScore(bonusScores[idx]);
               const total = baseScore + bonus;
@@ -630,7 +630,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                 {seats.map((seat, idx) => {
                   const role = roles[idx];
                   const team = getTeam(role);
-                  const result = team === winner ? "win" : "lose";
+                  const result = winner === "draw" ? "draw" : team === winner ? "win" : "lose";
                   const baseScore = result === "win" ? 1 : 0;
                   const bonus = parseBonusScore(bonusScores[idx]);
                   const total = baseScore + bonus;
