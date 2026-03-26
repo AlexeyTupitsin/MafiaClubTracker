@@ -10,11 +10,13 @@ export const ROLE_NAMES = {
 export const TEAM_NAMES = {
   red: "Красные",
   black: "Чёрные",
+  draw: "Ничья",
 };
 
 export const RESULT_NAMES = {
   win: "Победа",
   lose: "Поражение",
+  draw: "Ничья",
 };
 
 export const ROLE_REQUIRED = { citizen: 6, sheriff: 1, mafia: 2, don: 1 };
