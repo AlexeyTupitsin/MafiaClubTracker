@@ -94,6 +94,7 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
         {[
           { value: "all", label: "Все" },
           { value: "red", label: "Красные" },
+          { value: "draw", label: "Ничья" },
           { value: "black", label: "Чёрные" },
         ].map((f) => (
           <button key={f.value} onClick={() => setWinnerFilter(f.value)}
@@ -101,6 +102,8 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
               winnerFilter === f.value
                 ? f.value === "red"
                   ? "bg-red-500/10 text-red-400"
+                  : f.value === "draw"
+                  ? "bg-amber-500/10 text-amber-400"
                   : f.value === "black"
                   ? "bg-zinc-700 text-zinc-100"
                   : "bg-violet-500/10 text-violet-400"
@@ -197,7 +200,7 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant={game.winner === "red" ? "red" : "black"}>
+                      <Badge variant={game.winner === "red" ? "red" : game.winner === "draw" ? "yellow" : "black"}>
                         {TEAM_NAMES[game.winner]}
                       </Badge>
                     </td>
