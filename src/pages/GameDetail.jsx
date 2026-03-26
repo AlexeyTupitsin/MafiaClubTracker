@@ -49,8 +49,8 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
           <ArrowLeft size={20} />
         </button>
         <h2 className="text-xl font-bold">Игра #{game.gameNumber}</h2>
-        <Badge variant={game.winner === "red" ? "red" : "black"}>
-          {TEAM_NAMES[game.winner]} победили
+        <Badge variant={game.winner === "red" ? "red" : game.winner === "draw" ? "yellow" : "black"}>
+          {game.winner === "draw" ? "Ничья" : `${TEAM_NAMES[game.winner]} победили`}
         </Badge>
       </div>
       <p className="text-sm text-zinc-400 mb-1 ml-11">{formatDate(game.date)}</p>
@@ -112,9 +112,13 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                       </Badge>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className={gp.result === "win"
-                        ? "text-green-600 font-medium"
-                        : "text-red-500"}>
+                      <span className={
+                        gp.result === "win"
+                          ? "text-green-600 font-medium"
+                          : gp.result === "draw"
+                          ? "text-amber-400"
+                          : "text-red-500"
+                      }>
                         {RESULT_NAMES[gp.result]}
                       </span>
                     </td>
