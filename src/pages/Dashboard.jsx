@@ -100,8 +100,8 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
         />
       ) : (
         <>
-          {/* Stat cards — 3 cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Stat cards */}
+          <div className={`grid grid-cols-1 gap-3 ${dashStats.draws > 0 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
             <StatCard label="Всего игр" value={dashStats.totalGames} icon={Sword} />
             <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
               <div className="flex items-center justify-between mb-1">
@@ -120,6 +120,16 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
                 {dashStats.blackWins} <span className="text-base font-normal text-zinc-500">({dashStats.blackWinrate.toFixed(0)}%)</span>
               </div>
             </div>
+            {dashStats.draws > 0 && (
+              <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-zinc-400">Ничьих</span>
+                </div>
+                <div className="text-2xl font-bold text-amber-400">
+                  {dashStats.draws}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Quick action */}
