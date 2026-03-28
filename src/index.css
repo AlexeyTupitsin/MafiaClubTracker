@@ -1,27 +1,32 @@
 @import "tailwindcss";
 
-/* === Design Tokens === */
+/* === Design Tokens — Dark Premium Indigo + Warm Dark (Mafia) === */
 :root {
-  --color-bg-primary: #0a0a0a;
-  --color-bg-secondary: #151515;
-  --color-bg-tertiary: #1f1f1f;
-  --color-bg-elevated: #27272a;
+  --color-bg-primary: #0a0908;
+  --color-bg-secondary: rgba(99, 102, 241, 0.04);
+  --color-bg-tertiary: rgba(10, 9, 8, 0.95);
+  --color-bg-elevated: rgba(99, 102, 241, 0.07);
 
-  --color-text-primary: #fafafa;
-  --color-text-secondary: #a1a1aa;
-  --color-text-muted: #52525b;
+  --color-text-primary: #faf8f5;
+  --color-text-secondary: #a8a3a0;
+  --color-text-muted: #5c5855;
 
-  --color-accent-primary: #8b5cf6;
-  --color-accent-hover: #a78bfa;
+  --color-accent-primary: #6366f1;
+  --color-accent-secondary: #4f46e5;
+  --color-accent-hover: #818cf8;
   --color-success: #10b981;
   --color-danger: #ef4444;
 
-  --color-border: #27272a;
-  --color-border-hover: #3f3f46;
-  --color-border-focus: #8b5cf6;
+  --color-border: rgba(99, 102, 241, 0.10);
+  --color-border-hover: rgba(99, 102, 241, 0.22);
+  --color-border-focus: #6366f1;
 
-  --font-sans: 'Onest', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --glow-sm: 0 0 15px rgba(99, 102, 241, 0.10);
+  --glow-md: 0 0 25px rgba(99, 102, 241, 0.16);
+  --glow-lg: 0 0 40px rgba(99, 102, 241, 0.22);
 }
 
 /* === Global Styles === */
@@ -35,94 +40,120 @@ body {
 
 /* === Selection === */
 ::selection {
-  background-color: rgba(139, 92, 246, 0.3);
-  color: #fafafa;
+  background-color: rgba(99, 102, 241, 0.25);
+  color: #faf8f5;
 }
 
 /* === Scrollbar === */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #3f3f46;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
-}
-
-/* Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #3f3f46 transparent;
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.18); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.3); }
+* { scrollbar-width: thin; scrollbar-color: rgba(99, 102, 241, 0.18) transparent; }
 
 /* === Animations === */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes zoomIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
-
 @keyframes slideInBottom {
-  from {
-    opacity: 0;
-    transform: translateY(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
 }
 
-.animate-page-enter {
-  animation: fadeIn 0.25s ease-out;
+.animate-page-enter { animation: fadeIn 0.3s ease-out; }
+.animate-modal-enter { animation: zoomIn 0.2s ease-out; }
+.animate-slide-up { animation: slideUp 0.3s ease-out; }
+.animate-toast-enter { animation: slideInBottom 0.3s ease-out; }
+
+/* Stagger children animation */
+.stagger-children > * { animation: staggerIn 0.35s ease-out both; }
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
+
+/* === Glass card base === */
+.glass-card {
+  background: rgba(99, 102, 241, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(99, 102, 241, 0.10);
+  border-radius: 16px;
+  transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out, background-color 0.2s ease-out;
+}
+.glass-card:hover {
+  border-color: rgba(99, 102, 241, 0.22);
+  box-shadow: var(--glow-sm);
+}
+.glass-card-interactive { cursor: pointer; }
+.glass-card-interactive:hover {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.28);
+  box-shadow: var(--glow-md);
 }
 
-.animate-modal-enter {
-  animation: zoomIn 0.2s ease-out;
+/* === Gradient text === */
+.gradient-text {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.animate-slide-up {
-  animation: slideUp 0.3s ease-out;
+.gradient-text-shimmer {
+  background: linear-gradient(90deg, #818cf8, #6366f1, #818cf8);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
 }
 
-.animate-toast-enter {
-  animation: slideInBottom 0.3s ease-out;
+/* === Gradient button === */
+.btn-gradient {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 500;
+  transition: box-shadow 0.2s ease-out, transform 0.2s ease-out;
+}
+.btn-gradient:hover {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+  transform: translateY(-1px);
+}
+.btn-gradient:active { transform: translateY(0); }
+
+/* === Ghost button === */
+.btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  border-radius: 12px;
+  transition: background-color 0.2s ease-out, border-color 0.2s ease-out;
+}
+.btn-ghost:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.4);
 }
 
 /* === Mono digits for data tables === */
@@ -133,28 +164,29 @@ body {
 
 /* === Dark form controls === */
 select option {
-  background-color: #1f1f1f;
-  color: #fafafa;
+  background-color: #120f0a;
+  color: #faf8f5;
 }
 
 /* === Focus visible outlines === */
-:focus-visible {
-  outline: 2px solid var(--color-accent-primary);
-  outline-offset: 2px;
-}
-
-input:focus, select:focus, textarea:focus {
-  outline: none;
-}
+:focus-visible { outline: 2px solid var(--color-accent-primary); outline-offset: 2px; }
+input:focus, select:focus, textarea:focus { outline: none; }
 
 /* === Disabled button styles === */
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
+button:disabled { cursor: not-allowed; opacity: 0.5; }
 
 /* === Global transitions === */
 button, a, [role="tab"] {
-  transition-property: color, background-color, border-color;
-  transition-duration: 150ms;
+  transition-property: color, background-color, border-color, box-shadow, transform;
+  transition-duration: 200ms;
+  transition-timing-function: ease-out;
+}
+
+/* === Reduced motion === */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

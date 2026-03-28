@@ -23,7 +23,7 @@ export function TabBar({ currentPage, navigate }) {
                 onClick={() => navigate(tab.id)}
                 className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
                   isActive
-                    ? "border-violet-500 text-violet-400"
+                    ? "border-red-600 text-red-400"
                     : "border-transparent text-zinc-500 hover:text-zinc-300"
                 }`}
                 role="tab"
@@ -48,7 +48,7 @@ export function TabBar({ currentPage, navigate }) {
                 key={tab.id}
                 onClick={() => navigate(tab.id)}
                 className={`flex flex-col items-center gap-1 px-2 py-3 flex-1 text-xs font-medium transition-colors ${
-                  isActive ? "text-violet-400" : "text-zinc-600"
+                  isActive ? "text-red-400" : "text-zinc-600"
                 }`}
                 role="tab"
                 aria-selected={isActive}

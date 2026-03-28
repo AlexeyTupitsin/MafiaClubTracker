@@ -382,7 +382,7 @@ export function SettingsPage({
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold">Настройки</h2>
+      <h2 className="text-xl font-bold gradient-text">Настройки</h2>
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2 text-red-400 text-sm">
@@ -394,32 +394,32 @@ export function SettingsPage({
       )}
 
       {/* Seasons */}
-      <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+      <div className="glass-card rounded-2xl p-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Сезоны</h3>
           <button onClick={() => { setShowNewSeason(true); setError(""); setSeasonName(""); }}
-            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg text-sm">
+            className="flex items-center gap-2 btn-gradient cursor-pointer px-3 py-1.5 rounded-lg text-sm">
             <Plus size={14} /> Новый сезон
           </button>
         </div>
         {seasons.length === 0 ? (
-          <p className="text-zinc-400 text-sm">Нет сезонов</p>
+          <p className="text-slate-400 text-sm">Нет сезонов</p>
         ) : (
           <div className="space-y-2">
             {seasons.map((season) => (
               <div key={season.id}
-                className={`flex items-center justify-between p-3 border border-zinc-700 rounded-lg ${
-                  season.id === currentSeasonId ? "border-violet-500/30 bg-violet-500/5" : ""
+                className={`flex items-center justify-between p-3 border border-indigo-500/15 rounded-lg ${
+                  season.id === currentSeasonId ? "border-indigo-500/30 bg-indigo-500/5" : ""
                 }`}>
                 <div className="min-w-0">
                     <div className="flex items-center gap-1">
                       <span className="font-medium truncate">{season.name}</span>
                       <button onClick={() => openEditSeason(season)}
-                        className="p-1 hover:bg-zinc-800 rounded transition-colors" title="Редактировать">
-                        <Pencil size={12} className="text-zinc-500" />
+                        className="p-1 hover:bg-indigo-500/5 rounded transition-colors" title="Редактировать">
+                        <Pencil size={12} className="text-slate-500" />
                       </button>
                     </div>
-                  <div className="text-sm text-zinc-400">
+                  <div className="text-sm text-slate-400">
                     {formatDate(season.startDate)}
                     {season.endDate ? ` — ${formatDate(season.endDate)}` : " — ..."}
                   </div>
@@ -430,13 +430,13 @@ export function SettingsPage({
                   </Badge>
                   {season.isActive && (
                     <button onClick={() => setConfirmEnd(season)}
-                      className="text-xs text-zinc-500 hover:text-zinc-300 px-2 py-1 border border-zinc-700 rounded hover:bg-zinc-800">
+                      className="text-xs text-slate-500 hover:text-slate-300 px-2 py-1 border border-indigo-500/15 rounded hover:bg-indigo-500/5">
                       Завершить
                     </button>
                   )}
                   <button onClick={() => setConfirmDelete(season)}
-                    className="p-1.5 hover:bg-zinc-800 rounded transition-colors" title="Удалить">
-                    <Trash2 size={14} className="text-zinc-500" />
+                    className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors" title="Удалить">
+                    <Trash2 size={14} className="text-slate-500" />
                   </button>
                 </div>
               </div>
@@ -446,14 +446,14 @@ export function SettingsPage({
       </div>
 
       {/* Export / Import */}
-      <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+      <div className="glass-card rounded-2xl p-4">
         <h3 className="text-lg font-semibold mb-3">Данные</h3>
         <div className="flex flex-wrap gap-3">
           <button onClick={handleExport}
-            className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm">
+            className="flex items-center gap-2 bg-slate-800/30 hover:bg-indigo-500/5 text-slate-300 px-4 py-2 rounded-lg text-sm">
             <Download size={16} /> Экспорт в JSON
           </button>
-          <label className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-lg text-sm cursor-pointer">
+          <label className="flex items-center gap-2 bg-slate-800/30 hover:bg-indigo-500/5 text-slate-300 px-4 py-2 rounded-lg text-sm cursor-pointer">
             <Upload size={16} /> Импорт из JSON
             <input type="file" accept=".json" onChange={handleImportFile} className="hidden" />
           </label>
@@ -461,18 +461,18 @@ export function SettingsPage({
         {exportData && (
           <div className="mt-3">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-zinc-400">Скопируйте данные или скачайте файл:</span>
+              <span className="text-sm text-slate-400">Скопируйте данные или скачайте файл:</span>
               <div className="flex gap-2">
                 <button onClick={handleDownloadExport}
-                  className="flex items-center gap-1 text-sm text-violet-400 hover:text-violet-300 font-medium">
+                  className="flex items-center gap-1 text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer font-medium">
                   <Download size={14} /> Скачать
                 </button>
                 <button onClick={handleCopyExport}
-                  className="flex items-center gap-1 text-sm text-violet-400 hover:text-violet-300 font-medium">
+                  className="flex items-center gap-1 text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer font-medium">
                   <CheckCircle size={14} /> {copied ? "Скопировано ✓" : "Копировать"}
                 </button>
                 <button onClick={() => setExportData(null)}
-                  className="text-sm text-zinc-500 hover:text-zinc-300">
+                  className="text-sm text-slate-500 hover:text-slate-300">
                   <X size={14} />
                 </button>
               </div>
@@ -481,7 +481,7 @@ export function SettingsPage({
               readOnly
               value={exportData}
               rows={8}
-              className="w-full border border-zinc-700 rounded-lg px-3 py-2 text-xs font-mono bg-zinc-900 text-zinc-300 outline-none"
+              className="w-full border border-indigo-500/15 rounded-lg px-3 py-2 text-xs font-mono bg-indigo-500/5 text-slate-300 outline-none"
               onClick={(e) => e.target.select()}
             />
           </div>
@@ -489,23 +489,23 @@ export function SettingsPage({
       </div>
 
       {/* Demo Data - hidden */}
-      {/* <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+      {/* <div className="glass-card rounded-2xl p-4">
         <h3 className="text-lg font-semibold mb-2">Демо-данные</h3>
-        <p className="text-sm text-zinc-400 mb-3">
+        <p className="text-sm text-slate-400 mb-3">
           Создать тестовых игроков и игры для проверки работы приложения.
         </p>
         <button onClick={() => setConfirmDemo(true)}
           disabled={generatingDemo}
-          className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-600 disabled:cursor-not-allowed text-zinc-300 px-4 py-2 rounded-lg text-sm">
+          className="flex items-center gap-2 bg-slate-800/30 hover:bg-indigo-500/5 disabled:bg-slate-800/30 disabled:text-slate-500 disabled:cursor-not-allowed text-slate-300 px-4 py-2 rounded-lg text-sm">
           {generatingDemo ? <Loader size={16} className="animate-spin" /> : <Database size={16} />}
           {generatingDemo ? "Генерация..." : "Сгенерировать демо-данные"}
         </button>
       </div> */}
 
       {/* Danger Zone - hidden */}
-      {/* <div className="bg-[#151515] border border-red-500/20 rounded-xl p-4">
+      {/* <div className="glass-card border border-red-500/20 rounded-xl p-4">
         <h3 className="text-lg font-semibold text-red-400 mb-2">Опасная зона</h3>
-        <p className="text-sm text-zinc-400 mb-3">
+        <p className="text-sm text-slate-400 mb-3">
           Удаление всех данных приложения. Это действие необратимо.
         </p>
         <button onClick={() => { setConfirmReset(true); setResetWord(""); }}
@@ -523,10 +523,10 @@ export function SettingsPage({
             <>
               <button onClick={() => setShowNewSeason(false)}
                 disabled={savingSeason}
-                className="px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Отмена</button>
+                className="px-4 py-2 btn-ghost cursor-pointer text-sm disabled:opacity-50 disabled:cursor-not-allowed">Отмена</button>
               <button onClick={handleCreateSeason}
                 disabled={savingSeason || !isThresholdValid(thresholdType, thresholdValue)}
-                className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
+                className="flex items-center gap-2 px-4 py-2 btn-gradient cursor-pointer disabled:bg-slate-800/30 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
                 {savingSeason && <Loader size={14} className="animate-spin" />}
                 {savingSeason ? "Создание..." : "Создать"}
               </button>
@@ -534,19 +534,19 @@ export function SettingsPage({
           }>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">
-                Название <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Название <span className="text-red-400">*</span>
               </label>
               <input type="text" value={seasonName}
                 onChange={(e) => setSeasonName(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none"
                 placeholder="Сезон 2 — Лето 2026" autoFocus />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">Дата начала</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Дата начала</label>
               <input type="date" value={seasonStart}
                 onChange={(e) => setSeasonStart(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none" />
+                className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none" />
             </div>
             <div className="flex items-center gap-2">
               <input
@@ -554,14 +554,14 @@ export function SettingsPage({
                 id="trackFirstKill"
                 checked={trackFirstKill}
                 onChange={(e) => setTrackFirstKill(e.target.checked)}
-                className="rounded border-zinc-600 text-violet-600 focus:ring-violet-500"
+                className="rounded border-indigo-500/15 text-emerald-600 focus:ring-indigo-500/50"
               />
-              <label htmlFor="trackFirstKill" className="text-sm text-zinc-200">
+              <label htmlFor="trackFirstKill" className="text-sm text-slate-200">
                 Отслеживать первоубиенного (ПУ)
               </label>
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">Порог рейтинга</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Порог рейтинга</label>
               <select
                 value={thresholdType}
                 onChange={(e) => {
@@ -569,7 +569,7 @@ export function SettingsPage({
                   if (e.target.value === "none") setThresholdValue("");
                   else if (!thresholdValue) setThresholdValue("1");
                 }}
-                className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none"
               >
                 <option value="none">Без порога</option>
                 <option value="absolute">Минимум игр</option>
@@ -578,7 +578,7 @@ export function SettingsPage({
             </div>
             {thresholdType !== "none" && (
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-slate-300 mb-1">
                   {thresholdType === "absolute" ? "Минимальное количество игр" : "Процент от общего числа игр"}
                 </label>
                 <div className="relative">
@@ -589,13 +589,13 @@ export function SettingsPage({
                     min={1}
                     max={thresholdType === "percent" ? 100 : undefined}
                     placeholder={thresholdType === "absolute" ? "5" : "50"}
-                    className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                    className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none"
                   />
                   {thresholdType === "percent" && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">%</span>
                   )}
                 </div>
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   {thresholdType === "absolute"
                     ? "Игроки с меньшим числом игр не попадут в рейтинг"
                     : "Например, 50% при 20 играх = минимум 10 игр для рейтинга"}
@@ -619,12 +619,12 @@ export function SettingsPage({
             <>
               <button onClick={() => setEditingSeason(null)}
                 disabled={savingEdit}
-                className="px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm disabled:opacity-50">
+                className="px-4 py-2 btn-ghost cursor-pointer text-sm disabled:opacity-50">
                 Отмена
               </button>
               <button onClick={handleSaveEditSeason}
                 disabled={savingEdit || !editSeasonName.trim() || !isThresholdValid(editThresholdType, editThresholdValue)}
-                className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg text-sm">
+                className="flex items-center gap-2 px-4 py-2 btn-gradient cursor-pointer disabled:bg-slate-800/30 disabled:text-slate-500 text-white rounded-lg text-sm">
                 {savingEdit && <Loader size={14} className="animate-spin" />}
                 {savingEdit ? "Сохранение..." : "Сохранить"}
               </button>
@@ -633,12 +633,12 @@ export function SettingsPage({
         >
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">
-                Название <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Название <span className="text-red-400">*</span>
               </label>
               <input type="text" value={editSeasonName}
                 onChange={(e) => setEditSeasonName(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none"
                 autoFocus />
             </div>
             <div className="flex items-center gap-2">
@@ -647,14 +647,14 @@ export function SettingsPage({
                 id="editTrackFirstKill"
                 checked={editTrackFirstKill}
                 onChange={(e) => setEditTrackFirstKill(e.target.checked)}
-                className="rounded border-zinc-600 text-violet-600 focus:ring-violet-500"
+                className="rounded border-indigo-500/15 text-emerald-600 focus:ring-indigo-500/50"
               />
-              <label htmlFor="editTrackFirstKill" className="text-sm text-zinc-200">
+              <label htmlFor="editTrackFirstKill" className="text-sm text-slate-200">
                 Отслеживать первоубиенного (ПУ)
               </label>
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">Порог рейтинга</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Порог рейтинга</label>
               <select
                 value={editThresholdType}
                 onChange={(e) => {
@@ -662,7 +662,7 @@ export function SettingsPage({
                   if (e.target.value === "none") setEditThresholdValue("");
                   else if (!editThresholdValue) setEditThresholdValue("1");
                 }}
-                className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none"
               >
                 <option value="none">Без порога</option>
                 <option value="absolute">Минимум игр</option>
@@ -671,7 +671,7 @@ export function SettingsPage({
             </div>
             {editThresholdType !== "none" && (
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-slate-300 mb-1">
                   {editThresholdType === "absolute" ? "Минимальное количество игр" : "Процент от общего числа игр"}
                 </label>
                 <div className="relative">
@@ -682,13 +682,13 @@ export function SettingsPage({
                     min={1}
                     max={editThresholdType === "percent" ? 100 : undefined}
                     placeholder={editThresholdType === "absolute" ? "5" : "50"}
-                    className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                    className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none"
                   />
                   {editThresholdType === "percent" && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">%</span>
                   )}
                 </div>
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   {editThresholdType === "absolute"
                     ? "Игроки с меньшим числом игр не попадут в рейтинг"
                     : "Например, 50% при 20 играх = минимум 10 игр для рейтинга"}
@@ -733,26 +733,26 @@ export function SettingsPage({
             <>
               <button onClick={() => setConfirmReset(false)}
                 disabled={resetting}
-                className="px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed">Отмена</button>
+                className="px-4 py-2 btn-ghost cursor-pointer text-sm disabled:opacity-50 disabled:cursor-not-allowed">Отмена</button>
               <button onClick={handleReset}
                 disabled={resetWord !== "УДАЛИТЬ" || resetting}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-slate-800/30 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
                 {resetting && <Loader size={14} className="animate-spin" />}
                 {resetting ? "Сброс..." : "Сбросить"}
               </button>
             </>
           }>
           <div className="space-y-3">
-            <p className="text-zinc-300">
+            <p className="text-slate-300">
               Все сезоны, игроки и игры будут удалены. Будет создан новый пустой «Сезон 1».
             </p>
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">
+              <label className="block text-sm font-medium text-slate-300 mb-1">
                 Введите <span className="font-mono font-bold text-red-400">УДАЛИТЬ</span> для подтверждения
               </label>
               <input type="text" value={resetWord}
                 onChange={(e) => setResetWord(e.target.value)}
-                className="w-full bg-zinc-900 border border-red-500/30 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none"
+                className="w-full bg-indigo-500/5 border border-red-500/30 text-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 outline-none"
                 placeholder="УДАЛИТЬ" autoFocus />
             </div>
           </div>

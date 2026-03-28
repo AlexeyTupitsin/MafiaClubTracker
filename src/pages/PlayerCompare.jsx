@@ -58,12 +58,12 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
     const diff = valA - valB;
     if (Math.abs(diff) < 0.01) return ["", ""];
     const aWins = higherIsBetter ? diff > 0 : diff < 0;
-    return [aWins ? "text-green-600 font-semibold" : "", !aWins ? "text-green-600 font-semibold" : ""];
+    return [aWins ? "text-indigo-400 font-semibold" : "", !aWins ? "text-indigo-400 font-semibold" : ""];
   };
 
   const TrendBadge = ({ trend }) => {
-    if (!trend) return <span className="text-zinc-500 text-xs">—</span>;
-    if (trend.trend === "up") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium"><TrendingUp size={12} />На подъёме</span>;
+    if (!trend) return <span className="text-slate-500 text-xs">—</span>;
+    if (trend.trend === "up") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-medium"><TrendingUp size={12} />На подъёме</span>;
     if (trend.trend === "down") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 text-xs font-medium"><TrendingDown size={12} />В спаде</span>;
     return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 text-xs font-medium"><Minus size={12} />Стабильно</span>;
   };
@@ -71,6 +71,7 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
   const statRows = statsA && statsB ? [
     { label: "Игры", a: statsA.totalGames, b: statsB.totalGames, better: false },
     { label: "Победы", a: statsA.wins, b: statsB.wins, better: true },
+    { label: "Ничьи", a: statsA.draws, b: statsB.draws, better: false },
     { label: "Winrate %", a: statsA.winrate, b: statsB.winrate, better: true, fmt: (v) => fmtWr(v) },
     { label: "Баллы", a: statsA.totalScore, b: statsB.totalScore, better: true, fmt: fmtScore },
     { label: "Ср. балл", a: statsA.avgScore, b: statsB.avgScore, better: true, fmt: (v) => v.toFixed(2) },
@@ -108,14 +109,14 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <button onClick={() => goBack()} className="p-1.5 hover:bg-zinc-800 rounded transition-colors">
+        <button onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
-        <h2 className="text-xl font-bold">Сравнение игроков</h2>
+        <h2 className="text-xl font-bold gradient-text">Сравнение игроков</h2>
       </div>
 
       {/* Player selectors */}
-      <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+      <div className="glass-card rounded-2xl p-4">
         <div className="flex items-center gap-3">
           <PlayerSelect
             value={playerAId}
@@ -124,7 +125,7 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
             placeholder="Игрок A..."
           />
           <button onClick={handleSwap} disabled={!bothSelected}
-            className="p-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 disabled:opacity-30 transition-colors">
+            className="p-2 btn-ghost cursor-pointer disabled:opacity-30 transition-colors">
             <ArrowRightLeft size={16} />
           </button>
           <PlayerSelect
@@ -136,7 +137,7 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
         </div>
         <div className="mt-3">
           <select value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-zinc-900 border-zinc-700 text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500">
+            className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50">
             <option value="all">Все сезоны</option>
             {seasons.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
@@ -150,15 +151,15 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
       ) : (
         <>
           {/* Stats comparison */}
-          <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+          <div className="glass-card rounded-2xl p-4">
             <h3 className="font-semibold mb-3">Общая статистика</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-800">
-                    <th className="text-left py-2 font-medium text-zinc-500">Метрика</th>
-                    <th className="text-center py-2 font-medium text-violet-400">{playerA?.nickname}</th>
-                    <th className="text-center py-2 font-medium text-violet-400">{playerB?.nickname}</th>
+                  <tr className="border-b border-indigo-500/10">
+                    <th className="text-left py-2 font-medium text-slate-400">Метрика</th>
+                    <th className="text-center py-2 font-medium text-indigo-400">{playerA?.nickname}</th>
+                    <th className="text-center py-2 font-medium text-indigo-400">{playerB?.nickname}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -166,8 +167,8 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
                     const [clsA, clsB] = row.better ? renderBetter(row.a, row.b) : ["", ""];
                     const fmt = row.fmt || ((v) => (typeof v === "number" && v % 1 !== 0 ? v.toFixed(1) : v));
                     return (
-                      <tr key={row.label} className="border-b border-zinc-800 last:border-b-0">
-                        <td className="py-2 text-zinc-400">{row.label}</td>
+                      <tr key={row.label} className="border-b border-indigo-500/10 last:border-b-0">
+                        <td className="py-2 text-slate-400">{row.label}</td>
                         <td className={`py-2 text-center ${clsA}`}>{fmt(row.a)}</td>
                         <td className={`py-2 text-center ${clsB}`}>{fmt(row.b)}</td>
                       </tr>
@@ -176,24 +177,24 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
                 </tbody>
               </table>
             </div>
-            <div className="text-center text-sm text-zinc-400 mt-3 py-2">
-              <span className="text-violet-400 font-medium">{playerA?.nickname}</span> лидирует в {winsA} из {totalMetrics},{" "}
-              <span className="text-violet-400 font-medium">{playerB?.nickname}</span> — в {winsB}
+            <div className="text-center text-sm text-slate-400 mt-3 py-2">
+              <span className="text-indigo-400 font-medium">{playerA?.nickname}</span> лидирует в {winsA} из {totalMetrics},{" "}
+              <span className="text-indigo-400 font-medium">{playerB?.nickname}</span> — в {winsB}
             </div>
           </div>
 
           {/* Role chart */}
           {roleChartData.length > 0 && (
-            <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+            <div className="glass-card rounded-2xl p-4">
               <h3 className="font-semibold mb-3">Winrate по ролям</h3>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={roleChartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(16,185,129,0.1)" />
                     <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#a1a1aa' }} />
                     <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#a1a1aa' }} unit="%" />
-                    <Tooltip contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #3f3f46', borderRadius: '8px', color: '#fafafa' }} />
-                    <Bar dataKey={playerA?.nickname || "A"} fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                    <Tooltip contentStyle={{ backgroundColor: '#0f1729', border: '1px solid rgba(16,185,129,0.15)', borderRadius: '8px', color: '#fafafa' }} />
+                    <Bar dataKey={playerA?.nickname || "A"} fill="#10b981" radius={[4, 4, 0, 0]} />
                     <Bar dataKey={playerB?.nickname || "B"} fill="#f59e0b" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -202,7 +203,7 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
           )}
 
           {/* Head-to-head */}
-          <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+          <div className="glass-card rounded-2xl p-4">
             <h3 className="font-semibold mb-3">
               Head-to-head {pairStats && pairStats.totalGames > 0 && `(${pairStats.totalGames} совместных игр)`}
             </h3>
@@ -210,25 +211,25 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-zinc-800">
-                      <th className="text-left py-2 font-medium text-zinc-500">Комбинация</th>
-                      <th className="text-center py-2 font-medium text-zinc-500">Игр / Побед (WR%)</th>
+                    <tr className="border-b border-indigo-500/10">
+                      <th className="text-left py-2 font-medium text-slate-400">Комбинация</th>
+                      <th className="text-center py-2 font-medium text-slate-400">Игр / Побед (WR%)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b border-zinc-800">
+                    <tr className="border-b border-indigo-500/10">
                       <td className="py-2">Оба 🔴</td>
                       <td className="py-2 text-center">{fmtPairCell(pairStats.bothRed.games, pairStats.bothRed.wins, pairStats.bothRed.winrate)}</td>
                     </tr>
-                    <tr className="border-b border-zinc-800">
+                    <tr className="border-b border-indigo-500/10">
                       <td className="py-2">Оба ⚫</td>
                       <td className="py-2 text-center">{fmtPairCell(pairStats.bothBlack.games, pairStats.bothBlack.wins, pairStats.bothBlack.winrate)}</td>
                     </tr>
-                    <tr className="border-b border-zinc-800">
+                    <tr className="border-b border-indigo-500/10">
                       <td className="py-2">{playerA?.nickname} 🔴 {playerB?.nickname} ⚫</td>
                       <td className="py-2 text-center">{fmtPairCell(pairStats.aRedBBlack.games, pairStats.aRedBBlack.winsA, pairStats.aRedBBlack.winrateA)}</td>
                     </tr>
-                    <tr className="border-b border-zinc-800 last:border-b-0">
+                    <tr className="border-b border-indigo-500/10 last:border-b-0">
                       <td className="py-2">{playerA?.nickname} ⚫ {playerB?.nickname} 🔴</td>
                       <td className="py-2 text-center">{fmtPairCell(pairStats.aBlackBRed.games, pairStats.aBlackBRed.winsA, pairStats.aBlackBRed.winrateA)}</td>
                     </tr>
@@ -236,12 +237,12 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
                 </table>
               </div>
             ) : (
-              <p className="text-zinc-500 text-sm py-4 text-center">Эти игроки ещё не встречались за одним столом</p>
+              <p className="text-slate-500 text-sm py-4 text-center">Эти игроки ещё не встречались за одним столом</p>
             )}
           </div>
 
           {/* Form trend */}
-          <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+          <div className="glass-card rounded-2xl p-4">
             <h3 className="font-semibold mb-3">Тренд формы</h3>
             <div className="grid grid-cols-2 gap-4">
               {[{ p: playerA, f: formA }, { p: playerB, f: formB }].map(({ p, f }) => (
@@ -258,13 +259,13 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
                           </span>
                         ))}
                       </div>
-                      <div className="text-xs text-zinc-400 mb-1">
+                      <div className="text-xs text-slate-400 mb-1">
                         WR: {f.recentWinrate.toFixed(0)}% vs {f.overallWinrate.toFixed(0)}%
                       </div>
                       <TrendBadge trend={f} />
                     </>
                   ) : (
-                    <p className="text-xs text-zinc-500">Нет данных</p>
+                    <p className="text-xs text-slate-500">Нет данных</p>
                   )}
                 </div>
               ))}

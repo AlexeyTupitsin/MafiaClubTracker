@@ -122,6 +122,7 @@ export function calcDashboardStats(games) {
     draws,
     redWinrate: total > 0 ? (redWins / total) * 100 : 0,
     blackWinrate: total > 0 ? (blackWins / total) * 100 : 0,
+    drawRate: total > 0 ? (draws / total) * 100 : 0,
   };
 }
 

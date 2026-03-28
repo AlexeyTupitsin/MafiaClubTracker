@@ -16,7 +16,7 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
         title="Игра не найдена"
         action={
           <button onClick={() => goBack()}
-            className="flex items-center gap-2 text-violet-400 hover:text-violet-300 text-sm">
+            className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm cursor-pointer">
             <ArrowLeft size={16} /> Назад
           </button>
         }
@@ -45,43 +45,43 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
       {/* Header */}
       <div className="flex items-center gap-3 mb-1">
         <button onClick={() => goBack()}
-          className="p-1.5 hover:bg-zinc-800 rounded transition-colors">
+          className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors cursor-pointer">
           <ArrowLeft size={20} />
         </button>
-        <h2 className="text-xl font-bold">Игра #{game.gameNumber}</h2>
+        <h2 className="text-xl font-bold"><span className="gradient-text">Игра #{game.gameNumber}</span></h2>
         <Badge variant={game.winner === "red" ? "red" : game.winner === "draw" ? "yellow" : "black"}>
           {game.winner === "draw" ? "Ничья" : `${TEAM_NAMES[game.winner]} победили`}
         </Badge>
       </div>
-      <p className="text-sm text-zinc-400 mb-1 ml-11">{formatDate(game.date)}</p>
+      <p className="text-sm text-slate-400 mb-1 ml-11">{formatDate(game.date)}</p>
       {game.tournamentId && (() => {
         const t = (tournaments || []).find((x) => x.id === game.tournamentId);
-        return t ? <p className="text-sm text-violet-400 mb-4 ml-11">{t.name}</p> : null;
+        return t ? <p className="text-sm text-indigo-400 mb-4 ml-11">{t.name}</p> : null;
       })()}
       {!game.tournamentId && <div className="mb-3" />}
 
       {/* Notes */}
       {game.notes && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 mb-4 text-sm text-amber-300">
+        <div className="glass-card !bg-amber-500/5 !border-amber-500/15 rounded-xl p-3 mb-4 text-sm text-amber-300">
           {game.notes}
         </div>
       )}
 
       {/* Players table */}
-      <div className="bg-[#151515] border border-zinc-800 rounded-xl overflow-hidden mb-4">
+      <div className="glass-card rounded-2xl overflow-hidden mb-4">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-800 bg-zinc-900/50">
-                <th className="text-center px-3 py-2.5 font-medium text-zinc-500">Место</th>
-                <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Игрок</th>
-                <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Роль</th>
-                <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Команда</th>
-                <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Результат</th>
-                <th className="text-center px-3 py-2.5 font-medium text-zinc-500" title="Базовый балл">База</th>
-                <th className="text-center px-3 py-2.5 font-medium text-zinc-500" title="Дополнительный балл">Бонус</th>
-                <th className="text-center px-3 py-2.5 font-medium text-zinc-500" title="Итоговый балл">Итого</th>
-                <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Комментарий</th>
+              <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
+                <th className="text-center px-3 py-2.5 font-medium text-slate-400">Место</th>
+                <th className="text-left px-3 py-2.5 font-medium text-slate-400">Игрок</th>
+                <th className="text-left px-3 py-2.5 font-medium text-slate-400">Роль</th>
+                <th className="text-left px-3 py-2.5 font-medium text-slate-400">Команда</th>
+                <th className="text-left px-3 py-2.5 font-medium text-slate-400">Результат</th>
+                <th className="text-center px-3 py-2.5 font-medium text-slate-400" title="Базовый балл">База</th>
+                <th className="text-center px-3 py-2.5 font-medium text-slate-400" title="Дополнительный балл">Бонус</th>
+                <th className="text-center px-3 py-2.5 font-medium text-slate-400" title="Итоговый балл">Итого</th>
+                <th className="text-left px-3 py-2.5 font-medium text-slate-400">Комментарий</th>
               </tr>
             </thead>
             <tbody>
@@ -90,13 +90,13 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                 const team = getTeam(gp.role);
                 return (
                   <tr key={gp.seat}
-                    className={`border-b border-zinc-800 last:border-b-0 ${
-                      team === "red" ? "bg-red-500/5" : "bg-zinc-800/30"
+                    className={`border-b border-indigo-500/10 last:border-b-0 ${
+                      team === "red" ? "bg-red-500/5" : "bg-slate-800/20"
                     }`}>
                     <td className="px-3 py-2.5 text-center font-medium">{gp.seat}</td>
                     <td className="px-3 py-2.5 font-medium">
                       <button onClick={() => navigate("playerProfile", gp.playerId)}
-                        className="text-violet-400 hover:text-violet-300 cursor-pointer transition-colors">
+                        className="text-indigo-400 hover:text-indigo-300 cursor-pointer transition-colors">
                         {player?.nickname || "?"}
                       </button>
                       {game.firstKilled === gp.playerId && (
@@ -114,10 +114,10 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                     <td className="px-3 py-2.5">
                       <span className={
                         gp.result === "win"
-                          ? "text-green-600 font-medium"
+                          ? "text-emerald-400 font-medium"
                           : gp.result === "draw"
                           ? "text-amber-400"
-                          : "text-red-500"
+                          : "text-red-400"
                       }>
                         {RESULT_NAMES[gp.result]}
                       </span>
@@ -125,7 +125,7 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                     <td className="px-3 py-2.5 text-center">{gp.baseScore}</td>
                     <td className="px-3 py-2.5 text-center">
                       {gp.bonusScore !== 0 && (
-                        <span className={gp.bonusScore > 0 ? "text-green-600" : "text-red-500"}>
+                        <span className={gp.bonusScore > 0 ? "text-emerald-400" : "text-red-400"}>
                           {gp.bonusScore > 0 ? "+" : ""}{gp.bonusScore % 1 === 0 ? gp.bonusScore : gp.bonusScore.toFixed(1)}
                         </span>
                       )}
@@ -133,7 +133,7 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                     <td className="px-3 py-2.5 text-center font-semibold">
                       {gp.totalScore % 1 === 0 ? gp.totalScore : gp.totalScore.toFixed(1)}
                     </td>
-                    <td className="px-3 py-2.5 text-zinc-400 text-xs">{gp.bonusComment || ""}</td>
+                    <td className="px-3 py-2.5 text-slate-400 text-xs">{gp.bonusComment || ""}</td>
                   </tr>
                 );
               })}
@@ -146,11 +146,11 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
       <AdminOnly>
         <div className="flex gap-2">
           <button onClick={() => navigate("gameForm", game.id)}
-            className="flex items-center gap-1.5 px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm">
+            className="btn-ghost flex items-center gap-1.5 px-4 py-2 text-sm cursor-pointer">
             <Pencil size={14} /> Редактировать
           </button>
           <button onClick={() => setConfirmDelete(true)}
-            className="flex items-center gap-1.5 px-4 py-2 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 text-sm">
+            className="btn-ghost border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30 flex items-center gap-1.5 px-4 py-2 text-sm cursor-pointer">
             <Trash2 size={14} /> Удалить
           </button>
         </div>

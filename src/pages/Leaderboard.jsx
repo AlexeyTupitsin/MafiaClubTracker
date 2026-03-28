@@ -109,7 +109,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     { key: "killRate", label: "ПУ%", sortable: false, title: "Процент первых убийств" },
   ];
 
-  const medalColors = ["text-yellow-400", "text-zinc-400", "text-amber-600"];
+  const medalColors = ["text-yellow-400", "text-slate-400", "text-amber-600"];
   const renderRank = (idx) => (
     <span className="inline-flex justify-center w-full">
       {idx < 3 ? <MEDAL_ICON size={16} className={medalColors[idx]} /> : idx + 1}
@@ -119,7 +119,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">Рейтинг</h2>
+        <h2 className="text-xl font-bold gradient-text">Рейтинг</h2>
       </div>
 
       {/* Filters */}
@@ -127,7 +127,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
         <select
           value={seasonFilter}
           onChange={(e) => setSeasonFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-sm bg-zinc-900 border-zinc-700 text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
+          className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
         >
           <option value="all">Все сезоны</option>
           {seasons.map((s) => (
@@ -140,7 +140,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
           <select
             value={tournamentFilter}
             onChange={(e) => setTournamentFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-zinc-900 border-zinc-700 text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
+            className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
           >
             <option value="all">Все турниры</option>
             <option value="__none__">Без турнира</option>
@@ -153,18 +153,18 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
 
       {/* Threshold info */}
       {ratingCalc.minGames > 0 && ratingCalc.totalGamesInPeriod > 0 && (
-        <div className="flex items-center justify-between mb-4 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
-          <span className="text-sm text-zinc-400">
+        <div className="flex items-center justify-between mb-4 bg-indigo-500/5 border border-indigo-500/10 rounded-lg px-3 py-2">
+          <span className="text-sm text-slate-400">
             {selectedSeason?.ratingThresholdType === 'percent'
               ? `Порог: ${ratingCalc.minGames} из ${ratingCalc.totalGamesInPeriod} игр (${selectedSeason.ratingThresholdValue}%)`
               : `Порог: минимум ${ratingCalc.minGames} игр`}
             {!showAll && belowThreshold.length > 0 && (
-              <span className="text-zinc-500"> · {belowThreshold.length} игрок{belowThreshold.length > 4 ? "ов" : belowThreshold.length > 1 ? "а" : ""} не прошли порог</span>
+              <span className="text-slate-500"> · {belowThreshold.length} игрок{belowThreshold.length > 4 ? "ов" : belowThreshold.length > 1 ? "а" : ""} не прошли порог</span>
             )}
           </span>
           <button
             onClick={() => setShowAll(!showAll)}
-            className="text-sm text-violet-400 hover:text-violet-300 font-medium whitespace-nowrap ml-2"
+            className="text-sm text-indigo-400 hover:text-indigo-300 font-medium whitespace-nowrap ml-2"
           >
             {showAll ? "Только прошедшие порог" : "Показать всех"}
           </button>
@@ -178,16 +178,16 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
           description="Добавьте игры, чтобы увидеть рейтинг игроков"
         />
       ) : (
-        <div className="bg-[#151515] border border-zinc-800 rounded-xl overflow-hidden">
+        <div className="glass-card rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-900/50">
+                <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
                   {columns.map((col) => (
                     <th key={col.key}
-                      className={`px-3 py-2.5 font-medium text-zinc-500 whitespace-nowrap ${
+                      className={`px-3 py-2.5 font-medium text-slate-400 whitespace-nowrap ${
                         col.key === "nickname" ? "text-left" : "text-center"
-                      } ${col.sortable ? "cursor-pointer hover:text-zinc-300 select-none" : ""}`}
+                      } ${col.sortable ? "cursor-pointer hover:text-slate-300 select-none" : ""}`}
                       onClick={col.sortable ? () => handleSort(col.key) : undefined}
                       title={col.title}>
                       {col.label}
@@ -199,13 +199,13 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
               <tbody>
                 {sorted.map((row, idx) => (
                   <tr key={row.id}
-                    className={`border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800/50 transition-colors ${
-                      idx % 2 === 1 ? "bg-zinc-900/30" : ""
+                    className={`border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5 transition-colors ${
+                      idx % 2 === 1 ? "bg-indigo-500/5" : ""
                     }`}>
                     <td className="px-3 py-2.5 text-center font-medium">{renderRank(idx)}</td>
                     <td className="px-3 py-2.5 text-left font-medium">
                       <button onClick={() => navigate("playerProfile", row.id)}
-                        className="text-violet-400 hover:text-violet-300 hover:underline">
+                        className="text-indigo-400 hover:text-indigo-300 cursor-pointer hover:underline">
                         {row.nickname}
                       </button>
                     </td>
@@ -213,8 +213,8 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                     <td className="px-3 py-2.5 text-center">{row.wins}</td>
                     <td className="px-3 py-2.5 text-center">
                       <span className={
-                        row.winrate > 60 ? "text-green-600 font-medium" :
-                        row.winrate < 40 ? "text-red-500" : ""
+                        row.winrate > 60 ? "text-emerald-400 font-medium" :
+                        row.winrate < 40 ? "text-red-400" : ""
                       }>
                         {row.winrate.toFixed(0)}%
                       </span>
@@ -227,8 +227,8 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                     </td>
                     <td className="px-3 py-2.5 text-center">
                       <span className={
-                        row.avgBonus > 0 ? "text-green-600" :
-                        row.avgBonus < 0 ? "text-red-500" : ""
+                        row.avgBonus > 0 ? "text-emerald-400" :
+                        row.avgBonus < 0 ? "text-red-400" : ""
                       }>
                         {row.avgBonus.toFixed(2)}
                       </span>
@@ -236,8 +236,8 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                     <td className="px-3 py-2.5 text-center text-xs">
                       {row.killRate ? (
                         <span className={
-                          row.killRate.killRate > 25 ? "text-red-500" :
-                          row.killRate.killRate < 10 ? "text-green-600" : ""
+                          row.killRate.killRate > 25 ? "text-red-400" :
+                          row.killRate.killRate < 10 ? "text-emerald-400" : ""
                         }>
                           {row.killRate.killRate.toFixed(1)}%
                         </span>
@@ -259,31 +259,31 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
             {NOMINATION_CONFIG.map(({ role, icon: Icon, label }) => {
               const top = extNominations[role] || [];
               return (
-                <div key={role} className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+                <div key={role} className="glass-card rounded-2xl p-4">
                   <div className="font-semibold mb-2 flex items-center gap-1.5"><Icon size={16} /> {label}</div>
                   {top.length === 0 ? (
-                    <p className="text-sm text-zinc-500">Мин. {nomMinGames} игр за роль</p>
+                    <p className="text-sm text-slate-500">Мин. {nomMinGames} игр за роль</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="border-b border-zinc-800">
-                            <th className="text-left py-1 font-medium text-zinc-500">#</th>
-                            <th className="text-left py-1 font-medium text-zinc-500">Ник</th>
-                            <th className="text-center py-1 font-medium text-zinc-500">Игр</th>
-                            <th className="text-center py-1 font-medium text-zinc-500">Побед</th>
-                            <th className="text-center py-1 font-medium text-zinc-500">WR%</th>
-                            <th className="text-center py-1 font-medium text-zinc-500">Ср. балл</th>
-                            <th className="text-center py-1 font-medium text-zinc-500">Ср. доп.</th>
+                          <tr className="border-b border-indigo-500/10">
+                            <th className="text-left py-1 font-medium text-slate-400">#</th>
+                            <th className="text-left py-1 font-medium text-slate-400">Ник</th>
+                            <th className="text-center py-1 font-medium text-slate-400">Игр</th>
+                            <th className="text-center py-1 font-medium text-slate-400">Побед</th>
+                            <th className="text-center py-1 font-medium text-slate-400">WR%</th>
+                            <th className="text-center py-1 font-medium text-slate-400">Ср. балл</th>
+                            <th className="text-center py-1 font-medium text-slate-400">Ср. доп.</th>
                           </tr>
                         </thead>
                         <tbody>
                           {top.map((p, i) => (
-                            <tr key={p.playerId} className="border-b border-zinc-800 last:border-b-0">
+                            <tr key={p.playerId} className="border-b border-indigo-500/10 last:border-b-0">
                               <td className="py-1 font-medium">{i + 1}</td>
                               <td className="py-1">
                                 <button onClick={() => navigate("playerProfile", p.playerId)}
-                                  className="text-violet-400 hover:text-violet-300">{p.nickname}</button>
+                                  className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{p.nickname}</button>
                               </td>
                               <td className="py-1 text-center">{p.games}</td>
                               <td className="py-1 text-center">{p.wins}</td>
@@ -291,8 +291,8 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                               <td className="py-1 text-center">{p.avgScore.toFixed(2)}</td>
                               <td className="py-1 text-center">
                                 <span className={
-                                  p.avgBonus > 0 ? "text-green-600" :
-                                  p.avgBonus < 0 ? "text-red-500" : ""
+                                  p.avgBonus > 0 ? "text-emerald-400" :
+                                  p.avgBonus < 0 ? "text-red-400" : ""
                                 }>
                                   {p.avgBonus > 0 ? "+" : ""}{p.avgBonus.toFixed(2)}
                                 </span>

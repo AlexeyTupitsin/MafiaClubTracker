@@ -35,22 +35,22 @@ export function Modal({ title, children, onClose, footer }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
     >
-      <div ref={modalRef} className="bg-[#1f1f1f] border border-zinc-800 rounded-xl shadow-2xl animate-modal-enter w-full max-w-md max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800 shrink-0">
-          <h3 id="modal-title" className="text-lg font-semibold text-zinc-50">{title}</h3>
-          <button onClick={onClose} className="p-1 hover:bg-zinc-800 text-zinc-400 rounded transition-colors" aria-label="Закрыть">
+      <div ref={modalRef} className="bg-[#120f0a]/95 backdrop-blur-xl border border-indigo-500/15 rounded-2xl shadow-2xl shadow-indigo-500/5 animate-modal-enter w-full max-w-md max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-indigo-500/10 shrink-0">
+          <h3 id="modal-title" className="text-lg font-semibold text-indigo-50">{title}</h3>
+          <button onClick={onClose} className="p-1.5 hover:bg-indigo-500/10 text-slate-400 hover:text-slate-200 rounded-lg transition-colors cursor-pointer" aria-label="Закрыть">
             <X size={20} />
           </button>
         </div>
-        <div className="p-4 overflow-y-auto">{children}</div>
+        <div className="p-5 overflow-y-auto">{children}</div>
         {footer && (
-          <div className="p-4 border-t border-zinc-800 flex justify-end gap-2 shrink-0">{footer}</div>
+          <div className="p-5 border-t border-indigo-500/10 flex justify-end gap-2 shrink-0">{footer}</div>
         )}
       </div>
     </div>
