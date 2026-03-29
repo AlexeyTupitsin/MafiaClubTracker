@@ -78,6 +78,7 @@ function toFrontendPlayer(row) {
     realName: row.real_name,
     isActive: row.is_active,
     createdAt: row.created_at,
+    avatarUrl: row.avatar_url ?? null,
   };
 }
 
@@ -86,6 +87,7 @@ function toDbPlayer(obj) {
   if (obj.nickname !== undefined) row.nickname = obj.nickname;
   if (obj.realName !== undefined) row.real_name = obj.realName;
   if (obj.isActive !== undefined) row.is_active = obj.isActive;
+  if (obj.avatarUrl !== undefined) row.avatar_url = obj.avatarUrl;
   return row;
 }
 
@@ -190,6 +192,49 @@ export async function updatePlayer(id, updates) {
     single: true,
   });
   return toFrontendPlayer(row);
+}
+
+export async function uploadPlayerAvatar(playerId, file) {
+  const extMap = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+  const ext = extMap[file.type] || 'jpg';
+  const path = `${playerId}/${Date.now()}.${ext}`;
+
+  const token = getAccessToken();
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': file.type,
+    },
+    body: file,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || `Upload failed: HTTP ${res.status}`);
+  }
+
+  return `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
+}
+
+export async function deletePlayerAvatar(avatarUrl) {
+  if (!avatarUrl) return;
+  const prefix = `${SUPABASE_URL}/storage/v1/object/public/avatars/`;
+  const path = avatarUrl.startsWith(prefix) ? avatarUrl.slice(prefix.length) : null;
+  if (!path) return;
+
+  const token = getAccessToken();
+  await fetch(`${SUPABASE_URL}/storage/v1/object/avatars`, {
+    method: 'DELETE',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ prefixes: [path] }),
+  });
+  // Игнорируем ошибки — файл мог уже не существовать
 }
 
 // ============================================================
