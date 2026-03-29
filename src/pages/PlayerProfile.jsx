@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { ArrowLeft, ArrowRightLeft, TrendingUp, TrendingDown, Minus, User, Sword, ChevronRight } from "lucide-react";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend } from "recharts";
 import { Badge, StatCard, EmptyState, PlayerAvatar } from "../components/ui";
-import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate, calcRoleKillRate } from "../lib/metrics";
+import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate, calcRoleKillRate, calcBestMoveStats } from "../lib/metrics";
 import { ROLE_NAMES, ROLE_BADGE_VARIANT, RESULT_NAMES, ROLE_COLORS } from "../lib/constants";
 import { formatDate } from "../lib/utils";
 
@@ -51,6 +51,18 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
   const formTrend = useMemo(() => calcFormTrend(player.id, activeGames), [player.id, activeGames]);
   const killRateData = useMemo(() => calcKillRate(player.id, activeGames, seasons), [player.id, activeGames, seasons]);
   const roleKillRates = useMemo(() => calcRoleKillRate(player.id, activeGames, seasons), [player.id, activeGames, seasons]);
+
+  const currentSeason = useMemo(
+    () => seasons?.find(s => s.id === currentSeasonId) ?? null,
+    [seasons, currentSeasonId]
+  );
+
+  const bestMoveStats = useMemo(
+    () => calcBestMoveStats(player.id, allGames),
+    [player.id, allGames]
+  );
+
+  const showBestMove = currentSeason?.trackBestMove && bestMoveStats.total > 0;
 
   // Tournament stats: last 3 tournaments where player participated
   const tournamentStats = useMemo(() => {
@@ -402,6 +414,44 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
           <ArrowRightLeft size={16} /> Сравнить с...
         </button>
       </Section>
+
+      {/* Лучший ход */}
+      {showBestMove && (
+        <Section title="Лучший ход">
+          <div className="glass-card p-4 rounded-xl">
+            <p className="text-sm text-slate-400 mb-3">Всего ходов: {bestMoveStats.total}</p>
+            <div className="space-y-2">
+              {[3, 2, 1, 0].map(n => {
+                const count = bestMoveStats.hits[n] ?? 0;
+                const pct = bestMoveStats.total > 0 ? Math.round(count / bestMoveStats.total * 100) : 0;
+                const barColor =
+                  n === 3 ? 'bg-emerald-500' :
+                  n === 2 ? 'bg-lime-500' :
+                  n === 1 ? 'bg-yellow-500' :
+                  'bg-slate-600';
+                const labelColor =
+                  n === 3 ? 'text-emerald-400' :
+                  n === 2 ? 'text-lime-400' :
+                  n === 1 ? 'text-yellow-400' :
+                  'text-slate-400';
+                return (
+                  <div key={n} className="flex items-center gap-3">
+                    <span className={`text-xs font-mono w-8 shrink-0 ${labelColor}`}>{n}/3</span>
+                    <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${barColor}`}
+                        style={{ width: bestMoveStats.total > 0 ? `${pct}%` : '0%' }}
+                      />
+                    </div>
+                    <span className="text-xs text-slate-300 w-6 text-right shrink-0">{count}</span>
+                    <span className="text-xs text-slate-500 w-10 text-right shrink-0">({pct}%)</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Section>
+      )}
 
       {/* Взаимодействие */}
       <Section title="Взаимодействие" defaultOpen={true}>
