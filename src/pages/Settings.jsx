@@ -51,8 +51,10 @@ export function SettingsPage({
   const [editThresholdType, setEditThresholdType] = useState("none");
   const [editThresholdValue, setEditThresholdValue] = useState("");
   const [editTrackFirstKill, setEditTrackFirstKill] = useState(false);
+  const [editTrackBestMove, setEditTrackBestMove] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [trackFirstKill, setTrackFirstKill] = useState(true);
+  const [trackBestMove, setTrackBestMove] = useState(false);
   const [thresholdType, setThresholdType] = useState("none");
   const [thresholdValue, setThresholdValue] = useState("");
   const [savingSeason, setSavingSeason] = useState(false);
@@ -81,6 +83,7 @@ export function SettingsPage({
         endDate: null,
         isActive: true,
         trackFirstKill,
+        trackBestMove,
         ratingThresholdType: thresholdType,
         ratingThresholdValue: thresholdType === 'none' ? 0 : parseInt(thresholdValue, 10),
       });
@@ -153,6 +156,7 @@ export function SettingsPage({
       season.ratingThresholdType !== "none" ? String(season.ratingThresholdValue || "") : ""
     );
     setEditTrackFirstKill(season.trackFirstKill ?? false);
+    setEditTrackBestMove(season.trackBestMove ?? false);
   };
 
   const handleSaveEditSeason = async () => {
@@ -165,6 +169,7 @@ export function SettingsPage({
       await updateSeason(editingSeason.id, {
         name: trimmed,
         trackFirstKill: editTrackFirstKill,
+        trackBestMove: editTrackBestMove,
         ratingThresholdType: editThresholdType,
         ratingThresholdValue: editThresholdType === 'none' ? 0 : (parseInt(editThresholdValue, 10) || 0),
       });
@@ -560,6 +565,18 @@ export function SettingsPage({
                 Отслеживать первоубиенного (ПУ)
               </label>
             </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="trackBestMove"
+                checked={trackBestMove}
+                onChange={(e) => setTrackBestMove(e.target.checked)}
+                className="rounded border-indigo-500/15 text-emerald-600 focus:ring-indigo-500/50"
+              />
+              <label htmlFor="trackBestMove" className="text-sm text-slate-200">
+                Отслеживать лучший ход
+              </label>
+            </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">Порог рейтинга</label>
               <select
@@ -651,6 +668,18 @@ export function SettingsPage({
               />
               <label htmlFor="editTrackFirstKill" className="text-sm text-slate-200">
                 Отслеживать первоубиенного (ПУ)
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="editTrackBestMove"
+                checked={editTrackBestMove}
+                onChange={(e) => setEditTrackBestMove(e.target.checked)}
+                className="rounded border-indigo-500/15 text-emerald-600 focus:ring-indigo-500/50"
+              />
+              <label htmlFor="editTrackBestMove" className="text-sm text-slate-200">
+                Отслеживать лучший ход
               </label>
             </div>
             <div>
