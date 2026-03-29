@@ -225,14 +225,12 @@ export async function deletePlayerAvatar(avatarUrl) {
   if (!path) return;
 
   const token = getAccessToken();
-  await fetch(`${SUPABASE_URL}/storage/v1/object/avatars`, {
+  await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
     method: 'DELETE',
     headers: {
       'apikey': SUPABASE_KEY,
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ prefixes: [path] }),
   });
   // Игнорируем ошибки — файл мог уже не существовать
 }
