@@ -265,3 +265,28 @@ export function calcRoleKillRate(playerId, games, seasons) {
     };
   });
 }
+
+export function calcBestMoveStats(playerId, games) {
+  const relevant = games.filter(g =>
+    g.firstKilled === playerId &&
+    (g.bestMoveSeat1 != null || g.bestMoveSeat2 != null || g.bestMoveSeat3 != null)
+  );
+
+  const hits = { 0: 0, 1: 0, 2: 0, 3: 0 };
+
+  for (const game of relevant) {
+    const namedSeats = [game.bestMoveSeat1, game.bestMoveSeat2, game.bestMoveSeat3]
+      .filter(s => s != null);
+
+    const blackSeats = new Set(
+      game.players
+        .filter(p => p.role === 'mafia' || p.role === 'don')
+        .map(p => p.seat)
+    );
+
+    const count = namedSeats.filter(s => blackSeats.has(s)).length;
+    hits[count] = (hits[count] ?? 0) + 1;
+  }
+
+  return { total: relevant.length, hits };
+}
