@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus, Users, UserPlus, Pencil, X, Check, TrendingUp, Camera } from "lucide-react";
 import { Modal, ConfirmDialog, EmptyState, Badge, PlayerAvatar } from "../components/ui";
 import { AdminOnly } from "../components/auth/AuthGuard";
@@ -17,6 +17,12 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [removeAvatar, setRemoveAvatar] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    };
+  }, [avatarPreview]);
 
   const filteredPlayers = useMemo(() => {
     if (!search.trim()) return players;
