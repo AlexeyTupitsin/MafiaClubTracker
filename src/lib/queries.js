@@ -54,6 +54,7 @@ function toFrontendSeason(row) {
     endDate: row.end_date,
     isActive: row.is_active,
     trackFirstKill: row.track_first_kill ?? false,
+    trackBestMove: row.track_best_move ?? false,
     ratingThresholdType: row.rating_threshold_type ?? 'none',
     ratingThresholdValue: row.rating_threshold_value ?? 0,
   };
@@ -66,6 +67,7 @@ function toDbSeason(obj) {
   if (obj.endDate !== undefined) row.end_date = obj.endDate;
   if (obj.isActive !== undefined) row.is_active = obj.isActive;
   if (obj.trackFirstKill !== undefined) row.track_first_kill = obj.trackFirstKill;
+  if (obj.trackBestMove !== undefined) row.track_best_move = obj.trackBestMove;
   if (obj.ratingThresholdType !== undefined) row.rating_threshold_type = obj.ratingThresholdType;
   if (obj.ratingThresholdValue !== undefined) row.rating_threshold_value = obj.ratingThresholdValue;
   return row;
@@ -114,6 +116,9 @@ function toFrontendGame(row) {
     winner: row.winner,
     notes: row.notes,
     firstKilled: row.first_killed ?? null,
+    bestMoveSeat1: row.best_move_seat_1 ?? null,
+    bestMoveSeat2: row.best_move_seat_2 ?? null,
+    bestMoveSeat3: row.best_move_seat_3 ?? null,
     createdAt: row.created_at,
     players: (row.game_players || []).map(toFrontendGamePlayer),
   };
@@ -301,6 +306,9 @@ export async function createGame(game) {
       winner: game.winner,
       notes: game.notes || null,
       first_killed: game.firstKilled || null,
+      best_move_seat_1: game.bestMoveSeat1 ?? null,
+      best_move_seat_2: game.bestMoveSeat2 ?? null,
+      best_move_seat_3: game.bestMoveSeat3 ?? null,
     },
     single: true,
   });
@@ -335,6 +343,9 @@ export async function updateGame(game) {
       winner: game.winner,
       notes: game.notes || null,
       first_killed: game.firstKilled || null,
+      best_move_seat_1: game.bestMoveSeat1 ?? null,
+      best_move_seat_2: game.bestMoveSeat2 ?? null,
+      best_move_seat_3: game.bestMoveSeat3 ?? null,
     },
   });
 
