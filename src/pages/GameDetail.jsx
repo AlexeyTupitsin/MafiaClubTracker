@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ArrowLeft, Pencil, Trash2, Sword } from "lucide-react";
-import { Badge, ConfirmDialog, EmptyState } from "../components/ui";
+import { Badge, ConfirmDialog, EmptyState, PlayerAvatar } from "../components/ui";
 import { ROLE_NAMES, TEAM_NAMES, RESULT_NAMES, ROLE_BADGE_VARIANT } from "../lib/constants";
 import { getTeam, formatDate } from "../lib/utils";
 import { AdminOnly } from "../components/auth/AuthGuard";
@@ -95,13 +95,16 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                     }`}>
                     <td className="px-3 py-2.5 text-center font-medium">{gp.seat}</td>
                     <td className="px-3 py-2.5 font-medium">
-                      <button onClick={() => navigate("playerProfile", gp.playerId)}
-                        className="text-indigo-400 hover:text-indigo-300 cursor-pointer transition-colors">
-                        {player?.nickname || "?"}
-                      </button>
-                      {game.firstKilled === gp.playerId && (
-                        <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-medium" title="Первоубиенный">ПУ</span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        <PlayerAvatar player={player} size="sm" />
+                        <button onClick={() => navigate("playerProfile", gp.playerId)}
+                          className="text-indigo-400 hover:text-indigo-300 cursor-pointer transition-colors">
+                          {player?.nickname || "?"}
+                        </button>
+                        {game.firstKilled === gp.playerId && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-medium" title="Первоубиенный">ПУ</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2.5">
                       <Badge variant={ROLE_BADGE_VARIANT[gp.role]}>{ROLE_NAMES[gp.role]}</Badge>
