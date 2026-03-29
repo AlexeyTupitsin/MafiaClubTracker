@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { ArrowLeft, ArrowRightLeft, TrendingUp, TrendingDown, Minus, User, Sword, ChevronRight } from "lucide-react";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend } from "recharts";
-import { Badge, StatCard, EmptyState } from "../components/ui";
+import { Badge, StatCard, EmptyState, PlayerAvatar } from "../components/ui";
 import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate, calcRoleKillRate } from "../lib/metrics";
 import { ROLE_NAMES, ROLE_BADGE_VARIANT, RESULT_NAMES, ROLE_COLORS } from "../lib/constants";
 import { formatDate } from "../lib/utils";
@@ -131,6 +131,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
           <button onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
             <ArrowLeft size={20} />
           </button>
+          <PlayerAvatar player={player} size="lg" />
           <div>
             <h2 className="text-xl font-bold gradient-text">{player.nickname}</h2>
             {player.realName && <p className="text-sm text-slate-400">{player.realName}</p>}
@@ -164,6 +165,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
         <button onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
+        <PlayerAvatar player={player} size="lg" />
         <div>
           <h2 className="text-xl font-bold gradient-text">{player.nickname}</h2>
           <p className="text-sm text-slate-400">
