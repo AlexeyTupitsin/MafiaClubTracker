@@ -31,6 +31,9 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
   const [notes, setNotes] = useState("");
   const [gameDate, setGameDate] = useState(new Date().toISOString().split("T")[0]);
   const [firstKilled, setFirstKilled] = useState(null);
+  const [bestMoveSeat1, setBestMoveSeat1] = useState(null);
+  const [bestMoveSeat2, setBestMoveSeat2] = useState(null);
+  const [bestMoveSeat3, setBestMoveSeat3] = useState(null);
 
   // Restore draft on mount (only for new games)
   useEffect(() => {
@@ -53,6 +56,9 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           if (draft.notes) setNotes(draft.notes);
           if (draft.gameDate) setGameDate(draft.gameDate);
           if (draft.firstKilled) setFirstKilled(draft.firstKilled);
+          if (draft.bestMoveSeat1 != null) setBestMoveSeat1(draft.bestMoveSeat1);
+          if (draft.bestMoveSeat2 != null) setBestMoveSeat2(draft.bestMoveSeat2);
+          if (draft.bestMoveSeat3 != null) setBestMoveSeat3(draft.bestMoveSeat3);
         } else {
           localStorage.removeItem(DRAFT_KEY);
         }
@@ -75,6 +81,9 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     setGameDate(editingGame.date.split("T")[0]);
     setTournamentId(editingGame.tournamentId || "");
     setFirstKilled(editingGame.firstKilled || null);
+    setBestMoveSeat1(editingGame.bestMoveSeat1 ?? null);
+    setBestMoveSeat2(editingGame.bestMoveSeat2 ?? null);
+    setBestMoveSeat3(editingGame.bestMoveSeat3 ?? null);
   }, [editingGame]);
 
   // Auto-save draft on changes (debounced)
@@ -95,11 +104,14 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
         notes,
         gameDate,
         firstKilled,
+        bestMoveSeat1,
+        bestMoveSeat2,
+        bestMoveSeat3,
       };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     }, 500);
     return () => clearTimeout(timer);
-  }, [editingGame, step, tournamentId, newTournamentMode, newTournamentName, newTournamentDate, seats, roles, winner, bonusScores, bonusComments, notes, gameDate, firstKilled, DRAFT_KEY]);
+  }, [editingGame, step, tournamentId, newTournamentMode, newTournamentName, newTournamentDate, seats, roles, winner, bonusScores, bonusComments, notes, gameDate, firstKilled, bestMoveSeat1, bestMoveSeat2, bestMoveSeat3, DRAFT_KEY]);
 
   const activePlayers = useMemo(() => {
     const active = players.filter((p) => p.isActive);
@@ -222,6 +234,9 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           players: gamePlayers,
           notes: notes.trim() || null,
           firstKilled: currentSeason?.trackFirstKill ? firstKilled : null,
+          bestMoveSeat1: currentSeason?.trackBestMove && firstKilled ? bestMoveSeat1 : null,
+          bestMoveSeat2: currentSeason?.trackBestMove && firstKilled ? bestMoveSeat2 : null,
+          bestMoveSeat3: currentSeason?.trackBestMove && firstKilled ? bestMoveSeat3 : null,
         });
         await refreshGames();
         await refreshAllGames();
@@ -238,6 +253,9 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           players: gamePlayers,
           notes: notes.trim() || null,
           firstKilled: currentSeason?.trackFirstKill ? firstKilled : null,
+          bestMoveSeat1: currentSeason?.trackBestMove && firstKilled ? bestMoveSeat1 : null,
+          bestMoveSeat2: currentSeason?.trackBestMove && firstKilled ? bestMoveSeat2 : null,
+          bestMoveSeat3: currentSeason?.trackBestMove && firstKilled ? bestMoveSeat3 : null,
         });
         await refreshGames();
         await refreshAllGames();
@@ -588,7 +606,15 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                       <label className="flex items-center gap-2 text-xs text-slate-400">
                         <button
                           type="button"
-                          onClick={() => setFirstKilled(firstKilled === seat.playerId ? null : seat.playerId)}
+                          onClick={() => {
+                            const isAlready = firstKilled === seat.playerId;
+                            setFirstKilled(isAlready ? null : seat.playerId);
+                            if (isAlready) {
+                              setBestMoveSeat1(null);
+                              setBestMoveSeat2(null);
+                              setBestMoveSeat3(null);
+                            }
+                          }}
                           className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
                             firstKilled === seat.playerId
                               ? "border-red-500 bg-red-500"
@@ -601,6 +627,35 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                         </button>
                         Первоубиенный
                       </label>
+                    </div>
+                  )}
+                  {currentSeason?.trackBestMove && firstKilled === seat.playerId && (
+                    <div className="pt-2 space-y-1.5">
+                      <p className="text-xs text-slate-400 text-center">Лучший ход</p>
+                      <div className="flex items-center gap-2 justify-center">
+                        {[
+                          { val: bestMoveSeat1, set: setBestMoveSeat1, others: [bestMoveSeat2, bestMoveSeat3] },
+                          { val: bestMoveSeat2, set: setBestMoveSeat2, others: [bestMoveSeat1, bestMoveSeat3] },
+                          { val: bestMoveSeat3, set: setBestMoveSeat3, others: [bestMoveSeat1, bestMoveSeat2] },
+                        ].map(({ val, set, others }, i) => {
+                          const usedByOthers = others.filter(Boolean);
+                          return (
+                            <select
+                              key={i}
+                              value={val ?? ""}
+                              onChange={(e) => set(e.target.value ? Number(e.target.value) : null)}
+                              className="bg-slate-800/50 border border-indigo-500/15 rounded px-1 py-1 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500/50"
+                            >
+                              <option value="">—</option>
+                              {[1,2,3,4,5,6,7,8,9,10]
+                                .filter(s => s !== seat.seat)
+                                .filter(s => s === val || !usedByOthers.includes(s))
+                                .map(s => <option key={s} value={s}>{s}</option>)
+                              }
+                            </select>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -676,7 +731,15 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                         <td className="px-2 py-2 text-center">
                           <button
                             type="button"
-                            onClick={() => setFirstKilled(firstKilled === seat.playerId ? null : seat.playerId)}
+                            onClick={() => {
+                              const isAlready = firstKilled === seat.playerId;
+                              setFirstKilled(isAlready ? null : seat.playerId);
+                              if (isAlready) {
+                                setBestMoveSeat1(null);
+                                setBestMoveSeat2(null);
+                                setBestMoveSeat3(null);
+                              }
+                            }}
                             className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors mx-auto ${
                               firstKilled === seat.playerId
                                 ? "border-red-500 bg-red-500"
