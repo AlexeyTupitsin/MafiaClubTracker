@@ -1,14 +1,9 @@
 import { useState, useMemo } from "react";
-import { Plus, Users, UserPlus, Pencil, X, Check, TrendingUp } from "lucide-react";
-import { Modal, ConfirmDialog, EmptyState, Badge } from "../components/ui";
+import { Plus, Users, UserPlus, Pencil, X, Check, TrendingUp, Camera } from "lucide-react";
+import { Modal, ConfirmDialog, EmptyState, Badge, PlayerAvatar } from "../components/ui";
 import { AdminOnly } from "../components/auth/AuthGuard";
-import { createPlayer, updatePlayer } from "../lib/queries";
+import { createPlayer, updatePlayer, uploadPlayerAvatar, deletePlayerAvatar } from "../lib/queries";
 import { calcPlayerStats } from "../lib/metrics";
-
-function getInitials(nickname) {
-  if (!nickname) return "?";
-  return nickname.slice(0, 2).toUpperCase();
-}
 
 export function PlayerList({ players, games, allGames, navigate, showToast, refreshPlayers }) {
   const [showModal, setShowModal] = useState(false);
@@ -18,6 +13,10 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
   const [error, setError] = useState("");
   const [confirmDeactivate, setConfirmDeactivate] = useState(null);
   const [search, setSearch] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
 
   const filteredPlayers = useMemo(() => {
     if (!search.trim()) return players;
@@ -33,6 +32,9 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
     setNickname("");
     setRealName("");
     setError("");
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    setRemoveAvatar(false);
     setShowModal(true);
   };
 
@@ -41,7 +43,28 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
     setNickname(player.nickname);
     setRealName(player.realName || "");
     setError("");
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    setRemoveAvatar(false);
     setShowModal(true);
+  };
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      showToast?.('Допустимые форматы: JPG, PNG, WebP', 'error');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      showToast?.('Файл не должен превышать 2 МБ', 'error');
+      return;
+    }
+
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    setRemoveAvatar(false);
   };
 
   const handleSave = async () => {
@@ -61,23 +84,44 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
     }
 
     try {
+      setAvatarUploading(true);
+
       if (editingPlayer) {
+        let newAvatarUrl = editingPlayer.avatarUrl;
+
+        if (removeAvatar) {
+          await deletePlayerAvatar(editingPlayer.avatarUrl);
+          newAvatarUrl = null;
+        } else if (avatarFile) {
+          if (editingPlayer.avatarUrl) await deletePlayerAvatar(editingPlayer.avatarUrl);
+          newAvatarUrl = await uploadPlayerAvatar(editingPlayer.id, avatarFile);
+        }
+
         await updatePlayer(editingPlayer.id, {
           nickname: trimmed,
           realName: realName.trim() || null,
+          avatarUrl: newAvatarUrl,
         });
       } else {
-        await createPlayer({
+        const newPlayer = await createPlayer({
           nickname: trimmed,
           realName: realName.trim() || null,
           isActive: true,
         });
+
+        if (avatarFile) {
+          const newAvatarUrl = await uploadPlayerAvatar(newPlayer.id, avatarFile);
+          await updatePlayer(newPlayer.id, { avatarUrl: newAvatarUrl });
+        }
       }
+
       await refreshPlayers();
       setShowModal(false);
       showToast?.(editingPlayer ? `Игрок «${trimmed}» обновлён` : `Игрок «${trimmed}» добавлен`);
     } catch (err) {
       setError(err.message || "Ошибка сохранения");
+    } finally {
+      setAvatarUploading(false);
     }
   };
 
@@ -151,9 +195,7 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
             >
               {/* Top row: avatar + nickname */}
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-indigo-500/15 text-indigo-400 flex items-center justify-center text-sm font-bold shrink-0">
-                  {getInitials(player.nickname)}
-                </div>
+                <PlayerAvatar player={player} size="md" />
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-slate-200 truncate">
                     {player.nickname}
@@ -243,13 +285,60 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
                 className="btn-ghost px-4 py-2 text-sm cursor-pointer">
                 Отмена
               </button>
-              <button onClick={handleSave}
-                className="btn-gradient px-4 py-2 text-sm cursor-pointer">
-                Сохранить
+              <button
+                onClick={handleSave}
+                disabled={avatarUploading}
+                className="btn-gradient px-4 py-2 text-sm cursor-pointer disabled:opacity-50"
+              >
+                {avatarUploading ? "Сохранение..." : "Сохранить"}
               </button>
             </>
           }>
           <div className="space-y-4">
+            {/* Avatar upload block */}
+            <div className="flex flex-col items-center gap-3 py-2">
+              {/* Preview */}
+              <div className="w-[72px] h-[72px] rounded-full overflow-hidden shrink-0">
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
+                ) : (editingPlayer?.avatarUrl && !removeAvatar) ? (
+                  <img src={editingPlayer.avatarUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-indigo-500/15 text-indigo-400 flex items-center justify-center text-xl font-bold">
+                    {nickname ? nickname.slice(0, 2).toUpperCase() : "?"}
+                  </div>
+                )}
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-2">
+                <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 cursor-pointer transition-colors">
+                  <Camera size={13} />
+                  {avatarFile ? "Изменить" : "Загрузить фото"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                  />
+                </label>
+
+                {(editingPlayer?.avatarUrl || avatarFile) && !removeAvatar && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvatarFile(null);
+                      setAvatarPreview(null);
+                      setRemoveAvatar(true);
+                    }}
+                    className="px-3 py-1.5 text-xs rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer"
+                  >
+                    Удалить фото
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">
                 Никнейм <span className="text-red-400">*</span>
