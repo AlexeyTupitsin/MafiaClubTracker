@@ -558,7 +558,10 @@ export function SettingsPage({
                 type="checkbox"
                 id="trackFirstKill"
                 checked={trackFirstKill}
-                onChange={(e) => setTrackFirstKill(e.target.checked)}
+                onChange={(e) => {
+                  setTrackFirstKill(e.target.checked);
+                  if (!e.target.checked) setTrackBestMove(false);
+                }}
                 className="rounded border-indigo-500/15 text-emerald-600 focus:ring-indigo-500/50"
               />
               <label htmlFor="trackFirstKill" className="text-sm text-slate-200">
@@ -570,10 +573,11 @@ export function SettingsPage({
                 type="checkbox"
                 id="trackBestMove"
                 checked={trackBestMove}
+                disabled={!trackFirstKill}
                 onChange={(e) => setTrackBestMove(e.target.checked)}
-                className="rounded border-indigo-500/15 text-emerald-600 focus:ring-indigo-500/50"
+                className="rounded border-indigo-500/15 text-emerald-600 focus:ring-indigo-500/50 disabled:opacity-40 disabled:cursor-not-allowed"
               />
-              <label htmlFor="trackBestMove" className="text-sm text-slate-200">
+              <label htmlFor="trackBestMove" className={`text-sm ${trackFirstKill ? "text-slate-200" : "text-slate-500"}`}>
                 Отслеживать лучший ход
               </label>
             </div>
@@ -663,7 +667,10 @@ export function SettingsPage({
                 type="checkbox"
                 id="editTrackFirstKill"
                 checked={editTrackFirstKill}
-                onChange={(e) => setEditTrackFirstKill(e.target.checked)}
+                onChange={(e) => {
+                  setEditTrackFirstKill(e.target.checked);
+                  if (!e.target.checked) setEditTrackBestMove(false);
+                }}
                 className="rounded border-indigo-500/15 text-emerald-600 focus:ring-indigo-500/50"
               />
               <label htmlFor="editTrackFirstKill" className="text-sm text-slate-200">
@@ -675,10 +682,11 @@ export function SettingsPage({
                 type="checkbox"
                 id="editTrackBestMove"
                 checked={editTrackBestMove}
+                disabled={!editTrackFirstKill}
                 onChange={(e) => setEditTrackBestMove(e.target.checked)}
-                className="rounded border-indigo-500/15 text-emerald-600 focus:ring-indigo-500/50"
+                className="rounded border-indigo-500/15 text-emerald-600 focus:ring-indigo-500/50 disabled:opacity-40 disabled:cursor-not-allowed"
               />
-              <label htmlFor="editTrackBestMove" className="text-sm text-slate-200">
+              <label htmlFor="editTrackBestMove" className={`text-sm ${editTrackFirstKill ? "text-slate-200" : "text-slate-500"}`}>
                 Отслеживать лучший ход
               </label>
             </div>

@@ -679,6 +679,9 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                   {currentSeason?.trackFirstKill && (
                     <th className="text-center px-2 py-2 font-medium text-slate-400">ПУ</th>
                   )}
+                  {currentSeason?.trackBestMove && currentSeason?.trackFirstKill && (
+                    <th className="text-center px-2 py-2 font-medium text-slate-400">ЛХ</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -750,6 +753,38 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                               <span className="w-2 h-2 rounded-full bg-white" />
                             )}
                           </button>
+                        </td>
+                      )}
+                      {currentSeason?.trackBestMove && (
+                        <td className="px-2 py-2 text-center">
+                          {firstKilled === seat.playerId ? (
+                            <div className="flex items-center gap-1 justify-center">
+                              {[
+                                { val: bestMoveSeat1, set: setBestMoveSeat1, others: [bestMoveSeat2, bestMoveSeat3] },
+                                { val: bestMoveSeat2, set: setBestMoveSeat2, others: [bestMoveSeat1, bestMoveSeat3] },
+                                { val: bestMoveSeat3, set: setBestMoveSeat3, others: [bestMoveSeat1, bestMoveSeat2] },
+                              ].map(({ val, set, others }, i) => {
+                                const usedByOthers = others.filter(Boolean);
+                                return (
+                                  <select
+                                    key={i}
+                                    value={val ?? ""}
+                                    onChange={(e) => set(e.target.value ? Number(e.target.value) : null)}
+                                    className="bg-indigo-500/5 border border-indigo-500/15 rounded px-1 py-0.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500/50 w-12"
+                                  >
+                                    <option value="">—</option>
+                                    {[1,2,3,4,5,6,7,8,9,10]
+                                      .filter(s => s !== seat.seat)
+                                      .filter(s => s === val || !usedByOthers.includes(s))
+                                      .map(s => <option key={s} value={s}>{s}</option>)
+                                    }
+                                  </select>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-slate-600">—</span>
+                          )}
                         </td>
                       )}
                     </tr>
@@ -824,7 +859,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
         ) : (
           <button onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-red-600 disabled:bg-slate-800/30 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
+            className="flex items-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800/30 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
             {saving ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
             {saving ? "Сохранение..." : "Сохранить игру"}
           </button>

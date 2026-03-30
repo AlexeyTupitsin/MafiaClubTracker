@@ -62,7 +62,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
     [player.id, allGames]
   );
 
-  const showBestMove = currentSeason?.trackBestMove && bestMoveStats.total > 0;
+  const showBestMove = bestMoveStats.total > 0 || seasons?.some(s => s.trackBestMove);
 
   // Tournament stats: last 3 tournaments where player participated
   const tournamentStats = useMemo(() => {
