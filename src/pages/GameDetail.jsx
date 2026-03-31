@@ -73,8 +73,8 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
-                <th className="text-center px-3 py-2.5 font-medium text-slate-400">Место</th>
-                <th className="text-left px-3 py-2.5 font-medium text-slate-400">Игрок</th>
+                <th className="text-center px-3 py-2.5 font-medium text-slate-400 sticky left-0 z-20 bg-[#0a0908]">Место</th>
+                <th className="text-left px-3 py-2.5 font-medium text-slate-400 sticky left-[44px] z-20 bg-[#0a0908] border-r border-indigo-500/15">Игрок</th>
                 <th className="text-left px-3 py-2.5 font-medium text-slate-400">Роль</th>
                 <th className="text-left px-3 py-2.5 font-medium text-slate-400">Команда</th>
                 <th className="text-left px-3 py-2.5 font-medium text-slate-400">Результат</th>
@@ -93,8 +93,8 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                     className={`border-b border-indigo-500/10 last:border-b-0 ${
                       team === "red" ? "bg-red-500/5" : "bg-slate-800/20"
                     }`}>
-                    <td className="px-3 py-2.5 text-center font-medium">{gp.seat}</td>
-                    <td className="px-3 py-2.5 font-medium">
+                    <td className="px-3 py-2.5 text-center font-medium sticky left-0 z-10 bg-[#0a0908]">{gp.seat}</td>
+                    <td className="px-3 py-2.5 font-medium sticky left-[44px] z-10 bg-[#0a0908] border-r border-indigo-500/15">
                       <div className="flex items-center gap-1.5">
                         <PlayerAvatar player={player} size="sm" />
                         <button onClick={() => navigate("playerProfile", gp.playerId)}
