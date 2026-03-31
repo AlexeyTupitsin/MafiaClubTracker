@@ -78,9 +78,7 @@ export function Sidebar({ currentPage, navigate, seasons, currentSeasonId, setCu
         {/* Logo */}
         <div className="p-5 pb-3">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-indigo-500/20">
-              IM
-            </div>
+            <img src="/logo.jpg" alt="IronMaf" className="w-9 h-9 rounded-xl object-cover shadow-lg shadow-black/40" />
             <div>
               <h1 className="text-base font-bold text-indigo-50">IronMaf</h1>
               <p className="text-[11px] text-slate-500">Спортивная мафия</p>
@@ -156,9 +154,7 @@ export function Sidebar({ currentPage, navigate, seasons, currentSeasonId, setCu
       <header className="md:hidden fixed top-0 left-0 right-0 bg-[#0a0908]/90 backdrop-blur-xl border-b border-indigo-500/10 z-40">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-lg flex items-center justify-center text-white text-xs font-bold">
-              IM
-            </div>
+            <img src="/logo.jpg" alt="IronMaf" className="w-8 h-8 rounded-lg object-cover shadow-md shadow-black/40" />
             <span className="text-base font-bold text-indigo-50">IronMaf</span>
           </div>
           <div className="flex items-center gap-2">
