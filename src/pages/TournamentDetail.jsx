@@ -18,7 +18,7 @@ export function TournamentDetail({
       <EmptyState icon={Award} title="Турнир не найден"
         action={
           <button onClick={() => goBack()}
-            className="flex items-center gap-2 text-violet-400 hover:text-violet-300 text-sm">
+            className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm">
             <ArrowLeft size={16} /> Назад
           </button>
         }
@@ -33,7 +33,8 @@ export function TournamentDetail({
 
   const totalGames = tournamentGames.length;
   const redWins = tournamentGames.filter((g) => g.winner === "red").length;
-  const blackWins = totalGames - redWins;
+  const blackWins = tournamentGames.filter((g) => g.winner === "black").length;
+  const draws = tournamentGames.filter((g) => g.winner === "draw").length;
 
   const ratingData = useMemo(() => {
     const playerIds = new Set();
@@ -87,7 +88,7 @@ export function TournamentDetail({
     }
   };
 
-  const medalColors = ["text-yellow-400", "text-zinc-400", "text-amber-600"];
+  const medalColors = ["text-yellow-400", "text-slate-400", "text-amber-600"];
   const renderRank = (idx) => (
     <span className="inline-flex justify-center w-full">
       {idx < 3 ? <MEDAL_ICON size={16} className={medalColors[idx]} /> : idx + 1}
@@ -98,12 +99,12 @@ export function TournamentDetail({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => goBack()} className="p-1.5 hover:bg-zinc-800 rounded transition-colors">
+        <button onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h2 className="text-xl font-bold">{tournament.name}</h2>
-          <p className="text-sm text-zinc-400">{formatDate(tournament.date)}</p>
+          <h2 className="text-xl font-bold gradient-text">{tournament.name}</h2>
+          <p className="text-sm text-slate-400">{formatDate(tournament.date)}</p>
         </div>
       </div>
 
@@ -117,18 +118,18 @@ export function TournamentDetail({
       {totalGames > 0 && (
         <div className="grid grid-cols-3 gap-3">
           <StatCard label="Всего игр" value={totalGames} icon={Sword} />
-          <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
-            <span className="text-sm text-zinc-400">Красные</span>
+          <div className="glass-card rounded-2xl p-4">
+            <span className="text-sm text-slate-400">Красные</span>
             <div className="text-2xl font-bold text-red-400">
-              {redWins} <span className="text-base font-normal text-red-500/70">
+              {redWins} <span className="text-base font-normal text-red-400/70">
                 ({totalGames > 0 ? ((redWins / totalGames) * 100).toFixed(0) : 0}%)
               </span>
             </div>
           </div>
-          <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
-            <span className="text-sm text-zinc-400">Чёрные</span>
-            <div className="text-2xl font-bold text-zinc-200">
-              {blackWins} <span className="text-base font-normal text-zinc-500">
+          <div className="glass-card rounded-2xl p-4">
+            <span className="text-sm text-slate-400">Чёрные</span>
+            <div className="text-2xl font-bold text-slate-200">
+              {blackWins} <span className="text-base font-normal text-slate-500">
                 ({totalGames > 0 ? ((blackWins / totalGames) * 100).toFixed(0) : 0}%)
               </span>
             </div>
@@ -138,29 +139,29 @@ export function TournamentDetail({
 
       {/* Rating table */}
       {ratingData.length > 0 && (
-        <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+        <div className="glass-card rounded-2xl p-4">
           <h3 className="font-semibold mb-3">Рейтинг турнира</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-900/50">
-                  <th className="px-2 py-2 text-center font-medium text-zinc-500">#</th>
-                  <th className="px-2 py-2 text-left font-medium text-zinc-500">Ник</th>
-                  <th className="px-2 py-2 text-center font-medium text-zinc-500">Игры</th>
-                  <th className="px-2 py-2 text-center font-medium text-zinc-500">Побед</th>
-                  <th className="px-2 py-2 text-center font-medium text-zinc-500">WR%</th>
-                  <th className="px-2 py-2 text-center font-medium text-zinc-500">Баллы</th>
-                  <th className="px-2 py-2 text-center font-medium text-zinc-500">Ср. балл</th>
-                  <th className="px-2 py-2 text-center font-medium text-zinc-500">Ср. доп.</th>
+                <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
+                  <th className="px-2 py-2 text-center font-medium text-slate-400">#</th>
+                  <th className="px-2 py-2 text-left font-medium text-slate-400">Ник</th>
+                  <th className="px-2 py-2 text-center font-medium text-slate-400">Игры</th>
+                  <th className="px-2 py-2 text-center font-medium text-slate-400">Побед</th>
+                  <th className="px-2 py-2 text-center font-medium text-slate-400">WR%</th>
+                  <th className="px-2 py-2 text-center font-medium text-slate-400">Баллы</th>
+                  <th className="px-2 py-2 text-center font-medium text-slate-400">Ср. балл</th>
+                  <th className="px-2 py-2 text-center font-medium text-slate-400">Ср. доп.</th>
                 </tr>
               </thead>
               <tbody>
                 {ratingData.map((row, idx) => (
-                  <tr key={row.id} className={`border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800/50 ${idx % 2 === 1 ? "bg-zinc-800/30" : ""}`}>
+                  <tr key={row.id} className={`border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5 ${idx % 2 === 1 ? "bg-slate-800/30" : ""}`}>
                     <td className="px-2 py-2 text-center font-medium">{renderRank(idx)}</td>
                     <td className="px-2 py-2 font-medium">
                       <button onClick={() => navigate("playerProfile", row.id)}
-                        className="text-violet-400 hover:text-violet-300">{row.nickname}</button>
+                        className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{row.nickname}</button>
                     </td>
                     <td className="px-2 py-2 text-center">{row.totalGames}</td>
                     <td className="px-2 py-2 text-center">{row.wins}</td>
@@ -190,7 +191,7 @@ export function TournamentDetail({
       {totalGames > 0 && (
         <div>
           <h3 className="font-semibold mb-3">Номинации турнира</h3>
-          <p className="text-xs text-zinc-500 mb-3">
+          <p className="text-xs text-slate-500 mb-3">
             Минимум {minGames} {minGames === 1 ? "игра" : minGames < 5 ? "игры" : "игр"} для участия в номинации
           </p>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -198,28 +199,28 @@ export function TournamentDetail({
               const top = nominations[role] || [];
               if (top.length === 0) return null;
               return (
-                <div key={role} className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+                <div key={role} className="glass-card rounded-2xl p-4">
                   <div className="font-semibold mb-2 flex items-center gap-1.5"><Icon size={16} /> {label}</div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="border-b border-zinc-800">
-                          <th className="text-left py-1 font-medium text-zinc-500">#</th>
-                          <th className="text-left py-1 font-medium text-zinc-500">Ник</th>
-                          <th className="text-center py-1 font-medium text-zinc-500">Игр</th>
-                          <th className="text-center py-1 font-medium text-zinc-500">Побед</th>
-                          <th className="text-center py-1 font-medium text-zinc-500">WR%</th>
-                          <th className="text-center py-1 font-medium text-zinc-500">Ср. балл</th>
-                          <th className="text-center py-1 font-medium text-zinc-500">Ср. доп.</th>
+                        <tr className="border-b border-indigo-500/10">
+                          <th className="text-left py-1 font-medium text-slate-400">#</th>
+                          <th className="text-left py-1 font-medium text-slate-400">Ник</th>
+                          <th className="text-center py-1 font-medium text-slate-400">Игр</th>
+                          <th className="text-center py-1 font-medium text-slate-400">Побед</th>
+                          <th className="text-center py-1 font-medium text-slate-400">WR%</th>
+                          <th className="text-center py-1 font-medium text-slate-400">Ср. балл</th>
+                          <th className="text-center py-1 font-medium text-slate-400">Ср. доп.</th>
                         </tr>
                       </thead>
                       <tbody>
                         {top.map((p, i) => (
-                          <tr key={p.playerId} className="border-b border-zinc-800 last:border-b-0">
+                          <tr key={p.playerId} className="border-b border-indigo-500/10 last:border-b-0">
                             <td className="py-1">{i + 1}</td>
                             <td className="py-1">
                               <button onClick={() => navigate("playerProfile", p.playerId)}
-                                className="text-violet-400 hover:text-violet-300">{p.nickname}</button>
+                                className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{p.nickname}</button>
                             </td>
                             <td className="py-1 text-center">{p.games}</td>
                             <td className="py-1 text-center">{p.wins}</td>
@@ -244,25 +245,25 @@ export function TournamentDetail({
 
       {/* Game list */}
       {tournamentGames.length > 0 && (
-        <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+        <div className="glass-card rounded-2xl p-4">
           <h3 className="font-semibold mb-3">Игры турнира</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-900/50">
-                  <th className="text-center px-2 py-2 font-medium text-zinc-500">#</th>
-                  <th className="text-left px-2 py-2 font-medium text-zinc-500">Дата</th>
-                  <th className="text-left px-2 py-2 font-medium text-zinc-500">Победитель</th>
+                <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
+                  <th className="text-center px-2 py-2 font-medium text-slate-400">#</th>
+                  <th className="text-left px-2 py-2 font-medium text-slate-400">Дата</th>
+                  <th className="text-left px-2 py-2 font-medium text-slate-400">Победитель</th>
                 </tr>
               </thead>
               <tbody>
                 {[...tournamentGames].sort((a, b) => a.gameNumber - b.gameNumber).map((g) => (
-                  <tr key={g.id} className="border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800/50 cursor-pointer"
+                  <tr key={g.id} className="border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5 cursor-pointer"
                     onClick={() => navigate("gameDetail", g.id)}>
                     <td className="px-2 py-2 text-center font-medium">#{g.gameNumber}</td>
-                    <td className="px-2 py-2 text-zinc-400">{formatDate(g.date)}</td>
+                    <td className="px-2 py-2 text-slate-400">{formatDate(g.date)}</td>
                     <td className="px-2 py-2">
-                      <Badge variant={g.winner === "red" ? "red" : "black"}>
+                      <Badge variant={g.winner === "red" ? "red" : g.winner === "draw" ? "yellow" : "black"}>
                         {TEAM_NAMES[g.winner]}
                       </Badge>
                     </td>
@@ -282,7 +283,7 @@ export function TournamentDetail({
       <AdminOnly>
         <div className="flex gap-2">
           <button onClick={() => navigate("tournamentForm", tournament.id)}
-            className="flex items-center gap-1.5 px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm">
+            className="flex items-center gap-1.5 px-4 py-2 btn-ghost cursor-pointer text-sm">
             <Pencil size={14} /> Редактировать
           </button>
           <button onClick={() => setConfirmDelete(true)}

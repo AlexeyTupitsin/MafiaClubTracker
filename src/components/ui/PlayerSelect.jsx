@@ -99,9 +99,9 @@ export function PlayerSelect({ value, onChange, players, disabledIds = [], place
     <div ref={containerRef} className="relative flex-1">
       <div
         onClick={handleContainerClick}
-        className={`flex items-center border border-zinc-700 rounded-lg px-3 py-2 text-sm cursor-text
-          ${isOpen ? "ring-2 ring-violet-500 border-violet-500" : ""}
-          ${!value && !query ? "text-zinc-500" : ""}`}
+        className={`flex items-center border border-indigo-500/15 rounded-xl px-3 py-2 text-sm cursor-text bg-indigo-500/5
+          ${isOpen ? "ring-2 ring-indigo-500/50 border-red-600/40" : ""}
+          ${!value && !query ? "text-slate-500" : ""}`}
       >
         <input
           ref={inputRef}
@@ -113,22 +113,22 @@ export function PlayerSelect({ value, onChange, players, disabledIds = [], place
           onFocus={() => { setIsOpen(true); setQuery(""); }}
           onKeyDown={handleKeyDown}
           placeholder={selectedPlayer ? selectedPlayer.nickname : placeholder}
-          className="flex-1 outline-none bg-transparent min-w-0 text-zinc-100"
+          className="flex-1 outline-none bg-transparent min-w-0 text-slate-200"
         />
         {value && (
           <button onClick={handleClear}
-            className="p-0.5 hover:bg-zinc-800 rounded text-zinc-500 shrink-0 ml-1">
+            className="p-0.5 hover:bg-indigo-500/10 rounded text-slate-500 shrink-0 ml-1 cursor-pointer">
             <X size={14} />
           </button>
         )}
-        <ChevronDown size={14} className={`text-zinc-500 shrink-0 ml-1 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown size={14} className={`text-slate-500 shrink-0 ml-1 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </div>
 
       {isOpen && (
         <ul ref={listRef}
-          className="absolute z-50 left-0 right-0 mt-1 bg-[#1f1f1f] border border-zinc-700 rounded-lg shadow-2xl max-h-60 overflow-y-auto">
+          className="absolute z-50 left-0 right-0 mt-1 bg-[#120f0a]/95 backdrop-blur-xl border border-indigo-500/15 rounded-xl shadow-2xl shadow-indigo-500/5 max-h-60 overflow-y-auto">
           {filtered.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-zinc-500">Ничего не найдено</li>
+            <li className="px-3 py-2 text-sm text-slate-500">Ничего не найдено</li>
           ) : (
             filtered.map((p, idx) => {
               const isDisabled = disabledIds.includes(p.id);
@@ -139,15 +139,15 @@ export function PlayerSelect({ value, onChange, players, disabledIds = [], place
                   key={p.id}
                   onClick={() => !isDisabled && handleSelect(p.id)}
                   className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between
-                    ${isHighlighted ? "bg-violet-500/10" : ""}
-                    ${isDisabled ? "text-zinc-600 cursor-not-allowed" : "hover:bg-zinc-800"}
-                    ${isSelected && !isDisabled ? "font-medium text-violet-400" : ""}`}
+                    ${isHighlighted ? "bg-indigo-500/10" : ""}
+                    ${isDisabled ? "text-slate-600 cursor-not-allowed" : "hover:bg-indigo-500/5"}
+                    ${isSelected && !isDisabled ? "font-medium text-red-400" : ""}`}
                 >
                   <span>
                     {p.nickname}
-                    {p.realName ? <span className="text-zinc-500 ml-1">({p.realName})</span> : ""}
+                    {p.realName ? <span className="text-slate-500 ml-1">({p.realName})</span> : ""}
                   </span>
-                  {isDisabled && <span className="text-xs text-zinc-600">уже выбран</span>}
+                  {isDisabled && <span className="text-xs text-slate-600">уже выбран</span>}
                 </li>
               );
             })

@@ -13,7 +13,7 @@ export function Header({ seasons, currentSeasonId, setCurrentSeasonId }) {
       <header className="bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-zinc-800 sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-violet-700 rounded-lg flex items-center justify-center text-white text-xs font-bold">
+            <div className="w-8 h-8 bg-gradient-to-br from-red-600 to-indigo-700 rounded-lg flex items-center justify-center text-white text-xs font-bold">
               IM
             </div>
             <h1 className="text-xl font-bold text-zinc-50">IronMaf <span className="hidden sm:inline text-sm font-normal text-zinc-500">| Спортивная мафия | Череповец</span></h1>
@@ -23,7 +23,7 @@ export function Header({ seasons, currentSeasonId, setCurrentSeasonId }) {
               <select
                 value={currentSeasonId || ""}
                 onChange={(e) => setCurrentSeasonId(e.target.value)}
-                className="appearance-none bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 pr-8 text-sm text-zinc-100 focus:ring-2 focus:ring-violet-500 outline-none cursor-pointer"
+                className="appearance-none bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 pr-8 text-sm text-zinc-100 focus:ring-2 focus:ring-red-600 outline-none cursor-pointer"
               >
                 {seasons.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -46,7 +46,7 @@ export function Header({ seasons, currentSeasonId, setCurrentSeasonId }) {
             ) : (
               <button
                 onClick={() => setShowLogin(true)}
-                className="flex items-center gap-1.5 text-sm text-violet-400 hover:text-violet-300 transition-colors"
+                className="flex items-center gap-1.5 text-sm text-red-400 hover:text-red-300 transition-colors"
                 title="Войти"
               >
                 <LogIn size={16} />

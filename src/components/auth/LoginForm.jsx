@@ -28,7 +28,7 @@ export function LoginForm({ onClose }) {
         value={login}
         onChange={(e) => setLogin(e.target.value)}
         autoComplete="username"
-        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:ring-2 focus:ring-violet-500 outline-none"
+        className="w-full bg-indigo-500/5 border border-indigo-500/15 rounded-xl px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500/50 outline-none"
         autoFocus
       />
       <input
@@ -37,14 +37,14 @@ export function LoginForm({ onClose }) {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         autoComplete="current-password"
-        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:ring-2 focus:ring-violet-500 outline-none"
+        className="w-full bg-indigo-500/5 border border-indigo-500/15 rounded-xl px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500/50 outline-none"
         onKeyDown={(e) => e.key === 'Enter' && !loading && login && password && handleSubmit()}
       />
       {error && <p className="text-red-400 text-sm">{error}</p>}
       <button
         onClick={handleSubmit}
         disabled={loading || !login || !password}
-        className="w-full bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg py-2 text-sm font-medium transition-colors"
+        className="w-full btn-gradient disabled:opacity-50 disabled:cursor-not-allowed py-2 text-sm font-medium cursor-pointer"
       >
         {loading ? 'Вход...' : 'Войти'}
       </button>

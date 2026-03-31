@@ -53,35 +53,35 @@ export function TournamentForm({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <button onClick={() => goBack()} className="p-1.5 hover:bg-zinc-800 rounded transition-colors">
+        <button onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
-        <h2 className="text-xl font-bold">
+        <h2 className="text-xl font-bold gradient-text">
           {editingTournament ? "Редактирование турнира" : "Новый турнир"}
         </h2>
       </div>
 
-      <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4 space-y-4">
+      <div className="glass-card rounded-2xl p-4 space-y-4">
         <div>
-          <label className="block text-sm font-medium text-zinc-300 mb-1">
-            Название <span className="text-red-500">*</span>
+          <label className="block text-sm font-medium text-slate-300 mb-1">
+            Название <span className="text-red-400">*</span>
           </label>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-500"
+            className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/50"
             placeholder="Кубок клуба — Март 2026" autoFocus />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-300 mb-1">Дата</label>
+          <label className="block text-sm font-medium text-slate-300 mb-1">Дата</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-500" />
+            className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/50" />
         </div>
 
         {!editingTournament && (
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-1">Сезон</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Сезон</label>
             <select value={seasonId} onChange={(e) => setSeasonId(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-500">
+              className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/50">
               {seasons.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}{s.isActive ? " (активен)" : ""}</option>
               ))}
@@ -90,16 +90,16 @@ export function TournamentForm({
         )}
 
         <div>
-          <label className="block text-sm font-medium text-zinc-300 mb-1">Описание</label>
+          <label className="block text-sm font-medium text-slate-300 mb-1">Описание</label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
-            className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+            className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none"
             placeholder="Необязательно" />
         </div>
       </div>
 
       <div className="flex justify-end">
         <button onClick={handleSave} disabled={!name.trim()}
-          className="flex items-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg text-sm">
+          className="flex items-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-red-600 disabled:bg-slate-800/30 disabled:text-slate-500 text-white rounded-lg text-sm">
           <Check size={16} /> {editingTournament ? "Сохранить" : "Создать турнир"}
         </button>
       </div>

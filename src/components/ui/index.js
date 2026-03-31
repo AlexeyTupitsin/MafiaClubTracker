@@ -5,3 +5,4 @@ export { Badge } from './Badge';
 export { StatCard } from './StatCard';
 export { Toast } from './Toast';
 export { PlayerSelect } from './PlayerSelect';
+export { PlayerAvatar } from './PlayerAvatar';

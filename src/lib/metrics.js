@@ -11,7 +11,8 @@ export function calcPlayerStats(playerId, games) {
   return {
     totalGames,
     wins,
-    losses: totalGames - wins,
+    draws: playerGames.filter((p) => p.result === "draw").length,
+    losses: playerGames.filter((p) => p.result === "lose").length,
     winrate: totalGames > 0 ? (wins / totalGames) * 100 : 0,
     totalScore,
     avgScore: totalGames > 0 ? totalScore / totalGames : 0,
@@ -23,7 +24,8 @@ export function calcPlayerStats(playerId, games) {
 export function calcSeasonStats(games) {
   const total = games.length;
   const redWins = games.filter((g) => g.winner === "red").length;
-  const blackWins = total - redWins;
+  const blackWins = games.filter((g) => g.winner === "black").length;
+  const draws = games.filter((g) => g.winner === "draw").length;
   const allScores = games.flatMap((g) => g.players.map((p) => p.totalScore));
   const avgScore =
     allScores.length > 0
@@ -33,8 +35,10 @@ export function calcSeasonStats(games) {
     totalGames: total,
     redWins,
     blackWins,
+    draws,
     redWinrate: total > 0 ? (redWins / total) * 100 : 0,
     blackWinrate: total > 0 ? (blackWins / total) * 100 : 0,
+    drawRate: total > 0 ? (draws / total) * 100 : 0,
     avgScore,
   };
 }
@@ -109,13 +113,16 @@ export function calcPairStats(playerIdA, playerIdB, games) {
 export function calcDashboardStats(games) {
   const total = games.length;
   const redWins = games.filter((g) => g.winner === "red").length;
-  const blackWins = total - redWins;
+  const blackWins = games.filter((g) => g.winner === "black").length;
+  const draws = games.filter((g) => g.winner === "draw").length;
   return {
     totalGames: total,
     redWins,
     blackWins,
+    draws,
     redWinrate: total > 0 ? (redWins / total) * 100 : 0,
     blackWinrate: total > 0 ? (blackWins / total) * 100 : 0,
+    drawRate: total > 0 ? (draws / total) * 100 : 0,
   };
 }
 
@@ -257,4 +264,29 @@ export function calcRoleKillRate(playerId, games, seasons) {
       killRate: (killedCount / eligibleGames.length) * 100,
     };
   });
+}
+
+export function calcBestMoveStats(playerId, games) {
+  const relevant = games.filter(g =>
+    g.firstKilled === playerId &&
+    (g.bestMoveSeat1 != null || g.bestMoveSeat2 != null || g.bestMoveSeat3 != null)
+  );
+
+  const hits = { 0: 0, 1: 0, 2: 0, 3: 0 };
+
+  for (const game of relevant) {
+    const namedSeats = [game.bestMoveSeat1, game.bestMoveSeat2, game.bestMoveSeat3]
+      .filter(s => s != null);
+
+    const blackSeats = new Set(
+      game.players
+        .filter(p => p.role === 'mafia' || p.role === 'don')
+        .map(p => p.seat)
+    );
+
+    const count = namedSeats.filter(s => blackSeats.has(s)).length;
+    hits[count] = (hits[count] ?? 0) + 1;
+  }
+
+  return { total: relevant.length, hits };
 }

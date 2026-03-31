@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { ArrowLeft, ArrowRightLeft, TrendingUp, TrendingDown, Minus, User, Sword, ChevronRight } from "lucide-react";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend } from "recharts";
-import { Badge, StatCard, EmptyState } from "../components/ui";
-import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate, calcRoleKillRate } from "../lib/metrics";
+import { Badge, StatCard, EmptyState, PlayerAvatar } from "../components/ui";
+import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate, calcRoleKillRate, calcBestMoveStats } from "../lib/metrics";
 import { ROLE_NAMES, ROLE_BADGE_VARIANT, RESULT_NAMES, ROLE_COLORS } from "../lib/constants";
 import { formatDate } from "../lib/utils";
 
@@ -12,7 +12,7 @@ function Section({ title, defaultOpen = true, children }) {
     <div className="mb-6">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 text-lg font-semibold text-zinc-100 mb-3 hover:text-violet-400 transition-colors w-full text-left"
+        className="flex items-center gap-2 text-lg font-semibold text-slate-200 mb-3 hover:text-indigo-400 transition-colors w-full text-left"
       >
         <ChevronRight size={18} className={`transition-transform ${open ? "rotate-90" : ""}`} />
         {title}
@@ -30,7 +30,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
         title="Игрок не найден"
         action={
           <button onClick={() => goBack()}
-            className="flex items-center gap-2 text-violet-400 hover:text-violet-300 text-sm">
+            className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 cursor-pointer text-sm">
             <ArrowLeft size={16} /> Назад
           </button>
         }
@@ -51,6 +51,18 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
   const formTrend = useMemo(() => calcFormTrend(player.id, activeGames), [player.id, activeGames]);
   const killRateData = useMemo(() => calcKillRate(player.id, activeGames, seasons), [player.id, activeGames, seasons]);
   const roleKillRates = useMemo(() => calcRoleKillRate(player.id, activeGames, seasons), [player.id, activeGames, seasons]);
+
+  const currentSeason = useMemo(
+    () => seasons?.find(s => s.id === currentSeasonId) ?? null,
+    [seasons, currentSeasonId]
+  );
+
+  const bestMoveStats = useMemo(
+    () => calcBestMoveStats(player.id, allGames),
+    [player.id, allGames]
+  );
+
+  const showBestMove = bestMoveStats.total > 0 || seasons?.some(s => s.trackBestMove);
 
   // Tournament stats: last 3 tournaments where player participated
   const tournamentStats = useMemo(() => {
@@ -128,19 +140,20 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
     return (
       <div>
         <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => goBack()} className="p-1.5 hover:bg-zinc-800 rounded transition-colors">
+          <button onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
             <ArrowLeft size={20} />
           </button>
+          <PlayerAvatar player={player} size="lg" />
           <div>
-            <h2 className="text-xl font-bold">{player.nickname}</h2>
-            {player.realName && <p className="text-sm text-zinc-400">{player.realName}</p>}
+            <h2 className="text-xl font-bold gradient-text">{player.nickname}</h2>
+            {player.realName && <p className="text-sm text-slate-400">{player.realName}</p>}
           </div>
         </div>
         <div className="flex flex-wrap gap-2 mb-4">
           <select
             value={periodFilter}
             onChange={(e) => setPeriodFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-zinc-900 border-zinc-700 text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
+            className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
           >
             <option value="all">Все сезоны</option>
             {seasons.map((s) => (
@@ -161,12 +174,13 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => goBack()} className="p-1.5 hover:bg-zinc-800 rounded transition-colors">
+        <button onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
+        <PlayerAvatar player={player} size="lg" />
         <div>
-          <h2 className="text-xl font-bold">{player.nickname}</h2>
-          <p className="text-sm text-zinc-400">
+          <h2 className="text-xl font-bold gradient-text">{player.nickname}</h2>
+          <p className="text-sm text-slate-400">
             {player.realName ? `${player.realName} · ` : ""}
             {stats.totalGames} игр · {stats.wins} побед · {fmtWr(stats.winrate)} · {fmtScore(stats.totalScore)} баллов
           </p>
@@ -180,7 +194,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
           <select
             value={periodFilter}
             onChange={(e) => setPeriodFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-zinc-900 border-zinc-700 text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
+            className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
           >
             <option value="all">Все сезоны</option>
             {seasons.map((s) => (
@@ -193,14 +207,17 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-4">
           <StatCard label="Игры" value={stats.totalGames} />
           <StatCard label="Победы" value={stats.wins} />
+          {stats.draws > 0 && (
+            <StatCard label="Ничьи" value={<span className="text-indigo-400">{stats.draws}</span>} />
+          )}
           <StatCard label="Поражения" value={stats.losses} />
           <StatCard label="Winrate" value={fmtWr(stats.winrate)} />
           <StatCard label="Баллы" value={fmtScore(stats.totalScore)} />
           <StatCard label="Ср. балл" value={stats.avgScore.toFixed(2)} />
           <StatCard label="Ср. доп." value={
             <span className={
-              stats.avgBonus > 0 ? "text-green-600" :
-              stats.avgBonus < 0 ? "text-red-500" : ""
+              stats.avgBonus > 0 ? "text-emerald-400" :
+              stats.avgBonus < 0 ? "text-red-400" : ""
             }>
               {stats.avgBonus.toFixed(2)}
             </span>
@@ -208,11 +225,11 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
           {killRateData && (
             <StatCard label="ПУ%" value={
               <span className={
-                killRateData.killRate > 25 ? "text-red-500" :
-                killRateData.killRate < 10 ? "text-green-600" : ""
+                killRateData.killRate > 25 ? "text-red-400" :
+                killRateData.killRate < 10 ? "text-emerald-400" : ""
               }>
                 {killRateData.killRate.toFixed(1)}%
-                <span className="text-xs text-zinc-500 ml-1">({killRateData.timesKilled}/{killRateData.gamesTracked})</span>
+                <span className="text-xs text-slate-500 ml-1">({killRateData.timesKilled}/{killRateData.gamesTracked})</span>
               </span>
             } />
           )}
@@ -220,30 +237,30 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
 
         {/* Tournament stats */}
         {tournamentStats.length > 0 && (
-          <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+          <div className="glass-card rounded-2xl p-4">
             <h3 className="font-semibold mb-3">Последние турниры</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-800">
-                    <th className="text-left px-2 py-1.5 font-medium text-zinc-500">Турнир</th>
-                    <th className="text-left px-2 py-1.5 font-medium text-zinc-500">Дата</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Игр</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Побед</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-zinc-500">WR%</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Баллы</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Ср. балл</th>
+                  <tr className="border-b border-indigo-500/10">
+                    <th className="text-left px-2 py-1.5 font-medium text-slate-400">Турнир</th>
+                    <th className="text-left px-2 py-1.5 font-medium text-slate-400">Дата</th>
+                    <th className="text-center px-2 py-1.5 font-medium text-slate-400">Игр</th>
+                    <th className="text-center px-2 py-1.5 font-medium text-slate-400">Побед</th>
+                    <th className="text-center px-2 py-1.5 font-medium text-slate-400">WR%</th>
+                    <th className="text-center px-2 py-1.5 font-medium text-slate-400">Баллы</th>
+                    <th className="text-center px-2 py-1.5 font-medium text-slate-400">Ср. балл</th>
                   </tr>
                 </thead>
                 <tbody>
                   {tournamentStats.map((t) => (
-                    <tr key={t.id} className="border-b border-zinc-800 last:border-b-0">
+                    <tr key={t.id} className="border-b border-indigo-500/10 last:border-b-0">
                       <td className="px-2 py-1.5 font-medium">{t.name}</td>
-                      <td className="px-2 py-1.5 text-zinc-400">{formatDate(t.date)}</td>
+                      <td className="px-2 py-1.5 text-slate-400">{formatDate(t.date)}</td>
                       <td className="px-2 py-1.5 text-center">{t.games}</td>
                       <td className="px-2 py-1.5 text-center">{t.wins}</td>
                       <td className="px-2 py-1.5 text-center">
-                        <span className={t.winrate > 60 ? "text-green-600 font-medium" : t.winrate < 40 ? "text-red-500" : ""}>
+                        <span className={t.winrate > 60 ? "text-emerald-400 font-medium" : t.winrate < 40 ? "text-red-400" : ""}>
                           {t.winrate.toFixed(0)}%
                         </span>
                       </td>
@@ -261,24 +278,24 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
       {/* Результативность */}
       <Section title="Результативность" defaultOpen={true}>
         {/* Role stats table + chart */}
-        <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4 mb-4">
+        <div className="glass-card rounded-2xl p-4 mb-4">
           <h3 className="font-semibold mb-3">Статистика по ролям</h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-800">
-                  <th className="text-left py-1.5 font-medium text-zinc-500">Роль</th>
-                  <th className="text-center py-1.5 font-medium text-zinc-500">Игр</th>
-                  <th className="text-center py-1.5 font-medium text-zinc-500">Побед</th>
-                  <th className="text-center py-1.5 font-medium text-zinc-500">WR%</th>
-                  <th className="text-center py-1.5 font-medium text-zinc-500">Ср. балл</th>
-                  <th className="text-center py-1.5 font-medium text-zinc-500">Ср. доп.</th>
-                  <th className="text-center py-1.5 font-medium text-zinc-500">ПУ%</th>
+                <tr className="border-b border-indigo-500/10">
+                  <th className="text-left py-1.5 font-medium text-slate-400">Роль</th>
+                  <th className="text-center py-1.5 font-medium text-slate-400">Игр</th>
+                  <th className="text-center py-1.5 font-medium text-slate-400">Побед</th>
+                  <th className="text-center py-1.5 font-medium text-slate-400">WR%</th>
+                  <th className="text-center py-1.5 font-medium text-slate-400">Ср. балл</th>
+                  <th className="text-center py-1.5 font-medium text-slate-400">Ср. доп.</th>
+                  <th className="text-center py-1.5 font-medium text-slate-400">ПУ%</th>
                 </tr>
               </thead>
               <tbody>
                 {roleStats.map((r) => (
-                  <tr key={r.role} className="border-b border-zinc-800 last:border-b-0">
+                  <tr key={r.role} className="border-b border-indigo-500/10 last:border-b-0">
                     <td className="py-1.5">
                       <Badge variant={ROLE_BADGE_VARIANT[r.role]}>{ROLE_NAMES[r.role]}</Badge>
                     </td>
@@ -293,8 +310,8 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
                     <td className="py-1.5 text-center">
                       {r.games > 0 ? (
                         <span className={
-                          r.avgBonus > 0 ? "text-green-600" :
-                          r.avgBonus < 0 ? "text-red-500" : ""
+                          r.avgBonus > 0 ? "text-emerald-400" :
+                          r.avgBonus < 0 ? "text-red-400" : ""
                         }>
                           {r.avgBonus.toFixed(2)}
                         </span>
@@ -305,7 +322,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
                         const rk = roleKillRates.find((x) => x.role === r.role);
                         if (!rk || rk.killRate === null) return "—";
                         return (
-                          <span className={rk.killRate > 25 ? "text-red-500" : rk.killRate < 10 ? "text-green-600" : ""}>
+                          <span className={rk.killRate > 25 ? "text-red-400" : rk.killRate < 10 ? "text-emerald-400" : ""}>
                             {rk.killRate.toFixed(1)}%
                           </span>
                         );
@@ -320,13 +337,13 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
             {roleChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={192}>
                 <BarChart data={roleChartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(16,185,129,0.1)" />
                   <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#a1a1aa' }} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#a1a1aa' }} unit="%" />
                   <Tooltip
                     formatter={(v, name) => [`${v}%`, "Winrate"]}
                     labelFormatter={(l) => l}
-                    contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #3f3f46', borderRadius: '8px', color: '#fafafa' }}
+                    contentStyle={{ backgroundColor: '#0f1729', border: '1px solid rgba(16,185,129,0.15)', borderRadius: '8px', color: '#fafafa' }}
                   />
                   <Legend />
                   <Bar dataKey="winrate" radius={[4, 4, 0, 0]}>
@@ -337,7 +354,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-48 flex items-center justify-center text-zinc-500 text-sm">
+              <div className="h-48 flex items-center justify-center text-slate-500 text-sm">
                 Недостаточно данных для графика
               </div>
             )}
@@ -346,31 +363,33 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
 
         {/* Form trend */}
         {formTrend && formTrend.recentGames >= 3 && (
-          <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+          <div className="glass-card rounded-2xl p-4">
             <h3 className="font-semibold mb-3">Тренд формы (последние {formTrend.recentGames} игр)</h3>
             <div className="flex flex-wrap items-center gap-1.5 mb-3">
               {formTrend.recentResults.map((r, i) => (
                 <span key={i} className={`w-7 h-7 flex items-center justify-center rounded text-sm ${
-                  r === "win" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                  r === "win" ? "bg-emerald-500/10 text-emerald-400" :
+                  r === "draw" ? "bg-amber-500/10 text-amber-400" :
+                  "bg-red-500/10 text-red-400"
                 }`}>
-                  {r === "win" ? "✅" : "❌"}
+                  {r === "win" ? "✅" : r === "draw" ? "➖" : "❌"}
                 </span>
               ))}
             </div>
             <div className="flex flex-wrap gap-4 text-sm">
               <div>
-                <span className="text-zinc-400">WR за {formTrend.recentGames}:</span>{" "}
+                <span className="text-slate-400">WR за {formTrend.recentGames}:</span>{" "}
                 <span className="font-medium">{formTrend.recentWinrate.toFixed(0)}%</span>
-                <span className="text-zinc-500"> vs {formTrend.overallWinrate.toFixed(0)}%</span>
+                <span className="text-slate-500"> vs {formTrend.overallWinrate.toFixed(0)}%</span>
               </div>
               <div>
-                <span className="text-zinc-400">Ср. балл за {formTrend.recentGames}:</span>{" "}
+                <span className="text-slate-400">Ср. балл за {formTrend.recentGames}:</span>{" "}
                 <span className="font-medium">{formTrend.recentAvgScore.toFixed(2)}</span>
-                <span className="text-zinc-500"> vs {formTrend.overallAvgScore.toFixed(2)}</span>
+                <span className="text-slate-500"> vs {formTrend.overallAvgScore.toFixed(2)}</span>
               </div>
               <div>
                 {formTrend.trend === "up" && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-medium">
                     <TrendingUp size={12} /> На подъёме
                   </span>
                 )}
@@ -391,35 +410,73 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
 
         {/* Compare button */}
         <button onClick={() => navigate("compare", player.id)}
-          className="flex items-center gap-2 px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm transition-colors mt-4">
+          className="flex items-center gap-2 px-4 py-2 btn-ghost cursor-pointer text-sm transition-colors mt-4">
           <ArrowRightLeft size={16} /> Сравнить с...
         </button>
       </Section>
+
+      {/* Лучший ход */}
+      {showBestMove && (
+        <Section title="Лучший ход">
+          <div className="glass-card p-4 rounded-xl">
+            <p className="text-sm text-slate-400 mb-3">Всего ходов: {bestMoveStats.total}</p>
+            <div className="space-y-2">
+              {[3, 2, 1, 0].map(n => {
+                const count = bestMoveStats.hits[n] ?? 0;
+                const pct = bestMoveStats.total > 0 ? Math.round(count / bestMoveStats.total * 100) : 0;
+                const barColor =
+                  n === 3 ? 'bg-emerald-500' :
+                  n === 2 ? 'bg-lime-500' :
+                  n === 1 ? 'bg-yellow-500' :
+                  'bg-slate-600';
+                const labelColor =
+                  n === 3 ? 'text-emerald-400' :
+                  n === 2 ? 'text-lime-400' :
+                  n === 1 ? 'text-yellow-400' :
+                  'text-slate-400';
+                return (
+                  <div key={n} className="flex items-center gap-3">
+                    <span className={`text-xs font-mono w-8 shrink-0 ${labelColor}`}>{n}/3</span>
+                    <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${barColor}`}
+                        style={{ width: bestMoveStats.total > 0 ? `${pct}%` : '0%' }}
+                      />
+                    </div>
+                    <span className="text-xs text-slate-300 w-6 text-right shrink-0">{count}</span>
+                    <span className="text-xs text-slate-500 w-10 text-right shrink-0">({pct}%)</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Section>
+      )}
 
       {/* Взаимодействие */}
       <Section title="Взаимодействие" defaultOpen={true}>
         {/* Pair stats */}
         {pairData.length > 0 && (
-          <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4 mb-4">
+          <div className="glass-card rounded-2xl p-4 mb-4">
             <h3 className="font-semibold mb-3">Статистика по парам</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-800">
-                    <th className="text-left px-2 py-1.5 font-medium text-zinc-500">Партнёр</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Игр</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-zinc-500 whitespace-nowrap">Оба красн.</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-zinc-500 whitespace-nowrap">Оба чёрн.</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-zinc-500 whitespace-nowrap">Я кр. / Он чёр.</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-zinc-500 whitespace-nowrap">Я чёр. / Он кр.</th>
+                  <tr className="border-b border-indigo-500/10">
+                    <th className="text-left px-2 py-1.5 font-medium text-slate-400">Партнёр</th>
+                    <th className="text-center px-2 py-1.5 font-medium text-slate-400">Игр</th>
+                    <th className="text-center px-2 py-1.5 font-medium text-slate-400 whitespace-nowrap">Оба красн.</th>
+                    <th className="text-center px-2 py-1.5 font-medium text-slate-400 whitespace-nowrap">Оба чёрн.</th>
+                    <th className="text-center px-2 py-1.5 font-medium text-slate-400 whitespace-nowrap">Я кр. / Он чёр.</th>
+                    <th className="text-center px-2 py-1.5 font-medium text-slate-400 whitespace-nowrap">Я чёр. / Он кр.</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pairData.map((p) => (
-                    <tr key={p.id} className="border-b border-zinc-800 last:border-b-0">
+                    <tr key={p.id} className="border-b border-indigo-500/10 last:border-b-0">
                       <td className="px-2 py-1.5">
                         <button onClick={() => navigate("playerProfile", p.id)}
-                          className="text-violet-400 hover:text-violet-300">{p.nickname}</button>
+                          className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{p.nickname}</button>
                       </td>
                       <td className="px-2 py-1.5 text-center font-medium">{p.totalGames}</td>
                       <td className="px-2 py-1.5 text-center text-xs">
@@ -443,43 +500,47 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
         )}
 
         {/* Game history */}
-        <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+        <div className="glass-card rounded-2xl p-4">
           <h3 className="font-semibold mb-3">История игр</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-800">
-                  <th className="text-left px-2 py-1.5 font-medium text-zinc-500">№</th>
-                  <th className="text-left px-2 py-1.5 font-medium text-zinc-500">Дата</th>
-                  <th className="text-left px-2 py-1.5 font-medium text-zinc-500">Роль</th>
-                  <th className="text-left px-2 py-1.5 font-medium text-zinc-500">Результат</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-zinc-500">База</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Бонус</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-zinc-500">Итого</th>
+                <tr className="border-b border-indigo-500/10">
+                  <th className="text-left px-2 py-1.5 font-medium text-slate-400">№</th>
+                  <th className="text-left px-2 py-1.5 font-medium text-slate-400">Дата</th>
+                  <th className="text-left px-2 py-1.5 font-medium text-slate-400">Роль</th>
+                  <th className="text-left px-2 py-1.5 font-medium text-slate-400">Результат</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-slate-400">База</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-slate-400">Бонус</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-slate-400">Итого</th>
                 </tr>
               </thead>
               <tbody>
                 {gameHistory.map((h) => (
-                  <tr key={h.game.id} className="border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800/50">
+                  <tr key={h.game.id} className="border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5">
                     <td className="px-2 py-1.5">
                       <button onClick={() => navigate("gameDetail", h.game.id)}
-                        className="text-violet-400 hover:text-violet-300 font-medium">
+                        className="text-indigo-400 hover:text-indigo-300 cursor-pointer font-medium">
                         #{h.game.gameNumber}
                       </button>
                     </td>
-                    <td className="px-2 py-1.5 text-zinc-400">{formatDate(h.game.date)}</td>
+                    <td className="px-2 py-1.5 text-slate-400">{formatDate(h.game.date)}</td>
                     <td className="px-2 py-1.5">
                       <Badge variant={ROLE_BADGE_VARIANT[h.role]}>{ROLE_NAMES[h.role]}</Badge>
                     </td>
                     <td className="px-2 py-1.5">
-                      <span className={h.result === "win" ? "text-green-600 font-medium" : "text-red-500"}>
+                      <span className={
+                        h.result === "win" ? "text-emerald-400 font-medium" :
+                        h.result === "draw" ? "text-amber-400 font-medium" :
+                        "text-red-400"
+                      }>
                         {RESULT_NAMES[h.result]}
                       </span>
                     </td>
                     <td className="px-2 py-1.5 text-center">{h.baseScore}</td>
                     <td className="px-2 py-1.5 text-center">
                       {h.bonusScore !== 0 && (
-                        <span className={h.bonusScore > 0 ? "text-green-600" : "text-red-500"}>
+                        <span className={h.bonusScore > 0 ? "text-emerald-400" : "text-red-400"}>
                           {h.bonusScore > 0 ? "+" : ""}{fmtScore(h.bonusScore)}
                         </span>
                       )}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { ArrowLeft, Check, Users, X, AlertTriangle, Shield, Sword, Loader } from "lucide-react";
+import { ArrowLeft, Check, Users, X, AlertTriangle, Shield, Sword, Loader, Scale } from "lucide-react";
 import { Badge, PlayerSelect } from "../components/ui";
 import { ROLE_NAMES, ROLE_OPTIONS, ROLE_REQUIRED, ROLE_BADGE_VARIANT, RESULT_NAMES } from "../lib/constants";
 import { getTeam } from "../lib/utils";
@@ -31,6 +31,9 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
   const [notes, setNotes] = useState("");
   const [gameDate, setGameDate] = useState(new Date().toISOString().split("T")[0]);
   const [firstKilled, setFirstKilled] = useState(null);
+  const [bestMoveSeat1, setBestMoveSeat1] = useState(null);
+  const [bestMoveSeat2, setBestMoveSeat2] = useState(null);
+  const [bestMoveSeat3, setBestMoveSeat3] = useState(null);
 
   // Restore draft on mount (only for new games)
   useEffect(() => {
@@ -53,6 +56,9 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           if (draft.notes) setNotes(draft.notes);
           if (draft.gameDate) setGameDate(draft.gameDate);
           if (draft.firstKilled) setFirstKilled(draft.firstKilled);
+          if (draft.bestMoveSeat1 != null) setBestMoveSeat1(draft.bestMoveSeat1);
+          if (draft.bestMoveSeat2 != null) setBestMoveSeat2(draft.bestMoveSeat2);
+          if (draft.bestMoveSeat3 != null) setBestMoveSeat3(draft.bestMoveSeat3);
         } else {
           localStorage.removeItem(DRAFT_KEY);
         }
@@ -75,6 +81,9 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     setGameDate(editingGame.date.split("T")[0]);
     setTournamentId(editingGame.tournamentId || "");
     setFirstKilled(editingGame.firstKilled || null);
+    setBestMoveSeat1(editingGame.bestMoveSeat1 ?? null);
+    setBestMoveSeat2(editingGame.bestMoveSeat2 ?? null);
+    setBestMoveSeat3(editingGame.bestMoveSeat3 ?? null);
   }, [editingGame]);
 
   // Auto-save draft on changes (debounced)
@@ -95,11 +104,14 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
         notes,
         gameDate,
         firstKilled,
+        bestMoveSeat1,
+        bestMoveSeat2,
+        bestMoveSeat3,
       };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     }, 500);
     return () => clearTimeout(timer);
-  }, [editingGame, step, tournamentId, newTournamentMode, newTournamentName, newTournamentDate, seats, roles, winner, bonusScores, bonusComments, notes, gameDate, firstKilled, DRAFT_KEY]);
+  }, [editingGame, step, tournamentId, newTournamentMode, newTournamentName, newTournamentDate, seats, roles, winner, bonusScores, bonusComments, notes, gameDate, firstKilled, bestMoveSeat1, bestMoveSeat2, bestMoveSeat3, DRAFT_KEY]);
 
   const activePlayers = useMemo(() => {
     const active = players.filter((p) => p.isActive);
@@ -184,7 +196,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     const gamePlayers = seats.map((s, idx) => {
       const role = roles[idx];
       const team = getTeam(role);
-      const result = team === winner ? "win" : "lose";
+      const result = winner === "draw" ? "draw" : team === winner ? "win" : "lose";
       const baseScore = result === "win" ? 1 : 0;
       const bonus = parseBonusScore(bonusScores[idx]);
       return {
@@ -222,6 +234,9 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           players: gamePlayers,
           notes: notes.trim() || null,
           firstKilled: currentSeason?.trackFirstKill ? firstKilled : null,
+          bestMoveSeat1: currentSeason?.trackBestMove && firstKilled ? bestMoveSeat1 : null,
+          bestMoveSeat2: currentSeason?.trackBestMove && firstKilled ? bestMoveSeat2 : null,
+          bestMoveSeat3: currentSeason?.trackBestMove && firstKilled ? bestMoveSeat3 : null,
         });
         await refreshGames();
         await refreshAllGames();
@@ -238,6 +253,9 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           players: gamePlayers,
           notes: notes.trim() || null,
           firstKilled: currentSeason?.trackFirstKill ? firstKilled : null,
+          bestMoveSeat1: currentSeason?.trackBestMove && firstKilled ? bestMoveSeat1 : null,
+          bestMoveSeat2: currentSeason?.trackBestMove && firstKilled ? bestMoveSeat2 : null,
+          bestMoveSeat3: currentSeason?.trackBestMove && firstKilled ? bestMoveSeat3 : null,
         });
         await refreshGames();
         await refreshAllGames();
@@ -258,17 +276,17 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <button onClick={() => navigate("games")}
-          className="p-1.5 hover:bg-zinc-800 rounded transition-colors">
+          className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
-        <h2 className="text-xl font-bold">
+        <h2 className="text-xl font-bold gradient-text">
           {editingGame ? `Редактирование игры №${editingGame.gameNumber}` : "Новая игра"}
         </h2>
       </div>
 
       {/* Tournament selection */}
-      <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4 mb-4">
-        <label className="block text-sm font-medium text-zinc-300 mb-2">Турнир (игровой вечер)</label>
+      <div className="glass-card rounded-2xl p-4 mb-4">
+        <label className="block text-sm font-medium text-slate-300 mb-2">Турнир (игровой вечер)</label>
         {!newTournamentMode ? (
           <select
             value={tournamentId}
@@ -280,7 +298,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                 setTournamentId(e.target.value);
               }
             }}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
+            className="w-full bg-indigo-500/5 border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
           >
             <option value="">Без турнира</option>
             {(tournaments || []).map((t) => (
@@ -295,7 +313,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                 type="text"
                 value={newTournamentName}
                 onChange={(e) => setNewTournamentName(e.target.value)}
-                className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
+                className="flex-1 bg-indigo-500/5 border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
                 placeholder="Название турнира"
                 autoFocus
               />
@@ -303,12 +321,12 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                 type="date"
                 value={newTournamentDate}
                 onChange={(e) => setNewTournamentDate(e.target.value)}
-                className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
+                className="bg-indigo-500/5 border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
               />
             </div>
             <button
               onClick={() => { setNewTournamentMode(false); setNewTournamentName(""); }}
-              className="text-sm text-zinc-400 hover:text-zinc-200"
+              className="text-sm text-slate-400 hover:text-slate-200"
             >
               Отмена — выбрать существующий
             </button>
@@ -331,17 +349,17 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
               disabled={n > step}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 step === n
-                  ? "bg-violet-600 text-white"
+                  ? "btn-gradient cursor-pointer"
                   : step > n
-                  ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 cursor-pointer"
-                  : "bg-zinc-800 text-zinc-500"
+                  ? "bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 cursor-pointer"
+                  : "bg-slate-800/30 text-slate-500"
               }`}
             >
               {step > n ? <Check size={14} /> : <span>{n}</span>}
               <span className="hidden sm:inline ml-1">{label}</span>
             </button>
             {i < 2 && (
-              <div className={`flex-1 h-0.5 mx-1 ${step > n ? "bg-emerald-500" : "bg-zinc-700"}`} />
+              <div className={`flex-1 h-0.5 mx-1 ${step > n ? "bg-indigo-600" : "bg-slate-700"}`} />
             )}
           </React.Fragment>
         ))}
@@ -349,7 +367,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
 
       {/* Step 1: Player selection */}
       {step === 1 && (
-        <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+        <div className="glass-card rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold">Выберите 10 игроков</h3>
             {!editingGame && games.length > 0 && (
@@ -360,7 +378,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                   const sorted = [...lastGame.players].sort((a, b) => a.seat - b.seat);
                   setSeats(sorted.map((p) => ({ seat: p.seat, playerId: p.playerId })));
                 }}
-                className="flex items-center gap-1.5 text-sm text-violet-400 hover:text-violet-300 font-medium"
+                className="flex items-center gap-1.5 text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer font-medium"
               >
                 <Users size={14} /> Из предыдущей игры
               </button>
@@ -369,7 +387,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           <div className="space-y-2">
             {seats.map((seat, idx) => (
               <div key={idx} className="flex items-center gap-3">
-                <span className="w-8 h-8 flex items-center justify-center bg-zinc-800 rounded-full text-sm font-medium text-zinc-400 shrink-0">
+                <span className="w-8 h-8 flex items-center justify-center bg-slate-800/30 rounded-full text-sm font-medium text-slate-400 shrink-0">
                   {seat.seat}
                 </span>
                 <PlayerSelect
@@ -392,7 +410,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
 
       {/* Step 2: Roles and winner */}
       {step === 2 && (
-        <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+        <div className="glass-card rounded-2xl p-4">
           {/* Role counters */}
           <div className="flex flex-wrap gap-2 mb-4">
             {ROLE_OPTIONS.map(({ value, label }) => {
@@ -406,8 +424,8 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                     over
                       ? "bg-red-500/10 border-red-500/30 text-red-400"
                       : ok
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                      : "bg-zinc-800 border-zinc-700 text-zinc-400"
+                      ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
+                      : "bg-slate-800/30 border-indigo-500/15 text-slate-400"
                   }`}
                 >
                   {label}: {count}/{required} {ok ? "\u2713" : over ? "\u2717" : ""}
@@ -447,14 +465,14 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                 });
                 setRoles(newRoles);
               }}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-sm transition-colors"
+              className="px-3 py-1.5 bg-slate-800/30 hover:bg-indigo-500/5 text-slate-300 rounded-lg text-sm transition-colors"
             >
               Заполнить случайно
             </button>
             <button
               type="button"
               onClick={() => setRoles(Array(10).fill(""))}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-sm transition-colors"
+              className="px-3 py-1.5 bg-slate-800/30 hover:bg-indigo-500/5 text-slate-300 rounded-lg text-sm transition-colors"
             >
               Очистить роли
             </button>
@@ -464,15 +482,15 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           <div className="space-y-2 mb-6">
             {seats.map((seat, idx) => (
               <div key={idx} className="flex items-center gap-3">
-                <span className="w-8 h-8 flex items-center justify-center bg-zinc-800 rounded-full text-sm font-medium text-zinc-400 shrink-0">
+                <span className="w-8 h-8 flex items-center justify-center bg-slate-800/30 rounded-full text-sm font-medium text-slate-400 shrink-0">
                   {seat.seat}
                 </span>
                 <span className="w-24 text-sm font-medium truncate">{getPlayerName(seat.playerId)}</span>
                 <select
                   value={roles[idx]}
                   onChange={(e) => handleRoleChange(idx, e.target.value)}
-                  className={`flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500 ${
-                    !roles[idx] ? "text-zinc-500" : ""
+                  className={`flex-1 bg-indigo-500/5 border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50 ${
+                    !roles[idx] ? "text-slate-500" : ""
                   }`}
                 >
                   <option value="">Роль...</option>
@@ -492,24 +510,35 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           {/* Winner selection */}
           <div>
             <h4 className="font-medium mb-2">Победитель</h4>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => setWinner("red")}
                 className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 text-sm font-semibold transition-all ${
                   winner === "red"
                     ? "border-red-500 bg-red-500/10 text-red-400 shadow-sm"
-                    : "border-zinc-700 text-zinc-500 hover:border-red-500/30 hover:bg-red-500/5"
+                    : "border-indigo-500/15 text-slate-500 hover:border-red-500/30 hover:bg-red-500/5"
                 }`}
               >
                 <Shield size={20} />
                 Красные
               </button>
               <button
+                onClick={() => setWinner("draw")}
+                className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 text-sm font-semibold transition-all ${
+                  winner === "draw"
+                    ? "border-amber-500 bg-amber-500/10 text-amber-400 shadow-sm"
+                    : "border-indigo-500/15 text-slate-500 hover:border-amber-500/30 hover:bg-amber-500/5"
+                }`}
+              >
+                <Scale size={20} />
+                Ничья
+              </button>
+              <button
                 onClick={() => setWinner("black")}
                 className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 text-sm font-semibold transition-all ${
                   winner === "black"
-                    ? "border-zinc-500 bg-zinc-700 text-zinc-100 shadow-sm"
-                    : "border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:bg-zinc-800"
+                    ? "border-slate-500 bg-slate-700 text-slate-200 shadow-sm"
+                    : "border-indigo-500/15 text-slate-500 hover:border-slate-500 hover:bg-indigo-500/5"
                 }`}
               >
                 <Sword size={20} />
@@ -522,7 +551,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
 
       {/* Step 3: Bonus scores */}
       {step === 3 && (
-        <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+        <div className="glass-card rounded-2xl p-4">
           <h3 className="font-semibold mb-3">Дополнительные баллы</h3>
 
           {/* Mobile card view for bonus table */}
@@ -530,26 +559,26 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
             {seats.map((seat, idx) => {
               const role = roles[idx];
               const team = getTeam(role);
-              const result = team === winner ? "win" : "lose";
+              const result = winner === "draw" ? "draw" : team === winner ? "win" : "lose";
               const baseScore = result === "win" ? 1 : 0;
               const bonus = parseBonusScore(bonusScores[idx]);
               const total = baseScore + bonus;
 
               return (
-                <div key={idx} className={`bg-zinc-900/50 border border-zinc-800 rounded-lg p-3 space-y-2 ${firstKilled === seat.playerId ? "ring-2 ring-red-500/30 bg-red-500/5" : ""}`}>
+                <div key={idx} className={`bg-indigo-500/5 border border-indigo-500/10 rounded-lg p-3 space-y-2 ${firstKilled === seat.playerId ? "ring-2 ring-red-500/30 bg-red-500/5" : ""}`}>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-zinc-200">
+                    <span className="text-sm font-medium text-slate-200">
                       {seat.seat}. {getPlayerName(seat.playerId)}
                     </span>
                     <div className="flex items-center gap-2">
                       <Badge variant={ROLE_BADGE_VARIANT[role]}>{ROLE_NAMES[role]}</Badge>
-                      <span className={result === "win" ? "text-emerald-400 text-xs" : "text-red-400 text-xs"}>
+                      <span className={result === "win" ? "text-emerald-400 text-xs" : result === "draw" ? "text-amber-400 text-xs" : "text-red-400 text-xs"}>
                         {RESULT_NAMES[result]}
                       </span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs text-zinc-400">
-                    <div>База: <span className="text-zinc-200">{baseScore}</span></div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs text-slate-400">
+                    <div>База: <span className="text-slate-200">{baseScore}</span></div>
                     <div>
                       Доп.:{" "}
                       <input
@@ -558,30 +587,38 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                         value={bonusScores[idx]}
                         onChange={(e) => handleBonusChange(idx, e.target.value)}
                         placeholder="0.0"
-                        className={`w-14 bg-zinc-800 border rounded px-1 py-0.5 text-center text-zinc-200 ${
-                          isBonusInvalid(bonusScores[idx]) ? "border-red-500" : "border-zinc-700"
+                        className={`w-14 bg-slate-800/30 border rounded px-1 py-0.5 text-center text-slate-200 ${
+                          isBonusInvalid(bonusScores[idx]) ? "border-red-500" : "border-indigo-500/15"
                         }`}
                       />
                     </div>
-                    <div>Итого: <span className="text-zinc-200 font-medium">{total % 1 === 0 ? total : total.toFixed(1)}</span></div>
+                    <div>Итого: <span className="text-slate-200 font-medium">{total % 1 === 0 ? total : total.toFixed(1)}</span></div>
                   </div>
                   <input
                     type="text"
                     placeholder="Комментарий..."
                     value={bonusComments[idx]}
                     onChange={(e) => handleBonusCommentChange(idx, e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 placeholder-zinc-600"
+                    className="w-full bg-slate-800/30 border border-indigo-500/15 rounded px-2 py-1 text-xs text-slate-200 placeholder-slate-500"
                   />
                   {currentSeason?.trackFirstKill && (
                     <div className="flex items-center justify-center pt-1">
-                      <label className="flex items-center gap-2 text-xs text-zinc-400">
+                      <label className="flex items-center gap-2 text-xs text-slate-400">
                         <button
                           type="button"
-                          onClick={() => setFirstKilled(firstKilled === seat.playerId ? null : seat.playerId)}
+                          onClick={() => {
+                            const isAlready = firstKilled === seat.playerId;
+                            setFirstKilled(isAlready ? null : seat.playerId);
+                            if (isAlready) {
+                              setBestMoveSeat1(null);
+                              setBestMoveSeat2(null);
+                              setBestMoveSeat3(null);
+                            }
+                          }}
                           className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
                             firstKilled === seat.playerId
                               ? "border-red-500 bg-red-500"
-                              : "border-zinc-600 hover:border-red-500/50"
+                              : "border-indigo-500/15 hover:border-red-500/50"
                           }`}
                         >
                           {firstKilled === seat.playerId && (
@@ -590,6 +627,35 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                         </button>
                         Первоубиенный
                       </label>
+                    </div>
+                  )}
+                  {currentSeason?.trackBestMove && firstKilled === seat.playerId && (
+                    <div className="pt-2 space-y-1.5">
+                      <p className="text-xs text-slate-400 text-center">Лучший ход</p>
+                      <div className="flex items-center gap-2 justify-center">
+                        {[
+                          { val: bestMoveSeat1, set: setBestMoveSeat1, others: [bestMoveSeat2, bestMoveSeat3] },
+                          { val: bestMoveSeat2, set: setBestMoveSeat2, others: [bestMoveSeat1, bestMoveSeat3] },
+                          { val: bestMoveSeat3, set: setBestMoveSeat3, others: [bestMoveSeat1, bestMoveSeat2] },
+                        ].map(({ val, set, others }, i) => {
+                          const usedByOthers = others.filter(Boolean);
+                          return (
+                            <select
+                              key={i}
+                              value={val ?? ""}
+                              onChange={(e) => set(e.target.value ? Number(e.target.value) : null)}
+                              className="bg-slate-800/50 border border-indigo-500/15 rounded px-1 py-1 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500/50"
+                            >
+                              <option value="">—</option>
+                              {[1,2,3,4,5,6,7,8,9,10]
+                                .filter(s => s !== seat.seat)
+                                .filter(s => s === val || !usedByOthers.includes(s))
+                                .map(s => <option key={s} value={s}>{s}</option>)
+                              }
+                            </select>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -601,17 +667,20 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-900/50">
-                  <th className="text-left px-2 py-2 font-medium text-zinc-500">Место</th>
-                  <th className="text-left px-2 py-2 font-medium text-zinc-500">Игрок</th>
-                  <th className="text-left px-2 py-2 font-medium text-zinc-500">Роль</th>
-                  <th className="text-left px-2 py-2 font-medium text-zinc-500">Результат</th>
-                  <th className="text-center px-2 py-2 font-medium text-zinc-500">База</th>
-                  <th className="text-center px-2 py-2 font-medium text-zinc-500">Доп.</th>
-                  <th className="text-center px-2 py-2 font-medium text-zinc-500">Итого</th>
-                  <th className="text-left px-2 py-2 font-medium text-zinc-500">Комментарий</th>
+                <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
+                  <th className="text-left px-2 py-2 font-medium text-slate-400">Место</th>
+                  <th className="text-left px-2 py-2 font-medium text-slate-400">Игрок</th>
+                  <th className="text-left px-2 py-2 font-medium text-slate-400">Роль</th>
+                  <th className="text-left px-2 py-2 font-medium text-slate-400">Результат</th>
+                  <th className="text-center px-2 py-2 font-medium text-slate-400">База</th>
+                  <th className="text-center px-2 py-2 font-medium text-slate-400">Доп.</th>
+                  <th className="text-center px-2 py-2 font-medium text-slate-400">Итого</th>
+                  <th className="text-left px-2 py-2 font-medium text-slate-400">Комментарий</th>
                   {currentSeason?.trackFirstKill && (
-                    <th className="text-center px-2 py-2 font-medium text-zinc-500">ПУ</th>
+                    <th className="text-center px-2 py-2 font-medium text-slate-400">ПУ</th>
+                  )}
+                  {currentSeason?.trackBestMove && currentSeason?.trackFirstKill && (
+                    <th className="text-center px-2 py-2 font-medium text-slate-400">ЛХ</th>
                   )}
                 </tr>
               </thead>
@@ -619,20 +688,20 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                 {seats.map((seat, idx) => {
                   const role = roles[idx];
                   const team = getTeam(role);
-                  const result = team === winner ? "win" : "lose";
+                  const result = winner === "draw" ? "draw" : team === winner ? "win" : "lose";
                   const baseScore = result === "win" ? 1 : 0;
                   const bonus = parseBonusScore(bonusScores[idx]);
                   const total = baseScore + bonus;
 
                   return (
-                    <tr key={idx} className={`border-b border-zinc-800 last:border-b-0 ${firstKilled === seat.playerId ? "bg-red-500/10" : ""}`}>
+                    <tr key={idx} className={`border-b border-indigo-500/10 last:border-b-0 ${firstKilled === seat.playerId ? "bg-red-500/10" : ""}`}>
                       <td className="px-2 py-2 text-center font-medium">{seat.seat}</td>
                       <td className="px-2 py-2 font-medium">{getPlayerName(seat.playerId)}</td>
                       <td className="px-2 py-2">
                         <Badge variant={ROLE_BADGE_VARIANT[role]}>{ROLE_NAMES[role]}</Badge>
                       </td>
                       <td className="px-2 py-2">
-                        <span className={result === "win" ? "text-green-600 font-medium" : "text-red-500"}>
+                        <span className={result === "win" ? "text-emerald-400 font-medium" : result === "draw" ? "text-amber-400 font-medium" : "text-red-400"}>
                           {RESULT_NAMES[result]}
                         </span>
                       </td>
@@ -644,8 +713,8 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                           value={bonusScores[idx]}
                           onChange={(e) => handleBonusChange(idx, e.target.value)}
                           placeholder="0.0"
-                          className={`w-16 bg-zinc-900 border rounded px-2 py-1 text-center text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500 ${
-                            isBonusInvalid(bonusScores[idx]) ? "border-red-500" : "border-zinc-700"
+                          className={`w-16 bg-indigo-500/5 border rounded px-2 py-1 text-center text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50 ${
+                            isBonusInvalid(bonusScores[idx]) ? "border-red-500" : "border-indigo-500/15"
                           }`}
                         />
                       </td>
@@ -657,7 +726,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                           type="text"
                           value={bonusComments[idx]}
                           onChange={(e) => handleBonusCommentChange(idx, e.target.value)}
-                          className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
+                          className="w-full bg-indigo-500/5 border border-indigo-500/15 rounded px-2 py-1 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
                           placeholder="—"
                         />
                       </td>
@@ -665,17 +734,57 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                         <td className="px-2 py-2 text-center">
                           <button
                             type="button"
-                            onClick={() => setFirstKilled(firstKilled === seat.playerId ? null : seat.playerId)}
+                            onClick={() => {
+                              const isAlready = firstKilled === seat.playerId;
+                              setFirstKilled(isAlready ? null : seat.playerId);
+                              if (isAlready) {
+                                setBestMoveSeat1(null);
+                                setBestMoveSeat2(null);
+                                setBestMoveSeat3(null);
+                              }
+                            }}
                             className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors mx-auto ${
                               firstKilled === seat.playerId
                                 ? "border-red-500 bg-red-500"
-                                : "border-zinc-600 hover:border-red-500/50"
+                                : "border-indigo-500/15 hover:border-red-500/50"
                             }`}
                           >
                             {firstKilled === seat.playerId && (
                               <span className="w-2 h-2 rounded-full bg-white" />
                             )}
                           </button>
+                        </td>
+                      )}
+                      {currentSeason?.trackBestMove && (
+                        <td className="px-2 py-2 text-center">
+                          {firstKilled === seat.playerId ? (
+                            <div className="flex items-center gap-1 justify-center">
+                              {[
+                                { val: bestMoveSeat1, set: setBestMoveSeat1, others: [bestMoveSeat2, bestMoveSeat3] },
+                                { val: bestMoveSeat2, set: setBestMoveSeat2, others: [bestMoveSeat1, bestMoveSeat3] },
+                                { val: bestMoveSeat3, set: setBestMoveSeat3, others: [bestMoveSeat1, bestMoveSeat2] },
+                              ].map(({ val, set, others }, i) => {
+                                const usedByOthers = others.filter(Boolean);
+                                return (
+                                  <select
+                                    key={i}
+                                    value={val ?? ""}
+                                    onChange={(e) => set(e.target.value ? Number(e.target.value) : null)}
+                                    className="bg-indigo-500/5 border border-indigo-500/15 rounded px-1 py-0.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500/50 w-12"
+                                  >
+                                    <option value="">—</option>
+                                    {[1,2,3,4,5,6,7,8,9,10]
+                                      .filter(s => s !== seat.seat)
+                                      .filter(s => s === val || !usedByOthers.includes(s))
+                                      .map(s => <option key={s} value={s}>{s}</option>)
+                                    }
+                                  </select>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-slate-600">—</span>
+                          )}
                         </td>
                       )}
                     </tr>
@@ -688,17 +797,17 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           {/* Game date */}
           <div className="mt-4 flex items-center gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">Дата игры</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Дата игры</label>
               <input
                 type="date"
                 value={gameDate}
                 onChange={(e) => setGameDate(e.target.value)}
-                className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500"
+                className="bg-indigo-500/5 border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
               />
               <div className="flex gap-2 mt-1">
                 <button type="button"
                   onClick={() => setGameDate(new Date().toISOString().split("T")[0])}
-                  className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded text-xs transition-colors">
+                  className="px-2 py-0.5 bg-slate-800/30 hover:bg-indigo-500/5 text-slate-400 rounded text-xs transition-colors">
                   Сегодня
                 </button>
                 <button type="button"
@@ -706,7 +815,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                     const d = new Date(); d.setDate(d.getDate() - 1);
                     setGameDate(d.toISOString().split("T")[0]);
                   }}
-                  className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded text-xs transition-colors">
+                  className="px-2 py-0.5 bg-slate-800/30 hover:bg-indigo-500/5 text-slate-400 rounded text-xs transition-colors">
                   Вчера
                 </button>
               </div>
@@ -715,14 +824,14 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
 
           {/* Notes */}
           <div className="mt-4">
-            <label className="block text-sm font-medium text-zinc-300 mb-1">
+            <label className="block text-sm font-medium text-slate-300 mb-1">
               Комментарий к игре
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+              className="w-full bg-indigo-500/5 border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none"
               placeholder="Необязательно"
             />
           </div>
@@ -733,7 +842,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
       <div className="flex justify-between mt-4">
         {step > 1 ? (
           <button onClick={() => setStep(step - 1)}
-            className="flex items-center gap-1 px-4 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 text-zinc-300 text-sm">
+            className="flex items-center gap-1 px-4 py-2 btn-ghost cursor-pointer text-sm">
             <ArrowLeft size={16} /> Назад
           </button>
         ) : (
@@ -743,14 +852,14 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           <button
             onClick={() => setStep(step + 1)}
             disabled={step === 1 ? !step1Valid : !step2Valid}
-            className="flex items-center gap-1 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg text-sm"
+            className="flex items-center gap-1 px-4 py-2 btn-gradient cursor-pointer disabled:bg-slate-800/30 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg text-sm"
           >
             Далее
           </button>
         ) : (
           <button onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
+            className="flex items-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800/30 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
             {saving ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
             {saving ? "Сохранение..." : "Сохранить игру"}
           </button>

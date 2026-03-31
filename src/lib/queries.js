@@ -54,6 +54,7 @@ function toFrontendSeason(row) {
     endDate: row.end_date,
     isActive: row.is_active,
     trackFirstKill: row.track_first_kill ?? false,
+    trackBestMove: row.track_best_move ?? false,
     ratingThresholdType: row.rating_threshold_type ?? 'none',
     ratingThresholdValue: row.rating_threshold_value ?? 0,
   };
@@ -66,6 +67,7 @@ function toDbSeason(obj) {
   if (obj.endDate !== undefined) row.end_date = obj.endDate;
   if (obj.isActive !== undefined) row.is_active = obj.isActive;
   if (obj.trackFirstKill !== undefined) row.track_first_kill = obj.trackFirstKill;
+  if (obj.trackBestMove !== undefined) row.track_best_move = obj.trackBestMove;
   if (obj.ratingThresholdType !== undefined) row.rating_threshold_type = obj.ratingThresholdType;
   if (obj.ratingThresholdValue !== undefined) row.rating_threshold_value = obj.ratingThresholdValue;
   return row;
@@ -78,6 +80,7 @@ function toFrontendPlayer(row) {
     realName: row.real_name,
     isActive: row.is_active,
     createdAt: row.created_at,
+    avatarUrl: row.avatar_url ?? null,
   };
 }
 
@@ -86,6 +89,7 @@ function toDbPlayer(obj) {
   if (obj.nickname !== undefined) row.nickname = obj.nickname;
   if (obj.realName !== undefined) row.real_name = obj.realName;
   if (obj.isActive !== undefined) row.is_active = obj.isActive;
+  if (obj.avatarUrl !== undefined) row.avatar_url = obj.avatarUrl;
   return row;
 }
 
@@ -112,6 +116,9 @@ function toFrontendGame(row) {
     winner: row.winner,
     notes: row.notes,
     firstKilled: row.first_killed ?? null,
+    bestMoveSeat1: row.best_move_seat_1 ?? null,
+    bestMoveSeat2: row.best_move_seat_2 ?? null,
+    bestMoveSeat3: row.best_move_seat_3 ?? null,
     createdAt: row.created_at,
     players: (row.game_players || []).map(toFrontendGamePlayer),
   };
@@ -192,6 +199,47 @@ export async function updatePlayer(id, updates) {
   return toFrontendPlayer(row);
 }
 
+export async function uploadPlayerAvatar(playerId, file) {
+  const extMap = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+  const ext = extMap[file.type] || 'jpg';
+  const path = `${playerId}/${Date.now()}.${ext}`;
+
+  const token = getAccessToken();
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': file.type,
+    },
+    body: file,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || `Upload failed: HTTP ${res.status}`);
+  }
+
+  return `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
+}
+
+export async function deletePlayerAvatar(avatarUrl) {
+  if (!avatarUrl) return;
+  const prefix = `${SUPABASE_URL}/storage/v1/object/public/avatars/`;
+  const path = avatarUrl.startsWith(prefix) ? avatarUrl.slice(prefix.length) : null;
+  if (!path) return;
+
+  const token = getAccessToken();
+  await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
+    method: 'DELETE',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  // Игнорируем ошибки — файл мог уже не существовать
+}
+
 // ============================================================
 // Tournaments
 // ============================================================
@@ -258,6 +306,9 @@ export async function createGame(game) {
       winner: game.winner,
       notes: game.notes || null,
       first_killed: game.firstKilled || null,
+      best_move_seat_1: game.bestMoveSeat1 ?? null,
+      best_move_seat_2: game.bestMoveSeat2 ?? null,
+      best_move_seat_3: game.bestMoveSeat3 ?? null,
     },
     single: true,
   });
@@ -292,6 +343,9 @@ export async function updateGame(game) {
       winner: game.winner,
       notes: game.notes || null,
       first_killed: game.firstKilled || null,
+      best_move_seat_1: game.bestMoveSeat1 ?? null,
+      best_move_seat_2: game.bestMoveSeat2 ?? null,
+      best_move_seat_3: game.bestMoveSeat3 ?? null,
     },
   });
 

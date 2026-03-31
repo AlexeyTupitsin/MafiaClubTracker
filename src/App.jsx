@@ -3,8 +3,7 @@ import { Loader } from "lucide-react";
 
 import { getSeasons, getPlayers, getGamesBySeason, getAllGames, getTournamentsBySeason, getAllTournaments } from "./lib/queries";
 import { Toast, EmptyState } from "./components/ui";
-import { Header } from "./components/layout/Header";
-import { TabBar } from "./components/layout/TabBar";
+import { Sidebar } from "./components/layout/Sidebar";
 import { useAuth } from "./hooks/useAuth";
 import { AdminOnly } from "./components/auth/AuthGuard";
 
@@ -199,31 +198,31 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a]">
-        <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="min-h-screen bg-[#0a0908]">
+        <div className="md:ml-[220px] max-w-6xl mx-auto px-4 py-6 pt-16 md:pt-6">
           {/* Skeleton stat cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-[#151515] border border-zinc-800 rounded-xl p-4 animate-pulse">
-                <div className="h-4 bg-zinc-800 rounded w-20 mb-3" />
-                <div className="h-8 bg-zinc-800 rounded w-16" />
+              <div key={i} className="glass-card p-4 animate-pulse">
+                <div className="h-4 bg-indigo-500/10 rounded w-20 mb-3" />
+                <div className="h-8 bg-indigo-500/10 rounded w-16" />
               </div>
             ))}
           </div>
           {/* Skeleton table */}
-          <div className="bg-[#151515] border border-zinc-800 rounded-xl p-4">
+          <div className="glass-card p-4">
             {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="flex gap-4 py-3 border-b border-zinc-800/50 last:border-0 animate-pulse">
-                <div className="h-4 bg-zinc-800 rounded w-8" />
-                <div className="h-4 bg-zinc-800 rounded w-24" />
-                <div className="h-4 bg-zinc-800 rounded w-12" />
-                <div className="h-4 bg-zinc-800 rounded w-12" />
-                <div className="h-4 bg-zinc-800 rounded w-16" />
+              <div key={i} className="flex gap-4 py-3 border-b border-indigo-500/5 last:border-0 animate-pulse">
+                <div className="h-4 bg-indigo-500/10 rounded w-8" />
+                <div className="h-4 bg-indigo-500/10 rounded w-24" />
+                <div className="h-4 bg-indigo-500/10 rounded w-12" />
+                <div className="h-4 bg-indigo-500/10 rounded w-12" />
+                <div className="h-4 bg-indigo-500/10 rounded w-16" />
               </div>
             ))}
           </div>
           {loadError && (
-            <div className="mt-4 max-w-md mx-auto bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
+            <div className="mt-4 max-w-md mx-auto bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-400 text-sm">
               <p className="font-medium mb-1">Ошибка загрузки данных:</p>
               <p className="font-mono text-xs">{loadError}</p>
             </div>
@@ -309,6 +308,7 @@ export default function App() {
             allTournaments={allTournaments}
             allGames={allGames}
             seasons={seasons}
+            players={players}
             navigate={navigate}
           />
         );
@@ -409,15 +409,16 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] pb-16 sm:pb-0">
-      <Header
+    <div className="min-h-screen bg-[#0a0908] pb-16 md:pb-0">
+      <Sidebar
+        currentPage={currentPage}
+        navigate={navigate}
         seasons={seasons}
         currentSeasonId={currentSeasonId}
         setCurrentSeasonId={setCurrentSeasonId}
       />
-      <TabBar currentPage={currentPage} navigate={navigate} />
 
-      <main className="max-w-6xl mx-auto px-4 py-6 animate-page-enter" key={currentPage + (selectedId || "")}>
+      <main className="md:ml-[220px] max-w-6xl mx-auto px-4 py-6 pt-16 md:pt-6 animate-page-enter" key={currentPage + (selectedId || "")}>
         {renderPage()}
       </main>
 
