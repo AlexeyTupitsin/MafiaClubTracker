@@ -145,8 +145,8 @@ export function TournamentDetail({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
-                  <th className="px-2 py-2 text-center font-medium text-slate-400 sticky left-0 z-20 bg-[#0a0908]">#</th>
-                  <th className="px-2 py-2 text-left font-medium text-slate-400 sticky left-[36px] z-20 bg-[#0a0908] border-r border-indigo-500/15">Ник</th>
+                  <th className="px-2 py-2 text-center font-medium text-slate-400">#</th>
+                  <th className="px-2 py-2 text-left font-medium text-slate-400">Ник</th>
                   <th className="px-2 py-2 text-center font-medium text-slate-400">Игры</th>
                   <th className="px-2 py-2 text-center font-medium text-slate-400">Побед</th>
                   <th className="px-2 py-2 text-center font-medium text-slate-400">WR%</th>
@@ -158,8 +158,8 @@ export function TournamentDetail({
               <tbody>
                 {ratingData.map((row, idx) => (
                   <tr key={row.id} className={`border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5 ${idx % 2 === 1 ? "bg-slate-800/30" : ""}`}>
-                    <td className="px-2 py-2 text-center font-medium sticky left-0 z-10 bg-[#0a0908]">{renderRank(idx)}</td>
-                    <td className="px-2 py-2 font-medium sticky left-[36px] z-10 bg-[#0a0908] border-r border-indigo-500/15">
+                    <td className="px-2 py-2 text-center font-medium">{renderRank(idx)}</td>
+                    <td className="px-2 py-2 font-medium">
                       <button onClick={() => navigate("playerProfile", row.id)}
                         className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{row.nickname}</button>
                     </td>
@@ -205,8 +205,8 @@ export function TournamentDetail({
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-indigo-500/10">
-                          <th className="text-left py-1 font-medium text-slate-400 sticky left-0 z-20 bg-[#0a0908]">#</th>
-                          <th className="text-left py-1 font-medium text-slate-400 sticky left-[20px] z-20 bg-[#0a0908] border-r border-indigo-500/15">Ник</th>
+                          <th className="text-left py-1 font-medium text-slate-400">#</th>
+                          <th className="text-left py-1 font-medium text-slate-400">Ник</th>
                           <th className="text-center py-1 font-medium text-slate-400">Игр</th>
                           <th className="text-center py-1 font-medium text-slate-400">Побед</th>
                           <th className="text-center py-1 font-medium text-slate-400">WR%</th>
@@ -217,8 +217,8 @@ export function TournamentDetail({
                       <tbody>
                         {top.map((p, i) => (
                           <tr key={p.playerId} className="border-b border-indigo-500/10 last:border-b-0">
-                            <td className="py-1 sticky left-0 z-10 bg-[#0a0908]">{i + 1}</td>
-                            <td className="py-1 sticky left-[20px] z-10 bg-[#0a0908] border-r border-indigo-500/15">
+                            <td className="py-1">{i + 1}</td>
+                            <td className="py-1">
                               <button onClick={() => navigate("playerProfile", p.playerId)}
                                 className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{p.nickname}</button>
                             </td>

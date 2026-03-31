@@ -164,8 +164,8 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
-                      <th className="px-2 py-2.5 text-center font-medium text-slate-400 sticky left-0 z-20 bg-[#0a0908]">#</th>
-                      <th className="px-2 py-2.5 text-left font-medium text-slate-400 cursor-pointer select-none sticky left-[36px] z-20 bg-[#0a0908] border-r border-indigo-500/15" onClick={() => handleSort("nickname")}>
+                      <th className="px-2 py-2.5 text-center font-medium text-slate-400">#</th>
+                      <th className="px-2 py-2.5 text-left font-medium text-slate-400 cursor-pointer select-none" onClick={() => handleSort("nickname")}>
                         Ник<SortIcon col="nickname" />
                       </th>
                       <th className="px-2 py-2.5 text-center font-medium text-slate-400 cursor-pointer select-none" onClick={() => handleSort("totalGames")}>
@@ -192,8 +192,8 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
                   <tbody>
                     {filteredRating.map((row, idx) => (
                       <tr key={row.id} className="border-b border-indigo-500/5 last:border-b-0 hover:bg-indigo-500/5 transition-colors">
-                        <td className="px-2 py-2.5 text-center font-medium sticky left-0 z-10 bg-[#0a0908]">{renderRank(idx)}</td>
-                        <td className="px-2 py-2.5 text-left font-medium max-w-[120px] truncate sticky left-[36px] z-10 bg-[#0a0908] border-r border-indigo-500/15">
+                        <td className="px-2 py-2.5 text-center font-medium">{renderRank(idx)}</td>
+                        <td className="px-2 py-2.5 text-left font-medium max-w-[120px] truncate">
                           <button onClick={() => navigate("playerProfile", row.id)}
                             className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{row.nickname}</button>
                         </td>

@@ -187,9 +187,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                     <th key={col.key}
                       className={`px-3 py-2.5 font-medium text-slate-400 whitespace-nowrap ${
                         col.key === "nickname" ? "text-left" : "text-center"
-                      } ${col.sortable ? "cursor-pointer hover:text-slate-300 select-none" : ""} ${
-                        col.key === "rank" ? "sticky left-0 z-20 bg-[#0a0908]" : ""
-                      } ${col.key === "nickname" ? "sticky left-[44px] z-20 bg-[#0a0908] border-r border-indigo-500/15" : ""}`}
+                      } ${col.sortable ? "cursor-pointer hover:text-slate-300 select-none" : ""}`}
                       onClick={col.sortable ? () => handleSort(col.key) : undefined}
                       title={col.title}>
                       {col.label}
@@ -204,8 +202,8 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                     className={`border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5 transition-colors ${
                       idx % 2 === 1 ? "bg-indigo-500/5" : ""
                     }`}>
-                    <td className="px-3 py-2.5 text-center font-medium sticky left-0 z-10 bg-[#0a0908]">{renderRank(idx)}</td>
-                    <td className="px-3 py-2.5 text-left font-medium sticky left-[44px] z-10 bg-[#0a0908] border-r border-indigo-500/15">
+                    <td className="px-3 py-2.5 text-center font-medium">{renderRank(idx)}</td>
+                    <td className="px-3 py-2.5 text-left font-medium">
                       <button onClick={() => navigate("playerProfile", row.id)}
                         className="text-indigo-400 hover:text-indigo-300 cursor-pointer hover:underline">
                         {row.nickname}
@@ -270,8 +268,8 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b border-indigo-500/10">
-                            <th className="text-left py-1 font-medium text-slate-400 sticky left-0 z-20 bg-[#0a0908]">#</th>
-                            <th className="text-left py-1 font-medium text-slate-400 sticky left-[20px] z-20 bg-[#0a0908] border-r border-indigo-500/15">Ник</th>
+                            <th className="text-left py-1 font-medium text-slate-400">#</th>
+                            <th className="text-left py-1 font-medium text-slate-400">Ник</th>
                             <th className="text-center py-1 font-medium text-slate-400">Игр</th>
                             <th className="text-center py-1 font-medium text-slate-400">Побед</th>
                             <th className="text-center py-1 font-medium text-slate-400">WR%</th>
@@ -282,8 +280,8 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                         <tbody>
                           {top.map((p, i) => (
                             <tr key={p.playerId} className="border-b border-indigo-500/10 last:border-b-0">
-                              <td className="py-1 font-medium sticky left-0 z-10 bg-[#0a0908]">{i + 1}</td>
-                              <td className="py-1 sticky left-[20px] z-10 bg-[#0a0908] border-r border-indigo-500/15">
+                              <td className="py-1 font-medium">{i + 1}</td>
+                              <td className="py-1">
                                 <button onClick={() => navigate("playerProfile", p.playerId)}
                                   className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{p.nickname}</button>
                               </td>
