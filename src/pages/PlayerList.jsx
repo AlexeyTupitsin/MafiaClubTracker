@@ -63,8 +63,8 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
       showToast?.('Допустимые форматы: JPG, PNG, WebP', 'error');
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      showToast?.('Файл не должен превышать 2 МБ', 'error');
+    if (file.size > 10 * 1024 * 1024) {
+      showToast?.('Файл не должен превышать 10 МБ', 'error');
       return;
     }
 
