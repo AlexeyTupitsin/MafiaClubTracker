@@ -173,6 +173,13 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     // Otherwise reject silently (don't update state)
   };
 
+  const handleToggleSign = (idx) => {
+    setBonusScores((prev) => prev.map((val, i) => {
+      if (i !== idx || !val || val === "0") return val;
+      return val.startsWith("-") ? val.slice(1) : "-" + val;
+    }));
+  };
+
   const handleBonusCommentChange = (idx, value) => {
     setBonusComments((prev) => prev.map((c, i) => (i === idx ? value : c)));
   };
@@ -579,7 +586,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center text-xs text-slate-400">
                     <div>База: <span className="text-slate-200">{baseScore}</span></div>
-                    <div>
+                    <div className="flex items-center gap-1">
                       Доп.:{" "}
                       <input
                         type="text"
@@ -591,6 +598,11 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                           isBonusInvalid(bonusScores[idx]) ? "border-red-500" : "border-indigo-500/15"
                         }`}
                       />
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSign(idx)}
+                        className="text-zinc-400 hover:text-zinc-200 text-sm px-1 py-0.5 rounded"
+                      >±</button>
                     </div>
                     <div>Итого: <span className="text-slate-200 font-medium">{total % 1 === 0 ? total : total.toFixed(1)}</span></div>
                   </div>
@@ -707,16 +719,23 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
                       </td>
                       <td className="px-2 py-2 text-center">{baseScore}</td>
                       <td className="px-2 py-2">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={bonusScores[idx]}
-                          onChange={(e) => handleBonusChange(idx, e.target.value)}
-                          placeholder="0.0"
-                          className={`w-16 bg-indigo-500/5 border rounded px-2 py-1 text-center text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50 ${
-                            isBonusInvalid(bonusScores[idx]) ? "border-red-500" : "border-indigo-500/15"
-                          }`}
-                        />
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={bonusScores[idx]}
+                            onChange={(e) => handleBonusChange(idx, e.target.value)}
+                            placeholder="0.0"
+                            className={`w-16 bg-indigo-500/5 border rounded px-2 py-1 text-center text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50 ${
+                              isBonusInvalid(bonusScores[idx]) ? "border-red-500" : "border-indigo-500/15"
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSign(idx)}
+                            className="text-slate-400 hover:text-slate-200 text-sm px-1 py-1 rounded"
+                          >±</button>
+                        </div>
                       </td>
                       <td className="px-2 py-2 text-center font-semibold">
                         {total % 1 === 0 ? total : total.toFixed(1)}
