@@ -199,6 +199,7 @@ export async function updatePlayer(id, updates) {
   return toFrontendPlayer(row);
 }
 
+// TODO (шаг 10 аудита): при добавлении скачиваний вызывать logStorageDownload(userId, fileName, 'avatars')
 export async function uploadPlayerAvatar(playerId, file) {
   const extMap = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
   const ext = extMap[file.type] || 'jpg';
