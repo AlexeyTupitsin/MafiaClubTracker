@@ -400,7 +400,7 @@ export async function exportAllData() {
 
   return {
     exportDate: new Date().toISOString(),
-    version: 1,
+    version: 2,
     seasons,
     players,
     tournaments: allTournaments,
@@ -431,6 +431,7 @@ export async function importData(data) {
         end_date: s.endDate || null,
         is_active: s.isActive,
         track_first_kill: s.trackFirstKill ?? false,
+        track_best_move: s.trackBestMove ?? false,
         rating_threshold_type: s.ratingThresholdType || 'none',
         rating_threshold_value: s.ratingThresholdValue || 0,
       },
@@ -447,6 +448,7 @@ export async function importData(data) {
         nickname: p.nickname,
         real_name: p.realName || null,
         is_active: p.isActive !== false,
+        avatar_url: p.avatarUrl || null,
       },
       single: true,
     });
@@ -463,6 +465,7 @@ export async function importData(data) {
         season_id: newSeasonId,
         name: t.name,
         date: t.date,
+        notes: t.notes || null,
       },
       single: true,
     });
@@ -484,6 +487,10 @@ export async function importData(data) {
           date: game.date,
           winner: game.winner,
           notes: game.notes || null,
+          first_killed: game.firstKilled ? (playerIdMap[game.firstKilled] || null) : null,
+          best_move_seat_1: game.bestMoveSeat1 ?? null,
+          best_move_seat_2: game.bestMoveSeat2 ?? null,
+          best_move_seat_3: game.bestMoveSeat3 ?? null,
         },
         single: true,
       });
