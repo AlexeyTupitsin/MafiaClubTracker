@@ -40,6 +40,16 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
 
   const sortedPlayers = [...game.players].sort((a, b) => a.seat - b.seat);
 
+  const bestMoveSeats = [game.bestMoveSeat1, game.bestMoveSeat2, game.bestMoveSeat3].filter((s) => s != null);
+  const firstKilledPlayer = players.find((p) => p.id === game.firstKilled);
+  const bestMoveDetails = bestMoveSeats.map((seat) => {
+    const gp = sortedPlayers.find((p) => p.seat === seat);
+    const player = players.find((p) => p.id === gp?.playerId);
+    const isBlack = gp?.role === "mafia" || gp?.role === "don";
+    return { seat, gp, player, isBlack };
+  });
+  const bestMoveCorrectCount = bestMoveDetails.filter((e) => e.isBlack).length;
+
   return (
     <div>
       {/* Header */}
@@ -144,6 +154,40 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
           </table>
         </div>
       </div>
+
+      {/* Best move block */}
+      {bestMoveDetails.length > 0 && (
+        <div className="glass-card rounded-2xl p-3 mb-4">
+          <p className="text-sm font-medium text-slate-300 mb-2">
+            Лучший ход{firstKilledPlayer ? ` — ${firstKilledPlayer.nickname}` : ""}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {bestMoveDetails.map(({ seat, gp, player, isBlack }) => (
+              <div
+                key={seat}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm border ${
+                  isBlack
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                    : "bg-slate-800/30 border-indigo-500/15 text-slate-400"
+                }`}
+              >
+                <span className="font-semibold">{seat}</span>
+                <span className="opacity-40">·</span>
+                <span>{player?.nickname || "?"}</span>
+                <Badge variant={ROLE_BADGE_VARIANT[gp?.role]}>{ROLE_NAMES[gp?.role]}</Badge>
+                {isBlack ? (
+                  <span className="font-bold text-emerald-400">✓</span>
+                ) : (
+                  <span className="text-slate-500">✗</span>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-slate-500 mt-2">
+            {bestMoveCorrectCount} из {bestMoveDetails.length}{bestMoveDetails.length === 1 ? " угадан" : " угаданы"}
+          </p>
+        </div>
+      )}
 
       {/* Actions */}
       <AdminOnly>
