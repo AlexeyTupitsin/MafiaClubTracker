@@ -4,7 +4,7 @@ import { getAccessToken } from './supabase';
 // REST helper: direct fetch to bypass supabase-js hanging issue
 // ============================================================
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_PROXY_URL || import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 async function rest(path, options = {}) {
