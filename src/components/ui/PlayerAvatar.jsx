@@ -1,9 +1,10 @@
 import { useState } from "react";
 
 const SIZES = {
-  sm: { outer: "w-[42px] h-[42px]", text: "text-sm" },
-  md: { outer: "w-[66px] h-[66px]", text: "text-xl" },
-  lg: { outer: "w-[108px] h-[108px]", text: "text-3xl" },
+  sm:   { outer: "w-[42px] h-[42px]",  text: "text-sm" },
+  base: { outer: "w-[54px] h-[54px]",  text: "text-base" },
+  md:   { outer: "w-[66px] h-[66px]",  text: "text-xl" },
+  lg:   { outer: "w-[108px] h-[108px]", text: "text-3xl" },
 };
 
 function getInitials(nickname) {
@@ -11,17 +12,18 @@ function getInitials(nickname) {
   return nickname.slice(0, 2).toUpperCase();
 }
 
-export function PlayerAvatar({ player, size = "md" }) {
+export function PlayerAvatar({ player, size = "md", clickable = true }) {
   const [imgError, setImgError] = useState(false);
   const [lightbox, setLightbox] = useState(false);
   const { outer, text } = SIZES[size] ?? SIZES.md;
 
   const showImg = player?.avatarUrl && !imgError;
+  const canClick = clickable && showImg;
 
   return (
     <>
-      <div className={`${outer} rounded-full shrink-0 overflow-hidden ${showImg ? "cursor-pointer" : ""}`}
-        onClick={() => showImg && setLightbox(true)}
+      <div className={`${outer} rounded-full shrink-0 overflow-hidden ${canClick ? "cursor-pointer" : ""}`}
+        onClick={() => canClick && setLightbox(true)}
       >
         {showImg ? (
           <img

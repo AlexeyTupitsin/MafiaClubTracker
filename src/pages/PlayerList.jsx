@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Users, UserPlus, Pencil, X, Check, TrendingUp, Camera } from "lucide-react";
+import { Plus, Users, UserPlus, Pencil, X, Check, Camera } from "lucide-react";
 import { Modal, ConfirmDialog, EmptyState, Badge, PlayerAvatar } from "../components/ui";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { createPlayer, updatePlayer, uploadPlayerAvatar, deletePlayerAvatar } from "../lib/queries";
@@ -58,7 +58,6 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       showToast?.('Допустимые форматы: JPG, PNG, WebP', 'error');
       return;
@@ -67,7 +66,6 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
       showToast?.('Файл не должен превышать 10 МБ', 'error');
       return;
     }
-
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
     setRemoveAvatar(false);
@@ -75,26 +73,16 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
 
   const handleSave = async () => {
     const trimmed = nickname.trim();
-    if (!trimmed) {
-      setError("Введите никнейм");
-      return;
-    }
+    if (!trimmed) { setError("Введите никнейм"); return; }
     const duplicate = players.find(
-      (p) =>
-        p.nickname.toLowerCase() === trimmed.toLowerCase() &&
-        p.id !== editingPlayer?.id
+      (p) => p.nickname.toLowerCase() === trimmed.toLowerCase() && p.id !== editingPlayer?.id
     );
-    if (duplicate) {
-      setError("Игрок с таким ником уже существует");
-      return;
-    }
+    if (duplicate) { setError("Игрок с таким ником уже существует"); return; }
 
     try {
       setAvatarUploading(true);
-
       if (editingPlayer) {
         let newAvatarUrl = editingPlayer.avatarUrl;
-
         if (removeAvatar) {
           await deletePlayerAvatar(editingPlayer.avatarUrl);
           newAvatarUrl = null;
@@ -102,25 +90,14 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
           if (editingPlayer.avatarUrl) await deletePlayerAvatar(editingPlayer.avatarUrl);
           newAvatarUrl = await uploadPlayerAvatar(editingPlayer.id, avatarFile);
         }
-
-        await updatePlayer(editingPlayer.id, {
-          nickname: trimmed,
-          realName: realName.trim() || null,
-          avatarUrl: newAvatarUrl,
-        });
+        await updatePlayer(editingPlayer.id, { nickname: trimmed, realName: realName.trim() || null, avatarUrl: newAvatarUrl });
       } else {
-        const newPlayer = await createPlayer({
-          nickname: trimmed,
-          realName: realName.trim() || null,
-          isActive: true,
-        });
-
+        const newPlayer = await createPlayer({ nickname: trimmed, realName: realName.trim() || null, isActive: true });
         if (avatarFile) {
           const newAvatarUrl = await uploadPlayerAvatar(newPlayer.id, avatarFile);
           await updatePlayer(newPlayer.id, { avatarUrl: newAvatarUrl });
         }
       }
-
       await refreshPlayers();
       setShowModal(false);
       showToast?.(editingPlayer ? `Игрок «${trimmed}» обновлён` : `Игрок «${trimmed}» добавлен`);
@@ -191,92 +168,59 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
         />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {filteredPlayers.map((player) => (
-            <div
-              key={player.id}
-              onClick={() => navigate("playerProfile", player.id)}
-              className={`glass-card glass-card-interactive rounded-2xl p-4 relative flex flex-col gap-2 ${
-                !player.isActive ? "opacity-50" : ""
-              }`}
-            >
-              {/* Top row: avatar + nickname */}
-              <div className="flex items-center gap-3">
-                <PlayerAvatar player={player} size="md" />
-                <div className="min-w-0">
-                  <div className="text-sm font-medium text-slate-200 truncate">
-                    {player.nickname}
+          {filteredPlayers.map((player) => {
+            const s = playerStatsMap[player.id];
+            return (
+              <div key={player.id} className={`glass-card p-4 flex flex-col gap-3 ${!player.isActive ? "opacity-50" : ""}`}>
+                <div className="flex items-center gap-3">
+                  <PlayerAvatar player={player} size="base" clickable={false} />
+                  <div className="min-w-0 flex-1">
+                    <button
+                      onClick={() => navigate("playerProfile", player.id)}
+                      className="text-sm font-semibold text-indigo-400 hover:text-indigo-300 cursor-pointer truncate block w-full text-left"
+                    >
+                      {player.nickname}
+                    </button>
+                    {player.realName && (
+                      <p className="text-xs text-slate-500 truncate">{player.realName}</p>
+                    )}
+                    <div className="grid grid-cols-2 gap-x-3 mt-1.5 text-xs text-slate-400">
+                      <span>Игр: <span className="text-slate-200 font-data">{s?.totalGames ?? 0}</span></span>
+                      <span>Побед: <span className="text-slate-200 font-data">{s?.wins ?? 0}</span></span>
+                      <span>WR: <span className={`font-data ${s?.winrate > 60 ? "text-emerald-400" : s?.winrate < 40 ? "text-red-400" : "text-slate-200"}`}>{s?.totalGames ? `${s.winrate.toFixed(0)}%` : "—"}</span></span>
+                      <span>Ср.: <span className="text-slate-200 font-data">{s?.totalGames ? s.avgScore.toFixed(2) : "—"}</span></span>
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-500 truncate">
-                    {player.realName || "\u00A0"}
-                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Badge variant={player.isActive ? "active" : "inactive"}>
+                    {player.isActive ? "Активен" : "Неактивен"}
+                  </Badge>
+                  <AdminOnly>
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        onClick={() => openEdit(player)}
+                        className="p-1.5 hover:bg-indigo-500/10 rounded transition-colors cursor-pointer"
+                        title="Редактировать"
+                      >
+                        <Pencil size={14} className="text-slate-400" />
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeactivate(player)}
+                        className="p-1.5 hover:bg-indigo-500/10 rounded transition-colors cursor-pointer"
+                        title={player.isActive ? "Деактивировать" : "Активировать"}
+                      >
+                        {player.isActive
+                          ? <X size={14} className="text-slate-400" />
+                          : <Check size={14} className="text-indigo-400" />}
+                      </button>
+                    </div>
+                  </AdminOnly>
                 </div>
               </div>
-
-              {/* Stats */}
-              {(() => {
-                const s = playerStatsMap[player.id];
-                if (!s || s.totalGames === 0) return (
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-xs text-slate-500">Нет игр</span>
-                    <Badge variant={player.isActive ? "active" : "inactive"}>
-                      {player.isActive ? "Активен" : "Неактивен"}
-                    </Badge>
-                  </div>
-                );
-                return (
-                  <div className="mt-1 space-y-1.5">
-                    {/* Winrate bar */}
-                    <div>
-                      <div className="flex items-center justify-between text-[11px] mb-0.5">
-                        <span className="text-slate-400">{s.totalGames} игр</span>
-                        <span className={s.winrate >= 50 ? "text-emerald-400 font-medium" : "text-slate-400"}>
-                          {s.winrate.toFixed(0)}% побед
-                        </span>
-                      </div>
-                      <div className="h-1 rounded-full bg-slate-800 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${s.winrate >= 60 ? "bg-emerald-500" : s.winrate >= 45 ? "bg-indigo-500" : "bg-red-500/70"}`}
-                          style={{ width: `${Math.min(s.winrate, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                    {/* Avg score + status */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-slate-500 font-data">
-                        {s.avgScore.toFixed(2)} ср. балл
-                      </span>
-                      <Badge variant={player.isActive ? "active" : "inactive"}>
-                        {player.isActive ? "Активен" : "Неактивен"}
-                      </Badge>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Admin action buttons */}
-              <AdminOnly>
-                <div className="absolute top-2 right-2 flex items-center gap-0.5">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openEdit(player); }}
-                    className="p-1.5 hover:bg-indigo-500/10 rounded transition-colors cursor-pointer"
-                    title="Редактировать"
-                  >
-                    <Pencil size={14} className="text-slate-400" />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setConfirmDeactivate(player); }}
-                    className="p-1.5 hover:bg-indigo-500/10 rounded transition-colors cursor-pointer"
-                    title={player.isActive ? "Деактивировать" : "Активировать"}
-                  >
-                    {player.isActive
-                      ? <X size={14} className="text-slate-400" />
-                      : <Check size={14} className="text-indigo-400" />
-                    }
-                  </button>
-                </div>
-              </AdminOnly>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -301,9 +245,7 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
             </>
           }>
           <div className="space-y-4">
-            {/* Avatar upload block */}
             <div className="flex flex-col items-center gap-3 py-2">
-              {/* Preview */}
               <div className="w-[72px] h-[72px] rounded-full overflow-hidden shrink-0">
                 {avatarPreview ? (
                   <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
@@ -315,28 +257,15 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
                   </div>
                 )}
               </div>
-
-              {/* Buttons */}
               <div className="flex gap-2">
                 <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 cursor-pointer transition-colors">
                   <Camera size={13} />
                   {avatarFile ? "Изменить" : "Загрузить фото"}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={handleAvatarChange}
-                  />
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarChange} />
                 </label>
-
                 {(editingPlayer?.avatarUrl || avatarFile) && !removeAvatar && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAvatarFile(null);
-                      setAvatarPreview(null);
-                      setRemoveAvatar(true);
-                    }}
+                  <button type="button"
+                    onClick={() => { setAvatarFile(null); setAvatarPreview(null); setRemoveAvatar(true); }}
                     className="px-3 py-1.5 text-xs rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer"
                   >
                     Удалить фото
@@ -349,33 +278,23 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
               <label className="block text-sm font-medium text-slate-300 mb-1">
                 Никнейм <span className="text-red-400">*</span>
               </label>
-              <input
-                type="text"
-                value={nickname}
+              <input type="text" value={nickname}
                 onChange={(e) => { setNickname(e.target.value); setError(""); }}
                 className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none"
-                placeholder="Игровой ник"
-                autoFocus
-              />
+                placeholder="Игровой ник" autoFocus />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Настоящее имя
-              </label>
-              <input
-                type="text"
-                value={realName}
+              <label className="block text-sm font-medium text-slate-300 mb-1">Настоящее имя</label>
+              <input type="text" value={realName}
                 onChange={(e) => setRealName(e.target.value)}
                 className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none"
-                placeholder="Необязательно"
-              />
+                placeholder="Необязательно" />
             </div>
             {error && <p className="text-red-400 text-sm">{error}</p>}
           </div>
         </Modal>
       )}
 
-      {/* Deactivate/Activate Confirm */}
       {confirmDeactivate && (
         <ConfirmDialog
           title={confirmDeactivate.isActive ? "Деактивировать игрока?" : "Активировать игрока?"}

@@ -71,7 +71,7 @@ export function TournamentDetail({
           avgBonus: totalBonus / roleGames.length,
         });
       }
-      result[role] = playerScores.sort((a, b) => b.avgScore - a.avgScore).slice(0, 5);
+      result[role] = playerScores.sort((a, b) => b.avgBonus - a.avgBonus).slice(0, 5);
     }
     return result;
   }, [tournamentGames, players]);

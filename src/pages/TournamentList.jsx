@@ -1,8 +1,75 @@
 import { useState, useMemo } from "react";
-import { Plus, Award, Trophy } from "lucide-react";
-import { Badge, EmptyState } from "../components/ui";
+import { Plus, Award } from "lucide-react";
+import { EmptyState } from "../components/ui";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { formatDate } from "../lib/utils";
+
+const COL = "grid grid-cols-[1fr_5rem] sm:grid-cols-[1fr_5rem_9rem_9rem] gap-x-4 items-center";
+
+function TournamentListHeader() {
+  return (
+    <div className={`${COL} px-4 py-1.5 text-xs font-medium text-slate-500`}>
+      <span>Турнир</span>
+      <span className="text-center">Игр (кр/чёрн)</span>
+      <span className="hidden sm:block">Лучший игрок</span>
+      <span className="hidden sm:block">MVP</span>
+    </div>
+  );
+}
+
+function TournamentCard({ t, getTournamentData, getPlayerNickname, navigate }) {
+  const data = getTournamentData(t);
+  return (
+    <div onClick={() => navigate("tournamentDetail", t.id)}
+      className={`${COL} glass-card glass-card-interactive px-4 py-3 cursor-pointer`}>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-indigo-400 truncate">{t.name}</p>
+        <p className="text-xs text-slate-500">{formatDate(t.date)}</p>
+        {data.total > 0 && (data.bestPlayer || data.mvpPlayer) && (
+          <div className="sm:hidden flex flex-wrap gap-x-3 mt-1 text-xs text-slate-500">
+            {data.bestPlayer && (
+              <span>Лучший: <span className="text-indigo-400">{getPlayerNickname(data.bestPlayer.id)}</span></span>
+            )}
+            {data.mvpPlayer && (
+              <span>MVP: <span className="text-indigo-400">{getPlayerNickname(data.mvpPlayer.id)}</span></span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="text-center text-xs">
+        {data.total > 0 ? (
+          <>
+            <p className="font-data font-semibold text-slate-200">{data.total}</p>
+            <p className="text-[11px]">
+              <span className="text-red-400">{data.redWins}</span>
+              <span className="text-slate-600">/</span>
+              <span className="text-slate-400">{data.blackWins}</span>
+            </p>
+          </>
+        ) : <span className="text-slate-600">—</span>}
+      </div>
+
+      <div className="hidden sm:block text-xs min-w-0">
+        {data.bestPlayer ? (
+          <>
+            <p className="text-indigo-400 truncate">{getPlayerNickname(data.bestPlayer.id)}</p>
+            <p className="text-slate-500 font-data">{data.bestPlayer.avgScore.toFixed(2)}</p>
+          </>
+        ) : <span className="text-slate-600">—</span>}
+      </div>
+
+      <div className="hidden sm:block text-xs min-w-0">
+        {data.mvpPlayer ? (
+          <>
+            <p className="text-indigo-400 truncate">{getPlayerNickname(data.mvpPlayer.id)}</p>
+            <p className="text-slate-500 font-data">{data.mvpPlayer.avgBonus > 0 ? "+" : ""}{data.mvpPlayer.avgBonus.toFixed(2)}</p>
+          </>
+        ) : <span className="text-slate-600">—</span>}
+      </div>
+    </div>
+  );
+}
 
 export function TournamentList({ allTournaments, allGames, seasons, players, navigate }) {
   const [seasonFilter, setSeasonFilter] = useState("all");
@@ -14,6 +81,18 @@ export function TournamentList({ allTournaments, allGames, seasons, players, nav
     return [...list].sort((a, b) => b.date.localeCompare(a.date));
   }, [seasonFilter, allTournaments]);
 
+  const groupedTournaments = useMemo(() => {
+    if (seasonFilter !== "all") return null;
+    const groups = {};
+    filteredTournaments.forEach((t) => {
+      if (!groups[t.seasonId]) groups[t.seasonId] = [];
+      groups[t.seasonId].push(t);
+    });
+    return seasons
+      .filter((s) => groups[s.id])
+      .map((s) => ({ season: s, tournaments: groups[s.id] }));
+  }, [filteredTournaments, seasons, seasonFilter]);
+
   const getTournamentData = (tournament) => {
     const tGames = (allGames || []).filter((g) => g.tournamentId === tournament.id);
     const redWins = tGames.filter((g) => g.winner === "red").length;
@@ -21,34 +100,48 @@ export function TournamentList({ allTournaments, allGames, seasons, players, nav
     const draws = tGames.filter((g) => g.winner === "draw").length;
     const total = tGames.length;
 
-    // Find best player by avg score
     let bestPlayer = null;
+    let mvpPlayer = null;
+
     if (total > 0) {
-      const playerScores = {};
+      const stats = {};
       tGames.forEach((g) => {
         g.players.forEach((p) => {
-          if (!playerScores[p.playerId]) playerScores[p.playerId] = { total: 0, games: 0 };
-          playerScores[p.playerId].total += p.totalScore;
-          playerScores[p.playerId].games += 1;
+          if (!stats[p.playerId]) stats[p.playerId] = { totalScore: 0, totalBonus: 0, games: 0 };
+          stats[p.playerId].totalScore += p.totalScore;
+          stats[p.playerId].totalBonus += p.bonusScore;
+          stats[p.playerId].games += 1;
         });
       });
-      let bestId = null;
-      let bestAvg = -Infinity;
-      for (const [pid, data] of Object.entries(playerScores)) {
-        const avg = data.total / data.games;
-        if (avg > bestAvg) { bestAvg = avg; bestId = pid; }
+
+      let bestAvgScore = -Infinity;
+      let bestAvgBonus = -Infinity;
+      for (const [pid, d] of Object.entries(stats)) {
+        const avgScore = d.totalScore / d.games;
+        const avgBonus = d.totalBonus / d.games;
+        if (avgScore > bestAvgScore) { bestAvgScore = avgScore; bestPlayer = { id: pid, avgScore }; }
+        if (avgBonus > bestAvgBonus) { bestAvgBonus = avgBonus; mvpPlayer = { id: pid, avgBonus }; }
       }
-      if (bestId) bestPlayer = { id: bestId, avgScore: bestAvg };
     }
 
-    const season = seasons.find((s) => s.id === tournament.seasonId);
-    return { tGames, redWins, blackWins, draws, total, bestPlayer, seasonName: season?.name };
+    return { redWins, blackWins, draws, total, bestPlayer, mvpPlayer };
   };
 
   const getPlayerNickname = (playerId) => {
     const p = (players || []).find((pl) => pl.id === playerId);
     return p?.nickname || "?";
   };
+
+  const renderList = (tournaments) => (
+    <div className="glass-card overflow-hidden">
+      <TournamentListHeader />
+      <div className="divide-y divide-indigo-500/10">
+        {tournaments.map((t) => (
+          <TournamentCard key={t.id} t={t} getTournamentData={getTournamentData} getPlayerNickname={getPlayerNickname} navigate={navigate} />
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -75,76 +168,17 @@ export function TournamentList({ allTournaments, allGames, seasons, players, nav
       {filteredTournaments.length === 0 ? (
         <EmptyState icon={Award} title="Нет турниров"
           description="Создайте первый турнир или добавьте турнир при создании игры" />
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 stagger-children">
-          {filteredTournaments.map((t) => {
-            const data = getTournamentData(t);
-            const redPct = data.total > 0 ? (data.redWins / data.total) * 100 : 0;
-            const blackPct = data.total > 0 ? (data.blackWins / data.total) * 100 : 0;
-            return (
-              <div
-                key={t.id}
-                onClick={() => navigate("tournamentDetail", t.id)}
-                className="glass-card glass-card-interactive rounded-2xl p-5 cursor-pointer"
-              >
-                {/* Header */}
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="text-base font-semibold text-indigo-400">{t.name}</h3>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-slate-500">{formatDate(t.date)}</span>
-                      {data.seasonName && seasonFilter === "all" && (
-                        <Badge variant="default">{data.seasonName}</Badge>
-                      )}
-                    </div>
-                  </div>
-                  <Award size={20} className="text-indigo-400/40 shrink-0" />
-                </div>
-
-                {data.total === 0 ? (
-                  <p className="text-xs text-slate-500">Нет игр</p>
-                ) : (
-                  <>
-                    {/* Games count */}
-                    <div className="text-sm text-slate-300 mb-2">
-                      <span className="font-data font-semibold">{data.total}</span> {data.total === 1 ? "игра" : data.total < 5 ? "игры" : "игр"}
-                    </div>
-
-                    {/* Red vs Black bar */}
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between text-[11px] mb-1">
-                        <span className="text-red-400">Красные {data.redWins}</span>
-                        {data.draws > 0 && <span className="text-amber-400">Ничьи {data.draws}</span>}
-                        <span className="text-slate-400">Чёрные {data.blackWins}</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden flex">
-                        {redPct > 0 && (
-                          <div className="h-full bg-red-500 transition-all" style={{ width: `${redPct}%` }} />
-                        )}
-                        {data.draws > 0 && (
-                          <div className="h-full bg-amber-400 transition-all" style={{ width: `${(data.draws / data.total) * 100}%` }} />
-                        )}
-                        {blackPct > 0 && (
-                          <div className="h-full bg-slate-400 transition-all" style={{ width: `${blackPct}%` }} />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Best player */}
-                    {data.bestPlayer && (
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                        <Trophy size={12} className="text-indigo-400/60" />
-                        <span>Лучший:</span>
-                        <span className="text-indigo-400">{getPlayerNickname(data.bestPlayer.id)}</span>
-                        <span className="font-data text-slate-500">({data.bestPlayer.avgScore.toFixed(2)})</span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            );
-          })}
+      ) : groupedTournaments ? (
+        <div className="space-y-6">
+          {groupedTournaments.map(({ season, tournaments }) => (
+            <div key={season.id}>
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-2">{season.name}</h3>
+              {renderList(tournaments)}
+            </div>
+          ))}
         </div>
+      ) : (
+        renderList(filteredTournaments)
       )}
     </div>
   );

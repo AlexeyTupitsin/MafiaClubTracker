@@ -39,6 +39,8 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
   }
 
   const [periodFilter, setPeriodFilter] = useState("all");
+  const [pairsLimit, setPairsLimit] = useState(10);
+  const [gamesLimit, setGamesLimit] = useState(10);
 
   const activeGames = useMemo(() => {
     if (periodFilter === "all") return allGames;
@@ -129,7 +131,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
   const gameHistory = useMemo(() => {
     return activeGames
       .filter((g) => g.players.some((p) => p.playerId === player.id))
-      .sort((a, b) => b.gameNumber - a.gameNumber)
+      .sort((a, b) => b.date.localeCompare(a.date))
       .map((g) => {
         const gp = g.players.find((p) => p.playerId === player.id);
         return { game: g, ...gp };
@@ -472,7 +474,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
                   </tr>
                 </thead>
                 <tbody>
-                  {pairData.map((p) => (
+                  {pairData.slice(0, pairsLimit).map((p) => (
                     <tr key={p.id} className="border-b border-indigo-500/10 last:border-b-0">
                       <td className="px-2 py-1.5">
                         <button onClick={() => navigate("playerProfile", p.id)}
@@ -496,6 +498,12 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
                 </tbody>
               </table>
             </div>
+            {pairData.length > pairsLimit && (
+              <button onClick={() => setPairsLimit((n) => n + 10)}
+                className="mt-3 text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer">
+                Показать ещё
+              </button>
+            )}
           </div>
         )}
 
@@ -506,7 +514,6 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-indigo-500/10">
-                  <th className="text-left px-2 py-1.5 font-medium text-slate-400">№</th>
                   <th className="text-left px-2 py-1.5 font-medium text-slate-400">Дата</th>
                   <th className="text-left px-2 py-1.5 font-medium text-slate-400">Роль</th>
                   <th className="text-left px-2 py-1.5 font-medium text-slate-400">Результат</th>
@@ -516,15 +523,14 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
                 </tr>
               </thead>
               <tbody>
-                {gameHistory.map((h) => (
+                {gameHistory.slice(0, gamesLimit).map((h) => (
                   <tr key={h.game.id} className="border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5">
-                    <td className="px-2 py-1.5">
+                    <td className="px-2 py-1.5 text-slate-400">
                       <button onClick={() => navigate("gameDetail", h.game.id)}
-                        className="text-indigo-400 hover:text-indigo-300 cursor-pointer font-medium">
-                        #{h.game.gameNumber}
+                        className="text-indigo-400 hover:text-indigo-300 cursor-pointer">
+                        {formatDate(h.game.date)}
                       </button>
                     </td>
-                    <td className="px-2 py-1.5 text-slate-400">{formatDate(h.game.date)}</td>
                     <td className="px-2 py-1.5">
                       <Badge variant={ROLE_BADGE_VARIANT[h.role]}>{ROLE_NAMES[h.role]}</Badge>
                     </td>
@@ -551,6 +557,12 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
               </tbody>
             </table>
           </div>
+          {gameHistory.length > gamesLimit && (
+            <button onClick={() => setGamesLimit((n) => n + 10)}
+              className="mt-3 text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer">
+              Показать ещё
+            </button>
+          )}
         </div>
       </Section>
     </div>
