@@ -1,26 +1,22 @@
 import { useState, useMemo } from "react";
 import { Trophy, ChevronUp, ChevronDown } from "lucide-react";
-import { Badge, EmptyState } from "../components/ui";
+import { EmptyState } from "../components/ui";
 import { calcPlayerStats, calcExtendedNominations, calcKillRate, calcThreshold } from "../lib/metrics";
-import { NOMINATION_CONFIG, MEDAL_ICON } from "../lib/constants";
+import { NOMINATION_CONFIG, MEDAL_ICON, ROLE_NAMES } from "../lib/constants";
 
 export function Leaderboard({ games, players, seasons, currentSeasonId, navigate, allGames, tournaments }) {
   const [seasonFilter, setSeasonFilter] = useState("all");
-  const [tournamentFilter, setTournamentFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [minGamesInput, setMinGamesInput] = useState("");
   const [sortCol, setSortCol] = useState("avgScore");
   const [sortDir, setSortDir] = useState("desc");
 
   // Determine active game set
   const activeGames = useMemo(() => {
-    let result;
-    if (seasonFilter === "all") result = allGames;
-    else if (seasonFilter === currentSeasonId) result = games;
-    else result = allGames.filter((g) => g.seasonId === seasonFilter);
-
-    if (tournamentFilter === "__none__") return result.filter((g) => !g.tournamentId);
-    if (tournamentFilter !== "all") return result.filter((g) => g.tournamentId === tournamentFilter);
-    return result;
-  }, [seasonFilter, tournamentFilter, games, currentSeasonId, allGames]);
+    if (seasonFilter === "all") return allGames;
+    if (seasonFilter === currentSeasonId) return games;
+    return allGames.filter((g) => g.seasonId === seasonFilter);
+  }, [seasonFilter, games, currentSeasonId, allGames]);
 
   const selectedSeason = useMemo(() => {
     if (seasonFilter === "all") return null;
@@ -33,39 +29,84 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     activeGames.forEach((g) => g.players.forEach((p) => playerIds.add(p.playerId)));
 
     const totalGamesInPeriod = activeGames.length;
-    const minGames = calcThreshold(selectedSeason, totalGamesInPeriod);
+    const minGames = roleFilter !== "all" ? 0 : calcThreshold(selectedSeason, totalGamesInPeriod);
 
-    const all = Array.from(playerIds).map((pid) => {
+    const all = Array.from(playerIds).flatMap((pid) => {
       const player = players.find((p) => p.id === pid);
+
+      if (roleFilter !== "all") {
+        const roleEntries = activeGames.flatMap((g) =>
+          g.players.filter((p) => p.playerId === pid && p.role === roleFilter)
+        );
+        if (roleEntries.length === 0) return [];
+        const wins = roleEntries.filter((p) => p.result === "win").length;
+        const totalScore = roleEntries.reduce((sum, p) => sum + p.totalScore, 0);
+        const totalBonus = roleEntries.reduce((sum, p) => sum + p.bonusScore, 0);
+        return [{
+          id: pid,
+          nickname: player?.nickname || "?",
+          totalGames: roleEntries.length,
+          wins,
+          draws: roleEntries.filter((p) => p.result === "draw").length,
+          losses: roleEntries.filter((p) => p.result === "lose").length,
+          winrate: (wins / roleEntries.length) * 100,
+          totalScore,
+          avgScore: totalScore / roleEntries.length,
+          totalBonus,
+          avgBonus: totalBonus / roleEntries.length,
+          killRate: null,
+        }];
+      }
+
       const stats = calcPlayerStats(pid, activeGames);
       const kr = calcKillRate(pid, activeGames, seasons);
-      return {
+      return [{
         id: pid,
         nickname: player?.nickname || "?",
         ...stats,
         killRate: kr,
-      };
+      }];
     });
 
     return { all, minGames, totalGamesInPeriod };
-  }, [activeGames, players, selectedSeason]);
+  }, [activeGames, players, selectedSeason, roleFilter]);
 
   const [showAll, setShowAll] = useState(false);
 
+  const minGamesFilter = parseInt(minGamesInput, 10) || 0;
+
   const ratingData = useMemo(() => {
-    if (showAll) return ratingCalc.all;
-    return ratingCalc.all.filter((p) => p.totalGames >= ratingCalc.minGames);
-  }, [ratingCalc, showAll]);
+    let data = showAll ? ratingCalc.all : ratingCalc.all.filter((p) => p.totalGames >= ratingCalc.minGames);
+    if (minGamesFilter > 0) data = data.filter((p) => p.totalGames >= minGamesFilter);
+    return data;
+  }, [ratingCalc, showAll, minGamesFilter]);
 
   const belowThreshold = useMemo(() => {
     if (showAll) return [];
     return ratingCalc.all.filter((p) => p.totalGames < ratingCalc.minGames);
   }, [ratingCalc, showAll]);
 
-  const { nominations: extNominations, minGames: nomMinGames } = useMemo(
+  const { nominations: extNominations } = useMemo(
     () => calcExtendedNominations(activeGames, players),
     [activeGames, players]
   );
+
+  const filteredNominations = useMemo(() => {
+    const result = {};
+    if (showAll || ratingCalc.minGames === 0) {
+      for (const { role } of NOMINATION_CONFIG) {
+        result[role] = (extNominations[role] || []).slice(0, 5);
+      }
+      return result;
+    }
+    const eligibleIds = new Set(
+      ratingCalc.all.filter((p) => p.totalGames >= ratingCalc.minGames).map((p) => p.id)
+    );
+    for (const { role } of NOMINATION_CONFIG) {
+      result[role] = (extNominations[role] || []).filter((p) => eligibleIds.has(p.playerId)).slice(0, 5);
+    }
+    return result;
+  }, [extNominations, ratingCalc, showAll]);
 
   // Sort
   const sorted = useMemo(() => {
@@ -106,7 +147,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     { key: "totalScore", label: "Баллы", sortable: true },
     { key: "avgScore", label: "Ср. балл", sortable: true, title: "Средний балл за игру" },
     { key: "avgBonus", label: "Ср. доп.", sortable: true, title: "Средний дополнительный балл" },
-    { key: "killRate", label: "ПУ%", sortable: false, title: "Процент первых убийств" },
+    ...(roleFilter === "all" ? [{ key: "killRate", label: "ПУ%", sortable: false, title: "Процент первых убийств" }] : []),
   ];
 
   const medalColors = ["text-yellow-400", "text-slate-400", "text-amber-600"];
@@ -135,20 +176,36 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
           ))}
         </select>
 
-        {/* Tournament filter */}
-        {(tournaments || []).length > 0 && (
-          <select
-            value={tournamentFilter}
-            onChange={(e) => setTournamentFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
+        {/* Min games filter */}
+        <div className="relative">
+          <input
+            type="number"
+            min={1}
+            value={minGamesInput}
+            onChange={(e) => setMinGamesInput(e.target.value)}
+            placeholder="Игр ≥"
+            className="w-24 px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder-slate-500"
+          />
+        </div>
+
+        {/* Role filter */}
+        <div className="flex gap-1 bg-indigo-500/5 border border-indigo-500/15 rounded-lg p-1">
+          <button
+            onClick={() => setRoleFilter("all")}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${roleFilter === "all" ? "bg-indigo-500/20 text-indigo-300" : "text-slate-400 hover:text-slate-300"}`}
           >
-            <option value="all">Все турниры</option>
-            <option value="__none__">Без турнира</option>
-            {(tournaments || []).map((t) => (
-              <option key={t.id} value={t.id}>{t.name} ({t.date})</option>
-            ))}
-          </select>
-        )}
+            Все роли
+          </button>
+          {Object.entries(ROLE_NAMES).map(([role, name]) => (
+            <button
+              key={role}
+              onClick={() => setRoleFilter(role)}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${roleFilter === role ? "bg-indigo-500/20 text-indigo-300" : "text-slate-400 hover:text-slate-300"}`}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Threshold info */}
@@ -257,12 +314,12 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
           <h3 className="text-lg font-semibold mb-3">Номинации</h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {NOMINATION_CONFIG.map(({ role, icon: Icon, label }) => {
-              const top = extNominations[role] || [];
+              const top = filteredNominations[role] || [];
               return (
                 <div key={role} className="glass-card rounded-2xl p-4">
                   <div className="font-semibold mb-2 flex items-center gap-1.5"><Icon size={16} /> {label}</div>
                   {top.length === 0 ? (
-                    <p className="text-sm text-slate-500">Мин. {nomMinGames} игр за роль</p>
+                    <p className="text-sm text-slate-500">Нет данных</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">

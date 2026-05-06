@@ -1,21 +1,22 @@
 import { useState, useMemo } from "react";
 import { Plus, Shield, Sword, ChevronUp, ChevronDown, Users } from "lucide-react";
-import { StatCard, Badge, EmptyState } from "../components/ui";
+import { StatCard, EmptyState } from "../components/ui";
 import { calcDashboardStats, calcRoleNominations, calcPlayerStats, calcKillRate, calcThreshold } from "../lib/metrics";
-import { NOMINATION_CONFIG, TEAM_NAMES, ROLE_NAMES, MEDAL_ICON } from "../lib/constants";
+import { NOMINATION_CONFIG, MEDAL_ICON } from "../lib/constants";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { useAuth } from "../hooks/useAuth";
+import { PlayerHeroCard } from "../components/PlayerHeroCard";
 
 export function Dashboard({ games, players, navigate, currentSeason, seasons, currentSeasonId, allGames }) {
   const { isAdmin } = useAuth();
   const hasPlayers = players.length > 0;
   const [showAll, setShowAll] = useState(false);
-  const [sortCol, setSortCol] = useState("totalScore");
+  const [sortCol, setSortCol] = useState("avgScore");
   const [sortDir, setSortDir] = useState("desc");
 
   const hasGames = games.length > 0;
   const dashStats = useMemo(() => calcDashboardStats(games), [games]);
-  const { nominations, minGames: nominationMinGames } = useMemo(() => calcRoleNominations(games, players), [games, players]);
+  const { nominations } = useMemo(() => calcRoleNominations(games, players), [games, players]);
 
   // Full rating data
   const ratingData = useMemo(() => {
@@ -30,6 +31,52 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
   }, [games, players]);
 
   const threshold = useMemo(() => calcThreshold(currentSeason, games.length), [currentSeason, games.length]);
+
+  const hasBelowThreshold = useMemo(
+    () => threshold > 0 && ratingData.some((r) => r.totalGames < threshold),
+    [ratingData, threshold]
+  );
+
+  const seasonLeader = useMemo(() => {
+    const eligible = ratingData.filter((r) => r.totalGames >= threshold || threshold === 0);
+    if (eligible.length === 0) return null;
+    const top = eligible.reduce((best, r) => (r.avgScore > best.avgScore ? r : best));
+    const player = players.find((p) => p.id === top.id);
+    return { ...top, avatarUrl: player?.avatarUrl };
+  }, [ratingData, threshold, players]);
+
+  const mvpPlayer = useMemo(() => {
+    const eligible = ratingData.filter((r) => r.totalGames >= threshold || threshold === 0);
+    if (eligible.length === 0) return null;
+    const top = eligible.reduce((best, r) => (r.avgBonus > best.avgBonus ? r : best));
+    const player = players.find((p) => p.id === top.id);
+    return { ...top, avatarUrl: player?.avatarUrl };
+  }, [ratingData, threshold, players]);
+
+  const nominationLeaders = useMemo(() => {
+    const result = {};
+    for (const { role } of NOMINATION_CONFIG) {
+      const eligible = (nominations[role] || []).filter((nom) => {
+        if (threshold === 0) return true;
+        const rd = ratingData.find((r) => r.id === nom.playerId);
+        return rd && rd.totalGames >= threshold;
+      });
+      const top = eligible[0];
+      if (!top) { result[role] = null; continue; }
+      const player = players.find((p) => p.id === top.playerId);
+      result[role] = {
+        id: top.playerId,
+        nickname: top.nickname,
+        avatarUrl: player?.avatarUrl,
+        totalGames: top.games,
+        wins: top.wins,
+        winrate: top.winrate,
+        avgScore: top.avgScore,
+        avgBonus: top.avgBonus,
+      };
+    }
+    return result;
+  }, [nominations, players, ratingData, threshold]);
 
   const filteredRating = useMemo(() => {
     let data = showAll ? ratingData : ratingData.filter((r) => r.totalGames >= threshold);
@@ -101,7 +148,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
           ) : null}
         />
       ) : (
-        <>
+        <div className="space-y-6">
           {/* Bento grid stat cards */}
           <div className={`grid grid-cols-1 gap-4 stagger-children ${dashStats.draws > 0 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
             <StatCard label="Всего игр" value={dashStats.totalGames} icon={Sword} />
@@ -149,7 +196,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-indigo-50">Рейтинг</h3>
               <div className="flex items-center gap-2">
-                {threshold > 0 && ratingData.length !== filteredRating.length && (
+                {hasBelowThreshold && (
                   <button onClick={() => setShowAll(!showAll)}
                     className="text-xs text-indigo-400 hover:text-indigo-300 cursor-pointer">
                     {showAll ? `Только \u2265${threshold} игр` : "Показать всех"}
@@ -234,39 +281,15 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
             )}
           </div>
 
-          {/* Nominations */}
-          <div>
-            <h3 className="font-semibold mb-3 text-indigo-50">Номинации</h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
-              {NOMINATION_CONFIG.map(({ role, icon: Icon, label }) => {
-                const top = nominations[role] || [];
-                return (
-                  <div key={role} className="glass-card p-4">
-                    <div className="text-sm font-semibold mb-2 flex items-center gap-1.5 text-slate-200"><Icon size={14} className="text-indigo-400/70" /> {label}</div>
-                    {top.length === 0 ? (
-                      <p className="text-xs text-slate-500">Мин. {nominationMinGames} игр за роль</p>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {top.map((p, i) => (
-                          <div key={p.playerId} className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-xs font-medium text-slate-500">{i + 1}.</span>
-                              <button onClick={() => navigate("playerProfile", p.playerId)}
-                                className="text-indigo-400 hover:text-indigo-300 truncate cursor-pointer">{p.nickname}</button>
-                            </div>
-                            <span className="text-xs text-slate-400 shrink-0 ml-1 font-data">
-                              {p.avgScore.toFixed(2)} <span className="text-slate-500">({p.games})</span>
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          {/* Nomination hero cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <PlayerHeroCard title="Лидер сезона" player={seasonLeader} navigate={navigate} />
+            <PlayerHeroCard title="MVP" player={mvpPlayer} navigate={navigate} />
+            {NOMINATION_CONFIG.map(({ role, label }) => (
+              <PlayerHeroCard key={role} title={label} player={nominationLeaders[role]} navigate={navigate} />
+            ))}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
