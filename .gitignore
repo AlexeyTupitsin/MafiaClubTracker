@@ -15,3 +15,10 @@ MAFIA_TRACKER_*.md
 sql/
 MafiaClubTracker.jsx
 nul
+
+# git worktrees
+.worktrees/
+# Obsidian-хранилище заметок (личная база знаний)
+MafiaClubTracker/
+# настройки редактора
+.vscode/
