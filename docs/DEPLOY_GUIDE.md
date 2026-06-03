@@ -39,25 +39,11 @@
 
 1. В Supabase Dashboard слева выбрать **SQL Editor**
 2. Нажать **"New query"**
-3. Выполнить SQL-файлы из папки `sql/` репозитория **по порядку** (001, 002, 003...):
-   - Открыть файл на GitHub, скопировать содержимое
-   - Вставить в SQL Editor
-   - Нажать **"Run"** (Ctrl+Enter)
-   - Убедиться что в правом нижнем углу написано "Success"
-   - Повторить для следующего файла
+3. Открыть файл `supabase/init.sql` из репозитория на GitHub, скопировать **всё** содержимое
+4. Вставить в SQL Editor и нажать **"Run"** (Ctrl+Enter)
+5. Убедиться, что внизу справа написано **"Success"**
 
-Порядок выполнения:
-```
-sql/001_initial_schema.sql
-sql/002_profiles.sql
-sql/004_storage.sql
-sql/005_rls.sql
-sql/006_indexes.sql
-sql/007_auth_config.sql
-sql/008_season_threshold.sql
-sql/009_player_avatar.sql
-sql/010_best_move.sql
-```
+Один запуск создаёт все таблицы, ограничения, политики доступа (RLS), функцию проверки роли и бакет для аватаров.
 
 ---
 
@@ -136,13 +122,15 @@ sql/010_best_move.sql
    - **Email** — формат `имя@mafia.local`, например `admin@mafia.local`
    - **Password** — придумать пароль
 4. Нажать **"Create user"**
-5. Назначить роль администратора — в **SQL Editor** выполнить:
+5. Создать профиль с ролью администратора — в **SQL Editor** выполнить:
    ```sql
-   UPDATE profiles SET role = 'admin' WHERE id = (
-     SELECT id FROM auth.users WHERE email = 'admin@mafia.local'
-   );
+   INSERT INTO profiles (id, login, role)
+   SELECT id, split_part(email, '@', 1), 'admin'
+   FROM auth.users WHERE email = 'admin@mafia.local';
    ```
 6. Зайти в приложение с этими данными
+
+> Профили создаются вручную только для администраторов. Обычным зрителям профиль не нужен — они видят данные и без него.
 
 ---
 
