@@ -22,3 +22,6 @@ nul
 MafiaClubTracker/
 # настройки редактора
 .vscode/
+# внутренние планы и статус фич (не для репозитория)
+docs/plans/
+docs/feature-status.md
