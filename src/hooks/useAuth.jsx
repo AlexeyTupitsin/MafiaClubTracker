@@ -1,6 +1,5 @@
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, setAccessToken } from '../lib/supabase';
-import { logAuthEvent } from '../lib/auditLog';
 
 const AuthContext = createContext(null);
 
@@ -30,7 +29,6 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const prevUserIdRef = useRef(null);
 
   useEffect(() => {
     // Listen for auth state changes
@@ -38,14 +36,6 @@ export function AuthProvider({ children }) {
       async (event, session) => {
         const currentUser = session?.user || null;
         const token = session?.access_token || null;
-
-        if (event === 'SIGNED_IN' && currentUser) {
-          logAuthEvent(currentUser.id, 'auth.login');
-        } else if (event === 'SIGNED_OUT') {
-          // При SIGNED_OUT session уже пуст — берём userId из ref
-          logAuthEvent(prevUserIdRef.current, 'auth.logout');
-        }
-        prevUserIdRef.current = currentUser?.id ?? null;
 
         setUser(currentUser);
         setAccessToken(token);

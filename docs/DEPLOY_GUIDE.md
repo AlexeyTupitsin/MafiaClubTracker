@@ -50,7 +50,6 @@
 ```
 sql/001_initial_schema.sql
 sql/002_profiles.sql
-sql/003_audit_log.sql
 sql/004_storage.sql
 sql/005_rls.sql
 sql/006_indexes.sql
