@@ -176,3 +176,27 @@
 Передать пользователю: ссылку на сайт + его email + пароль.
 
 ---
+
+## Если провайдер блокирует Supabase (необязательно)
+
+У некоторых провайдеров запросы к `*.supabase.co` блокируются. Тогда их можно проксировать через Vercel:
+
+1. В репозитории открыть файл `vercel.json` и заменить URL в `destination` на **свой** Project URL из Шага 5:
+   ```json
+   {
+     "rewrites": [
+       { "source": "/supabase-proxy/:path*", "destination": "https://ВАШ-ПРОЕКТ.supabase.co/:path*" }
+     ]
+   }
+   ```
+2. В Vercel → **Environment Variables** добавить переменную:
+
+   | Name | Value |
+   |------|-------|
+   | `VITE_SUPABASE_PROXY_URL` | `/supabase-proxy` |
+
+3. Сделать **Redeploy**.
+
+Если блокировки нет — этот шаг не нужен, приложение работает с Supabase напрямую.
+
+---
