@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, LogIn, LogOut } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import { CLUB_NAME, CLUB_CITY } from "../../lib/clubConfig";
 import { Modal } from "../ui";
 import { LoginForm } from "../auth/LoginForm";
 
@@ -16,7 +17,7 @@ export function Header({ seasons, currentSeasonId, setCurrentSeasonId }) {
             <div className="w-8 h-8 bg-gradient-to-br from-red-600 to-indigo-700 rounded-lg flex items-center justify-center text-white text-xs font-bold">
               IM
             </div>
-            <h1 className="text-xl font-bold text-zinc-50">IronMaf <span className="hidden sm:inline text-sm font-normal text-zinc-500">| Спортивная мафия | Череповец</span></h1>
+            <h1 className="text-xl font-bold text-zinc-50">{CLUB_NAME} <span className="hidden sm:inline text-sm font-normal text-zinc-500">| Спортивная мафия | {CLUB_CITY}</span></h1>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">

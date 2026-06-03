@@ -3,6 +3,7 @@ import { Plus, Shield, Sword, ChevronUp, ChevronDown, Users } from "lucide-react
 import { StatCard, EmptyState } from "../components/ui";
 import { calcDashboardStats, calcRoleNominations, calcPlayerStats, calcKillRate, calcThreshold } from "../lib/metrics";
 import { NOMINATION_CONFIG, MEDAL_ICON } from "../lib/constants";
+import { CLUB_NAME } from "../lib/clubConfig";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { useAuth } from "../hooks/useAuth";
 import { PlayerHeroCard } from "../components/PlayerHeroCard";
@@ -113,7 +114,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
         <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 rounded-3xl flex items-center justify-center border border-indigo-500/20">
           <Sword size={36} className="text-indigo-400" />
         </div>
-        <h2 className="text-2xl font-bold text-indigo-50 mb-2">Добро пожаловать в IronMaf!</h2>
+        <h2 className="text-2xl font-bold text-indigo-50 mb-2">Добро пожаловать в {CLUB_NAME}!</h2>
         <p className="text-slate-400 mb-8 max-w-md mx-auto">
           Начните работу с приложением — добавьте игроков клуба и проведите первую игру.
         </p>

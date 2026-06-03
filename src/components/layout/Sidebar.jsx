@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, LogIn, LogOut, Menu, X, LayoutDashboard, Sword, Award, Trophy, Users, Settings } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import { CLUB_NAME } from "../../lib/clubConfig";
 import { Modal } from "../ui";
 import { LoginForm } from "../auth/LoginForm";
 
@@ -78,9 +79,9 @@ export function Sidebar({ currentPage, navigate, seasons, currentSeasonId, setCu
         {/* Logo */}
         <div className="p-5 pb-3">
           <div className="flex items-center gap-3">
-            <img src="/logo.jpg" alt="IronMaf" className="w-9 h-9 rounded-xl object-cover shadow-lg shadow-black/40" />
+            <img src="/logo.jpg" alt={CLUB_NAME} className="w-9 h-9 rounded-xl object-cover shadow-lg shadow-black/40" />
             <div>
-              <h1 className="text-base font-bold text-indigo-50">IronMaf</h1>
+              <h1 className="text-base font-bold text-indigo-50">{CLUB_NAME}</h1>
               <p className="text-[11px] text-slate-500">Спортивная мафия</p>
             </div>
           </div>
@@ -154,8 +155,8 @@ export function Sidebar({ currentPage, navigate, seasons, currentSeasonId, setCu
       <header className="md:hidden fixed top-0 left-0 right-0 bg-[#0a0908]/90 backdrop-blur-xl border-b border-indigo-500/10 z-40">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.jpg" alt="IronMaf" className="w-8 h-8 rounded-lg object-cover shadow-md shadow-black/40" />
-            <span className="text-base font-bold text-indigo-50">IronMaf</span>
+            <img src="/logo.jpg" alt={CLUB_NAME} className="w-8 h-8 rounded-lg object-cover shadow-md shadow-black/40" />
+            <span className="text-base font-bold text-indigo-50">{CLUB_NAME}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
