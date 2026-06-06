@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Plus, Shield, Sword, ChevronUp, ChevronDown, Users } from "lucide-react";
 import { StatCard, EmptyState } from "../components/ui";
-import { calcDashboardStats, calcRoleNominations, calcPlayerStats, calcKillRate, calcThreshold } from "../lib/metrics";
+import { calcDashboardStats, calcExtendedNominations, calcPlayerStats, calcKillRate, calcThreshold } from "../lib/metrics";
 import { NOMINATION_CONFIG, MEDAL_ICON } from "../lib/constants";
 import { CLUB_NAME } from "../lib/clubConfig";
 import { AdminOnly } from "../components/auth/AuthGuard";
@@ -17,7 +17,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
 
   const hasGames = games.length > 0;
   const dashStats = useMemo(() => calcDashboardStats(games), [games]);
-  const { nominations } = useMemo(() => calcRoleNominations(games, players), [games, players]);
+  const { nominations } = useMemo(() => calcExtendedNominations(games, players), [games, players]);
 
   // Full rating data
   const ratingData = useMemo(() => {

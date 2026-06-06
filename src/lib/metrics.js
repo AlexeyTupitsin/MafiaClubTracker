@@ -134,35 +134,6 @@ export function calcThreshold(season, totalGames) {
   return 0;
 }
 
-export function calcRoleNominations(games, players) {
-  const roles = ["citizen", "sheriff", "mafia", "don"];
-  const result = {};
-
-  for (const role of roles) {
-    const playerScores = [];
-    for (const player of players) {
-      const roleGames = games.flatMap((g) =>
-        g.players.filter((p) => p.playerId === player.id && p.role === role)
-      );
-      if (roleGames.length === 0) continue;
-      const wins = roleGames.filter((p) => p.result === "win").length;
-      const totalScore = roleGames.reduce((sum, p) => sum + p.totalScore, 0);
-      const totalBonus = roleGames.reduce((sum, p) => sum + p.bonusScore, 0);
-      playerScores.push({
-        playerId: player.id,
-        nickname: player.nickname,
-        games: roleGames.length,
-        wins,
-        winrate: (wins / roleGames.length) * 100,
-        avgScore: totalScore / roleGames.length,
-        avgBonus: totalBonus / roleGames.length,
-      });
-    }
-    result[role] = playerScores.sort((a, b) => b.avgBonus - a.avgBonus).slice(0, 3);
-  }
-  return { nominations: result };
-}
-
 export function calcExtendedNominations(games, players) {
   const roles = ["citizen", "sheriff", "mafia", "don"];
   const result = {};
