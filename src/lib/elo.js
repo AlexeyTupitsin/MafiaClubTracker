@@ -3,18 +3,11 @@ import { getTeam } from "./utils";
 
 // ELO-рейтинг игроков.
 //
-//   E_A  = 1 / (1 + 10 * ((R_B - R_A) / 400))
+//   E_A  = 1 / (1 + 10 ^ ((R_B - R_A) / 400))
 //   R_A' = R_A + k * (S_A - E_A)
 //
-// E_A взята в том виде, в каком посчитан числовой пример на картинке
-// (умножение, а не возведение 10 в степень), и применяется как есть, без
-// ограничения диапазона.
-//
-// Знаменатель сводится к 1 + (R_B - R_A) / 40 и при R_B - R_A = -40 обращается
-// в ноль. Это единственный случай, когда результат невычислим: обрабатывается
-// как «рейтинг не меняется» (см. calcGameElo), потому что односторонние пределы
-// в этой точке равны +бесконечности и -бесконечности, и осмысленного значения у
-// E_A там нет.
+// Классическая логистическая кривая: E_A монотонна и всегда лежит в (0; 1),
+// диапазон не ограничивается искусственно.
 //
 // R_A — средний рейтинг своей команды (включая самого игрока),
 // R_B — средний рейтинг команды соперника, оба на момент игры.
@@ -25,10 +18,8 @@ import { getTeam } from "./utils";
 
 export const ELO_START = ELO_CONFIG.start;
 
-// Возвращает null, если значение невычислимо (деление на ноль при R_B - R_A = -40).
 export function expectedScore(rA, rB) {
-  const expected = 1 / (1 + 10 * ((rB - rA) / 400));
-  return Number.isFinite(expected) ? expected : null;
+  return 1 / (1 + Math.pow(10, (rB - rA) / 400));
 }
 
 export function kFactor(gamesPlayed) {
@@ -77,9 +68,7 @@ export function calcGameElo(game, ratings, gamesPlayed) {
     const rA = teamAvg[team];
     const rB = teamAvg[team === "red" ? "black" : "red"];
 
-    // Рейтинг не меняем, если посчитать нечего или нечем:
-    //  - вырожденный состав: в игре нет одной из команд;
-    //  - R_B - R_A = -40: знаменатель формулы обращается в ноль.
+    // Вырожденный состав (в игре нет одной из команд) — рейтинг не меняем.
     const expected = rA == null || rB == null ? null : expectedScore(rA, rB);
 
     if (expected == null) {
@@ -205,7 +194,7 @@ export function eloExplanationLines(game, gp) {
   return [
     `Своя команда R_A = ${num(rA, 0)}`,
     `Соперники R_B = ${num(rB, 0)}`,
-    `E_A = 1 / (1 + 10 × (${num(rB, 0)} − ${num(rA, 0)}) / 400) = ${num(gp.eloExpected, 3)}`,
+    `E_A = 1 / (1 + 10 ^ ((${num(rB, 0)} − ${num(rA, 0)}) / 400)) = ${num(gp.eloExpected, 3)}`,
     `S_A = ${num(gp.sA ?? gp.totalScore, 1)}, k = ${gp.eloK} (${describeK(gp.eloK)})`,
     `ELO = ${gp.eloBefore} + ${gp.eloK} × (${num(gp.totalScore, 1)} − ${num(gp.eloExpected, 3)}) = ${gp.eloAfter}`,
   ];
