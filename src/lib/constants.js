@@ -59,3 +59,11 @@ export const TABS = [
   { id: "players", label: "Игроки", icon: Users },
   { id: "settings", label: "Настройки", icon: Settings },
 ];
+
+// ELO-рейтинг. Формула: docs/расчет эло.png, план: docs/plans/2026-09-01-elo-rating-plan.md
+export const ELO_CONFIG = {
+  start: 1000,          // рейтинг игрока до первой игры
+  kNew: 40,             // k для игроков, сыгравших <= newPlayerGames рейтинговых игр
+  kNormal: 20,          // k для всех остальных
+  newPlayerGames: 30,
+};

@@ -31,6 +31,11 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     const totalGamesInPeriod = activeGames.length;
     const minGames = roleFilter !== "all" ? 0 : calcThreshold(selectedSeason, totalGamesInPeriod);
 
+    // ELO сквозной по всем сезонам — берём текущее значение игрока.
+    // Дельта, наоборот, считается только по отфильтрованным играм.
+    const sumEloDelta = (entries) =>
+      entries.reduce((sum, p) => sum + (p.eloDelta ?? 0), 0);
+
     const all = Array.from(playerIds).flatMap((pid) => {
       const player = players.find((p) => p.id === pid);
 
@@ -54,22 +59,27 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
           avgScore: totalScore / roleEntries.length,
           totalBonus,
           avgBonus: totalBonus / roleEntries.length,
+          elo: player?.elo ?? null,
+          eloDelta: Math.round(sumEloDelta(roleEntries)),
           killRate: null,
         }];
       }
 
       const stats = calcPlayerStats(pid, activeGames);
       const kr = calcKillRate(pid, activeGames, seasons);
+      const entries = activeGames.flatMap((g) => g.players.filter((p) => p.playerId === pid));
       return [{
         id: pid,
         nickname: player?.nickname || "?",
         ...stats,
+        elo: player?.elo ?? null,
+        eloDelta: Math.round(sumEloDelta(entries)),
         killRate: kr,
       }];
     });
 
     return { all, minGames, totalGamesInPeriod };
-  }, [activeGames, players, selectedSeason, roleFilter]);
+  }, [activeGames, players, selectedSeason, roleFilter, seasons]);
 
   const [showAll, setShowAll] = useState(false);
 
@@ -147,6 +157,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     { key: "totalScore", label: "Баллы", sortable: true },
     { key: "avgScore", label: "Ср. балл", sortable: true, title: "Средний балл за игру" },
     { key: "avgBonus", label: "Ср. доп.", sortable: true, title: "Средний дополнительный балл" },
+    { key: "elo", label: "ELO", sortable: true, title: "Рейтинг ELO. Сквозной по всем сезонам — фильтр периода на него не влияет. Изменение рядом показано за выбранный период" },
     ...(roleFilter === "all" ? [{ key: "killRate", label: "ПУ%", sortable: false, title: "Процент первых убийств" }] : []),
   ];
 
@@ -289,6 +300,20 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                       }>
                         {row.avgBonus.toFixed(2)}
                       </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                      {row.elo == null ? (
+                        <span className="text-slate-600">—</span>
+                      ) : (
+                        <span className="inline-flex items-baseline gap-1.5">
+                          <span className="font-semibold text-slate-200">{row.elo}</span>
+                          {row.eloDelta !== 0 && (
+                            <span className={`text-xs ${row.eloDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                              {row.eloDelta > 0 ? "+" : ""}{row.eloDelta}
+                            </span>
+                          )}
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 text-center text-xs">
                       {row.killRate ? (

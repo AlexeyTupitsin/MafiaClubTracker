@@ -25,6 +25,7 @@ import {
   exportAllData,
   importData,
   resetAllData,
+  recalcElo,
 } from "../lib/queries";
 
 export function SettingsPage({
@@ -276,8 +277,11 @@ export function SettingsPage({
           winner,
           players: gamePlayers,
           notes: null,
-        });
+        }, { recalc: false });
       }
+
+      // один пересчёт на всю пачку вместо пересчёта после каждой игры
+      await recalcElo();
 
       await refreshGames();
       await refreshAllGames();
@@ -290,6 +294,26 @@ export function SettingsPage({
       showToast("Ошибка генерации демо-данных: " + (err.message || "неизвестная ошибка"), "error");
     } finally {
       setGeneratingDemo(false);
+    }
+  };
+
+  // --- Пересчёт ELO ---
+  const [recalculatingElo, setRecalculatingElo] = useState(false);
+
+  const handleRecalcElo = async () => {
+    setRecalculatingElo(true);
+    setError("");
+    try {
+      const { gamesProcessed } = await recalcElo();
+      await refreshGames();
+      await refreshAllGames();
+      await refreshPlayers();
+      showToast(`ELO пересчитан, игр обработано: ${gamesProcessed}`);
+    } catch (err) {
+      setError(err.message || "Ошибка пересчёта ELO");
+      showToast("Ошибка пересчёта ELO: " + (err.message || "неизвестная ошибка"), "error");
+    } finally {
+      setRecalculatingElo(false);
     }
   };
 
@@ -462,7 +486,18 @@ export function SettingsPage({
             <Upload size={16} /> Импорт из JSON
             <input type="file" accept=".json" onChange={handleImportFile} className="hidden" />
           </label>
+          <button onClick={handleRecalcElo} disabled={recalculatingElo}
+            className="flex items-center gap-2 bg-slate-800/30 hover:bg-indigo-500/5 text-slate-300 px-4 py-2 rounded-lg text-sm disabled:opacity-50">
+            {recalculatingElo
+              ? <Loader size={16} className="animate-spin" />
+              : <RefreshCw size={16} />}
+            Пересчитать ELO
+          </button>
         </div>
+        <p className="text-xs text-slate-500 mt-2">
+          ELO пересчитывается автоматически при добавлении и изменении игр.
+          Кнопка нужна для первичного расчёта по уже внесённым играм.
+        </p>
         {exportData && (
           <div className="mt-3">
             <div className="flex items-center justify-between mb-1">
