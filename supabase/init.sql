@@ -88,9 +88,9 @@ create table game_players (
   total_score   numeric not null default 0,
   -- ELO: заполняется пересчётом из приложения (Настройки → Пересчитать ELO)
   elo_before    integer,
-  elo_expected  numeric(6,4),
+  elo_expected  numeric(12,4),
   elo_k         integer,
-  elo_delta     numeric(8,3),
+  elo_delta     numeric(12,3),
   elo_after     integer,
   unique (game_id, seat),
   unique (game_id, player_id)

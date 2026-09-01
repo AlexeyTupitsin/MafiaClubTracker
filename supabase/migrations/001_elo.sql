@@ -10,9 +10,9 @@
 
 alter table game_players
   add column if not exists elo_before   integer,
-  add column if not exists elo_expected numeric(6,4),
+  add column if not exists elo_expected numeric(12,4),
   add column if not exists elo_k        integer,
-  add column if not exists elo_delta    numeric(8,3),
+  add column if not exists elo_delta    numeric(12,3),
   add column if not exists elo_after    integer;
 
 alter table players

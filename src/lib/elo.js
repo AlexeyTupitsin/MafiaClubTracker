@@ -6,13 +6,15 @@ import { getTeam } from "./utils";
 //   E_A  = 1 / (1 + 10 * ((R_B - R_A) / 400))
 //   R_A' = R_A + k * (S_A - E_A)
 //
-// Внимание: E_A взята в том виде, в каком посчитан числовой пример на картинке
-// (умножение, а не возведение 10 в степень). Знаменатель = 1 + (R_B - R_A) / 40,
-// поэтому он обращается в ноль при R_B - R_A = -40 и уходит в минус ниже.
-// Чтобы рейтинг не улетал, E_A принудительно зажимается в [0; 1]:
-//   R_B - R_A  >  0    -> E_A в (0; 1), формула ведёт себя штатно
-//   R_B - R_A  в (-40; 0] -> E_A = 1  (свои сильнее: победа не добавляет рейтинга)
-//   R_B - R_A  <= -40  -> E_A = 0  (свои сильно сильнее: поражение не отнимает)
+// E_A взята в том виде, в каком посчитан числовой пример на картинке
+// (умножение, а не возведение 10 в степень), и применяется как есть, без
+// ограничения диапазона.
+//
+// Знаменатель сводится к 1 + (R_B - R_A) / 40 и при R_B - R_A = -40 обращается
+// в ноль. Это единственный случай, когда результат невычислим: обрабатывается
+// как «рейтинг не меняется» (см. calcGameElo), потому что односторонние пределы
+// в этой точке равны +бесконечности и -бесконечности, и осмысленного значения у
+// E_A там нет.
 //
 // R_A — средний рейтинг своей команды (включая самого игрока),
 // R_B — средний рейтинг команды соперника, оба на момент игры.
@@ -23,10 +25,10 @@ import { getTeam } from "./utils";
 
 export const ELO_START = ELO_CONFIG.start;
 
+// Возвращает null, если значение невычислимо (деление на ноль при R_B - R_A = -40).
 export function expectedScore(rA, rB) {
-  const denominator = 1 + 10 * ((rB - rA) / 400);
-  if (denominator <= 0) return denominator === 0 ? 1 : 0;
-  return Math.min(1, 1 / denominator);
+  const expected = 1 / (1 + 10 * ((rB - rA) / 400));
+  return Number.isFinite(expected) ? expected : null;
 }
 
 export function kFactor(gamesPlayed) {
@@ -75,8 +77,12 @@ export function calcGameElo(game, ratings, gamesPlayed) {
     const rA = teamAvg[team];
     const rB = teamAvg[team === "red" ? "black" : "red"];
 
-    // Вырожденный состав (нет одной из команд) — рейтинг не меняем.
-    if (rA == null || rB == null) {
+    // Рейтинг не меняем, если посчитать нечего или нечем:
+    //  - вырожденный состав: в игре нет одной из команд;
+    //  - R_B - R_A = -40: знаменатель формулы обращается в ноль.
+    const expected = rA == null || rB == null ? null : expectedScore(rA, rB);
+
+    if (expected == null) {
       return {
         playerId: gp.playerId,
         eloBefore,
@@ -90,7 +96,6 @@ export function calcGameElo(game, ratings, gamesPlayed) {
       };
     }
 
-    const expected = expectedScore(rA, rB);
     const k = kFactor(gamesPlayed.get(gp.playerId) ?? 0);
     const sA = gp.totalScore;
     const delta = k * (sA - expected);
@@ -197,19 +202,11 @@ export function eloExplanationLines(game, gp) {
   const rB = averages[team === "red" ? "black" : "red"];
   if (rA == null || rB == null) return null;
 
-  const lines = [
+  return [
     `Своя команда R_A = ${num(rA, 0)}`,
     `Соперники R_B = ${num(rB, 0)}`,
     `E_A = 1 / (1 + 10 × (${num(rB, 0)} − ${num(rA, 0)}) / 400) = ${num(gp.eloExpected, 3)}`,
     `S_A = ${num(gp.sA ?? gp.totalScore, 1)}, k = ${gp.eloK} (${describeK(gp.eloK)})`,
     `ELO = ${gp.eloBefore} + ${gp.eloK} × (${num(gp.totalScore, 1)} − ${num(gp.eloExpected, 3)}) = ${gp.eloAfter}`,
   ];
-
-  // При R_B <= R_A знаменатель формулы обращается в ноль или уходит в минус,
-  // поэтому E_A зажата в [0; 1] — предупреждаем, что это не «чистый» расчёт.
-  if (rB - rA <= 0) {
-    lines.push(`E_A ограничена диапазоном [0; 1]: своя команда сильнее соперников`);
-  }
-
-  return lines;
 }
