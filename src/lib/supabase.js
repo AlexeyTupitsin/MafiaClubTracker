@@ -20,3 +20,52 @@ export function setAccessToken(token) {
 export function getAccessToken() {
   return currentAccessToken || supabaseAnonKey;
 }
+
+export function hasUserSession() {
+  return currentAccessToken !== null;
+}
+
+// Секунды до истечения JWT; null, если токен не разобрать
+function secondsUntilExpiry(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.exp - Date.now() / 1000;
+  } catch {
+    return null;
+  }
+}
+
+// Токен протухнет в ближайшие полминуты (или уже протух).
+// Автообновление supabase-js работает по таймеру, а таймеры в фоновой
+// вкладке и на уснувшем телефоне тормозятся — поэтому проверяем сами.
+export function isAccessTokenExpiring() {
+  if (!currentAccessToken) return false;
+  const left = secondsUntilExpiry(currentAccessToken);
+  return left !== null && left < 30;
+}
+
+const REFRESH_TIMEOUT_MS = 8000;
+let refreshPromise = null;
+
+/**
+ * Обновляет сессию и возвращает новый access token (или null при неудаче).
+ * Параллельные вызовы делят один запрос. Таймаут — потому что supabase-js
+ * у нас бывает подвисает.
+ */
+export function refreshAccessToken() {
+  if (!refreshPromise) {
+    const timeout = new Promise((resolve) => setTimeout(() => resolve(null), REFRESH_TIMEOUT_MS));
+    const refresh = supabase.auth.refreshSession()
+      .then(({ data, error }) => {
+        if (error || !data?.session) return null;
+        setAccessToken(data.session.access_token);
+        return data.session.access_token;
+      })
+      .catch(() => null);
+
+    refreshPromise = Promise.race([refresh, timeout]).finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}

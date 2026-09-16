@@ -32,7 +32,7 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
       await refreshGames();
       await refreshAllGames();
       showToast?.(`Игра #${num} удалена`);
-      navigate("games");
+      navigate("games", null, { replace: true });
     } catch (err) {
       console.error("Failed to delete game:", err);
       showToast?.("Ошибка удаления: " + (err.message || "неизвестная ошибка"), "error");
