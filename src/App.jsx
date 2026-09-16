@@ -312,6 +312,7 @@ export default function App() {
             navigate={navigate}
             allGames={allGames}
             tournaments={tournaments}
+            showToast={showToast}
           />
         );
       case "tournaments":
