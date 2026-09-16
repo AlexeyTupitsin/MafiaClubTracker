@@ -1,4 +1,5 @@
 import { getAccessToken } from './supabase';
+import { replayElo, ELO_START } from './elo';
 
 // ============================================================
 // REST helper: direct fetch to bypass supabase-js hanging issue
@@ -38,7 +39,11 @@ async function rest(path, options = {}) {
 
   if (method === 'DELETE' && !options.returning) return null;
 
-  const data = await res.json();
+  // return=minimal отдаёт пустое тело — res.json() на нём падает
+  const text = await res.text();
+  if (!text) return null;
+
+  const data = JSON.parse(text);
   return single ? data[0] : data;
 }
 
@@ -81,6 +86,8 @@ function toFrontendPlayer(row) {
     isActive: row.is_active,
     createdAt: row.created_at,
     avatarUrl: row.avatar_url ?? null,
+    elo: row.elo == null ? ELO_START : Number(row.elo),
+    eloGames: row.elo_games ?? 0,
   };
 }
 
@@ -95,6 +102,7 @@ function toDbPlayer(obj) {
 
 function toFrontendGamePlayer(row) {
   return {
+    id: row.id,
     playerId: row.player_id,
     seat: row.seat,
     role: row.role,
@@ -103,6 +111,11 @@ function toFrontendGamePlayer(row) {
     bonusScore: Number(row.bonus_score),
     bonusComment: row.bonus_comment,
     totalScore: Number(row.total_score),
+    eloBefore: row.elo_before == null ? null : Number(row.elo_before),
+    eloExpected: row.elo_expected == null ? null : Number(row.elo_expected),
+    eloK: row.elo_k ?? null,
+    eloDelta: row.elo_delta == null ? null : Number(row.elo_delta),
+    eloAfter: row.elo_after == null ? null : Number(row.elo_after),
   };
 }
 
@@ -281,6 +294,82 @@ export async function deleteTournament(id) {
 }
 
 // ============================================================
+// ELO
+// ============================================================
+
+// PostgREST-upsert пачками: конфликт разрешается по первичному ключу id.
+async function upsertRows(table, rows, chunkSize = 500) {
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    await rest(table, {
+      method: 'POST',
+      body: rows.slice(i, i + chunkSize),
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    });
+  }
+}
+
+/**
+ * Пересчитывает ELO по всей истории игр и сохраняет результат в БД.
+ *
+ * Пересчёт всегда полный: игру можно завести задним числом или отредактировать
+ * старую, а это сдвигает всю последующую цепочку рейтингов.
+ */
+export async function recalcElo() {
+  const games = await getAllGames();
+  const players = await getPlayers();
+  const { perGame, final } = replayElo(games);
+
+  const gamePlayerRows = [];
+  for (const game of games) {
+    const byPlayer = perGame.get(game.id);
+    if (!byPlayer) continue;
+
+    for (const gp of game.players) {
+      const elo = byPlayer.get(gp.playerId);
+      if (!elo) continue;
+
+      gamePlayerRows.push({
+        id: gp.id,
+        game_id: game.id,
+        player_id: gp.playerId,
+        seat: gp.seat,
+        role: gp.role,
+        result: gp.result,
+        base_score: gp.baseScore,
+        bonus_score: gp.bonusScore,
+        bonus_comment: gp.bonusComment || null,
+        total_score: gp.totalScore,
+        elo_before: elo.eloBefore,
+        elo_expected: elo.expected,
+        elo_k: elo.k,
+        elo_delta: elo.delta,
+        elo_after: elo.eloAfter,
+      });
+    }
+  }
+
+  await upsertRows('game_players', gamePlayerRows);
+
+  // players: upsert требует все NOT NULL колонки, поэтому кладём строку целиком
+  const playerRows = players.map((p) => {
+    const f = final.get(p.id);
+    return {
+      id: p.id,
+      nickname: p.nickname,
+      real_name: p.realName || null,
+      is_active: p.isActive !== false,
+      avatar_url: p.avatarUrl || null,
+      elo: f?.elo ?? ELO_START,
+      elo_games: f?.eloGames ?? 0,
+    };
+  });
+
+  await upsertRows('players', playerRows);
+
+  return { gamesProcessed: games.length, playersUpdated: playerRows.length };
+}
+
+// ============================================================
 // Games
 // ============================================================
 
@@ -294,7 +383,7 @@ export async function getAllGames() {
   return data.map(toFrontendGame);
 }
 
-export async function createGame(game) {
+export async function createGame(game, { recalc = true } = {}) {
   // Insert game row
   const gameRow = await rest('games', {
     method: 'POST',
@@ -327,6 +416,8 @@ export async function createGame(game) {
   }));
 
   await rest('game_players', { method: 'POST', body: gpRows });
+
+  if (recalc) await recalcElo();
 
   // Return full game with players
   const full = await rest(`games?select=*,game_players(*)&id=eq.${gameRow.id}`, { single: true });
@@ -367,6 +458,8 @@ export async function updateGame(game) {
 
   await rest('game_players', { method: 'POST', body: gpRows });
 
+  await recalcElo();
+
   // Return full game
   const full = await rest(`games?select=*,game_players(*)&id=eq.${game.id}`, { single: true });
   return toFrontendGame(full);
@@ -374,6 +467,7 @@ export async function updateGame(game) {
 
 export async function deleteGame(gameId) {
   await rest(`games?id=eq.${gameId}`, { method: 'DELETE' });
+  await recalcElo();
 }
 
 // ============================================================
@@ -510,6 +604,8 @@ export async function importData(data) {
       }
     }
   }
+
+  await recalcElo();
 }
 
 export async function resetAllData() {

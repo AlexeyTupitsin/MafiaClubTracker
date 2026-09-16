@@ -1,4 +1,4 @@
-import { getTeam } from "./utils";
+import { getTeam, compareGamesAsc } from "./utils";
 
 export function calcPlayerStats(playerId, games) {
   const playerGames = games.flatMap((g) =>
@@ -168,7 +168,7 @@ export function calcExtendedNominations(games, players) {
 export function calcFormTrend(playerId, games, lastN = 10) {
   const playerGames = games
     .filter((g) => g.players.some((p) => p.playerId === playerId))
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
+    .sort(compareGamesAsc);
   if (playerGames.length === 0) return null;
   const allStats = calcPlayerStats(playerId, games);
   const recentGames = playerGames.slice(-lastN);

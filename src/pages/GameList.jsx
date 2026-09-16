@@ -4,7 +4,7 @@ import { Badge, EmptyState } from "../components/ui";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { useAuth } from "../hooks/useAuth";
 import { TEAM_NAMES } from "../lib/constants";
-import { formatDate } from "../lib/utils";
+import { formatDate, compareGamesDesc } from "../lib/utils";
 
 export function GameList({ games, players, navigate, currentSeason, seasons, currentSeasonId, allGames, tournaments }) {
   const { isAdmin } = useAuth();
@@ -25,7 +25,7 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
   }, [seasonFilter, allGames, games, currentSeasonId]);
 
   const filtered = useMemo(() => {
-    let result = [...sourceGames].sort((a, b) => new Date(b.date) - new Date(a.date));
+    let result = [...sourceGames].sort(compareGamesDesc);
     if (winnerFilter !== "all") result = result.filter((g) => g.winner === winnerFilter);
     if (playerFilter !== "all") result = result.filter((g) => g.players.some((p) => p.playerId === playerFilter));
     if (tournamentFilter === "__none__") result = result.filter((g) => !g.tournamentId);

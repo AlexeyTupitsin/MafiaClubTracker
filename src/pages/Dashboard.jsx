@@ -43,7 +43,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
     if (eligible.length === 0) return null;
     const top = eligible.reduce((best, r) => (r.avgScore > best.avgScore ? r : best));
     const player = players.find((p) => p.id === top.id);
-    return { ...top, avatarUrl: player?.avatarUrl };
+    return { ...top, avatarUrl: player?.avatarUrl, elo: player?.eloGames > 0 ? player.elo : null };
   }, [ratingData, threshold, players]);
 
   const mvpPlayer = useMemo(() => {
@@ -51,7 +51,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
     if (eligible.length === 0) return null;
     const top = eligible.reduce((best, r) => (r.avgBonus > best.avgBonus ? r : best));
     const player = players.find((p) => p.id === top.id);
-    return { ...top, avatarUrl: player?.avatarUrl };
+    return { ...top, avatarUrl: player?.avatarUrl, elo: player?.eloGames > 0 ? player.elo : null };
   }, [ratingData, threshold, players]);
 
   const nominationLeaders = useMemo(() => {
@@ -69,6 +69,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
         id: top.playerId,
         nickname: top.nickname,
         avatarUrl: player?.avatarUrl,
+        elo: player?.eloGames > 0 ? player.elo : null,
         totalGames: top.games,
         wins: top.wins,
         winrate: top.winrate,

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { ArrowLeft, Check, Users, X, AlertTriangle, Shield, Sword, Loader, Scale } from "lucide-react";
 import { Badge, PlayerSelect } from "../components/ui";
 import { ROLE_NAMES, ROLE_OPTIONS, ROLE_REQUIRED, ROLE_BADGE_VARIANT, RESULT_NAMES } from "../lib/constants";
-import { getTeam } from "../lib/utils";
+import { getTeam, compareGamesDesc } from "../lib/utils";
 import { createGame, updateGame, createTournament } from "../lib/queries";
 
 export function GameForm({ players, games, currentSeasonId, currentSeason, navigate, editingGame, showToast, refreshGames, refreshAllGames, tournaments, refreshTournaments }) {
@@ -380,7 +380,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
             {!editingGame && games.length > 0 && (
               <button
                 onClick={() => {
-                  const lastGame = [...games].sort((a, b) => b.gameNumber - a.gameNumber)[0];
+                  const lastGame = [...games].sort(compareGamesDesc)[0];
                   if (!lastGame) return;
                   const sorted = [...lastGame.players].sort((a, b) => a.seat - b.seat);
                   setSeats(sorted.map((p) => ({ seat: p.seat, playerId: p.playerId })));

@@ -41,7 +41,9 @@ create table players (
   real_name  text,
   is_active  boolean not null default true,
   created_at timestamptz not null default now(),
-  avatar_url text
+  avatar_url text,
+  elo        numeric not null default 1000,
+  elo_games  integer not null default 0
 );
 
 -- Турниры (привязаны к сезону)
@@ -84,9 +86,17 @@ create table game_players (
   bonus_score   numeric not null default 0,
   bonus_comment text,
   total_score   numeric not null default 0,
+  -- ELO: заполняется пересчётом из приложения (Настройки → Пересчитать ELO)
+  elo_before    numeric,
+  elo_expected  numeric,
+  elo_k         integer,
+  elo_delta     numeric,
+  elo_after     numeric,
   unique (game_id, seat),
   unique (game_id, player_id)
 );
+
+create index game_players_elo_idx on game_players (player_id) where elo_after is not null;
 
 -- ---------------------------------------------------------------------
 -- Функция проверки роли админа (используется в RLS-политиках)

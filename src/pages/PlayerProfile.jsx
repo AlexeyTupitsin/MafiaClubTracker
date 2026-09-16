@@ -4,7 +4,10 @@ import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Ba
 import { Badge, StatCard, EmptyState, PlayerAvatar } from "../components/ui";
 import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate, calcRoleKillRate, calcBestMoveStats } from "../lib/metrics";
 import { ROLE_NAMES, ROLE_BADGE_VARIANT, RESULT_NAMES, ROLE_COLORS } from "../lib/constants";
-import { formatDate } from "../lib/utils";
+import { formatDate, compareGamesDesc } from "../lib/utils";
+import { playerEloHistory } from "../lib/elo";
+import { EloCell } from "../components/EloCell";
+import { EloSparkline } from "../components/EloSparkline";
 
 function Section({ title, defaultOpen = true, children }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -128,10 +131,28 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
   }, [player.id, activeGames, players]);
 
   // Game history
+  // ELO сквозной: история строится по всем играм независимо от фильтра периода
+  const eloHistory = useMemo(
+    () => playerEloHistory(player.id, allGames),
+    [player.id, allGames]
+  );
+
+  const eloSummary = useMemo(() => {
+    if (eloHistory.length === 0) return null;
+    const current = eloHistory[eloHistory.length - 1].eloAfter;
+    const recent = eloHistory.slice(-10);
+    return {
+      current: Math.round(current),
+      recentCount: recent.length,
+      recentDelta: Math.round(current - recent[0].eloBefore),
+      peak: Math.round(Math.max(...eloHistory.map((h) => h.eloAfter))),
+    };
+  }, [eloHistory]);
+
   const gameHistory = useMemo(() => {
     return activeGames
       .filter((g) => g.players.some((p) => p.playerId === player.id))
-      .sort((a, b) => b.date.localeCompare(a.date))
+      .sort(compareGamesDesc)
       .map((g) => {
         const gp = g.players.find((p) => p.playerId === player.id);
         return { game: g, ...gp };
@@ -207,6 +228,18 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
 
         {/* Stat cards */}
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-4">
+          {eloSummary && (
+            <StatCard label="ELO" value={
+              <span className="inline-flex items-baseline gap-1.5">
+                {eloSummary.current}
+                {eloSummary.recentDelta !== 0 && (
+                  <span className={`text-xs ${eloSummary.recentDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {eloSummary.recentDelta > 0 ? "+" : ""}{eloSummary.recentDelta}
+                  </span>
+                )}
+              </span>
+            } />
+          )}
           <StatCard label="Игры" value={stats.totalGames} />
           <StatCard label="Победы" value={stats.wins} />
           {stats.draws > 0 && (
@@ -276,6 +309,35 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
           </div>
         )}
       </Section>
+
+      {/* Динамика ELO */}
+      {eloSummary && eloHistory.length > 1 && (
+        <Section title="Динамика ELO" defaultOpen={true}>
+          <div className="glass-card rounded-2xl p-4 mb-4">
+            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 mb-3">
+              <span className="text-sm text-slate-400">
+                Текущий: <span className="text-lg font-semibold text-slate-200">{eloSummary.current}</span>
+              </span>
+              <span className="text-sm text-slate-400">
+                Пик: <span className="text-slate-200">{eloSummary.peak}</span>
+              </span>
+              <span className="text-sm text-slate-400">
+                За последние {eloSummary.recentCount}:{" "}
+                <span className={
+                  eloSummary.recentDelta > 0 ? "text-emerald-400" :
+                  eloSummary.recentDelta < 0 ? "text-red-400" : "text-slate-200"
+                }>
+                  {eloSummary.recentDelta > 0 ? "+" : ""}{eloSummary.recentDelta}
+                </span>
+              </span>
+            </div>
+            <EloSparkline history={eloHistory} />
+            <p className="text-xs text-slate-500 mt-2">
+              Рейтинг сквозной по всем сезонам — фильтр периода на него не влияет.
+            </p>
+          </div>
+        </Section>
+      )}
 
       {/* Результативность */}
       <Section title="Результативность" defaultOpen={true}>
@@ -520,6 +582,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
                   <th className="text-center px-2 py-1.5 font-medium text-slate-400">База</th>
                   <th className="text-center px-2 py-1.5 font-medium text-slate-400">Бонус</th>
                   <th className="text-center px-2 py-1.5 font-medium text-slate-400">Итого</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-slate-400">ELO</th>
                 </tr>
               </thead>
               <tbody>
@@ -552,6 +615,9 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
                       )}
                     </td>
                     <td className="px-2 py-1.5 text-center font-semibold">{fmtScore(h.totalScore)}</td>
+                    <td className="px-2 py-1.5 text-center whitespace-nowrap">
+                      <EloCell game={h.game} gp={h} />
+                    </td>
                   </tr>
                 ))}
               </tbody>

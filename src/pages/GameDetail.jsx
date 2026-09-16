@@ -4,6 +4,7 @@ import { Badge, ConfirmDialog, EmptyState, PlayerAvatar } from "../components/ui
 import { ROLE_NAMES, TEAM_NAMES, RESULT_NAMES, ROLE_BADGE_VARIANT } from "../lib/constants";
 import { getTeam, formatDate } from "../lib/utils";
 import { AdminOnly } from "../components/auth/AuthGuard";
+import { EloCell } from "../components/EloCell";
 import { deleteGame } from "../lib/queries";
 
 export function GameDetail({ game, players, navigate, games, currentSeason, showToast, refreshGames, refreshAllGames, tournaments, goBack }) {
@@ -91,6 +92,7 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                 <th className="text-center px-3 py-2.5 font-medium text-slate-400" title="Базовый балл">База</th>
                 <th className="text-center px-3 py-2.5 font-medium text-slate-400" title="Дополнительный балл">Бонус</th>
                 <th className="text-center px-3 py-2.5 font-medium text-slate-400" title="Итоговый балл">Итого</th>
+                <th className="text-center px-3 py-2.5 font-medium text-slate-400" title="Рейтинг ELO после игры и его изменение">ELO</th>
                 <th className="text-left px-3 py-2.5 font-medium text-slate-400">Комментарий</th>
               </tr>
             </thead>
@@ -145,6 +147,9 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
                     </td>
                     <td className="px-3 py-2.5 text-center font-semibold">
                       {gp.totalScore % 1 === 0 ? gp.totalScore : gp.totalScore.toFixed(1)}
+                    </td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                      <EloCell game={game} gp={gp} />
                     </td>
                     <td className="px-3 py-2.5 text-slate-400 text-xs">{gp.bonusComment || ""}</td>
                   </tr>
