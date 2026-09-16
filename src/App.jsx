@@ -6,6 +6,7 @@ import { Toast, EmptyState } from "./components/ui";
 import { Sidebar } from "./components/layout/Sidebar";
 import { useAuth } from "./hooks/useAuth";
 import { AdminOnly } from "./components/auth/AuthGuard";
+import { hashToRoute, routeToHash } from "./lib/router";
 
 import { Dashboard } from "./pages/Dashboard";
 import { GameList } from "./pages/GameList";
@@ -29,38 +30,49 @@ export default function App() {
   const [tournaments, setTournaments] = useState([]);
   const [allTournaments, setAllTournaments] = useState([]);
   const [currentSeasonId, setCurrentSeasonId] = useState(null);
-  const [currentPage, setCurrentPage] = useState("dashboard");
-  const [selectedId, setSelectedId] = useState(null);
+  const [route, setRoute] = useState(() => hashToRoute(window.location.hash));
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [toast, setToast] = useState(null);
-  const [navStack, setNavStack] = useState([]);
+  const { page: currentPage, id: selectedId } = route;
 
   const showToast = useCallback((msg, type = "success") => {
     setToast({ message: msg, type });
   }, []);
 
-  const navigate = useCallback((page, id = null) => {
-    setNavStack(prev => {
-      const entry = { page: currentPage, id: selectedId };
-      const stack = [...prev, entry];
-      return stack.slice(-10); // limit to 10 entries
-    });
-    setCurrentPage(page);
-    setSelectedId(id);
-  }, [currentPage, selectedId]);
+  // Навигация живёт в истории браузера: работают свайп/кнопка «назад»,
+  // F5 и ссылки на конкретную страницу. depth в history.state — сколько
+  // наших записей позади, чтобы goBack не уводил с сайта.
+  useEffect(() => {
+    const depth = window.history.state?.depth ?? 0;
+    const { page, id } = hashToRoute(window.location.hash);
+    window.history.replaceState({ depth }, "", routeToHash(page, id));
+
+    const onPopState = () => setRoute(hashToRoute(window.location.hash));
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  // replace: заменить текущую запись (после сохранения/удаления, чтобы
+  // «назад» не возвращал в уже закрытую форму)
+  const navigate = useCallback((page, id = null, { replace = false } = {}) => {
+    const hash = routeToHash(page, id);
+    const depth = window.history.state?.depth ?? 0;
+    if (replace || hash === window.location.hash) {
+      window.history.replaceState({ depth }, "", hash);
+    } else {
+      window.history.pushState({ depth: depth + 1 }, "", hash);
+    }
+    setRoute({ page, id });
+  }, []);
 
   const goBack = useCallback(() => {
-    if (navStack.length > 0) {
-      const prev = navStack[navStack.length - 1];
-      setNavStack(s => s.slice(0, -1));
-      setCurrentPage(prev.page);
-      setSelectedId(prev.id);
+    if ((window.history.state?.depth ?? 0) > 0) {
+      window.history.back();
     } else {
-      setCurrentPage("dashboard");
-      setSelectedId(null);
+      navigate("dashboard", null, { replace: true });
     }
-  }, [navStack]);
+  }, [navigate]);
 
   // Refresh individual data sets from Supabase
   const refreshSeasons = useCallback(async () => {
@@ -125,8 +137,8 @@ export default function App() {
     setAllGames(all);
     const allT = await getAllTournaments();
     setAllTournaments(allT);
-    setCurrentPage("dashboard");
-  }, []);
+    navigate("dashboard", null, { replace: true });
+  }, [navigate]);
 
   // Load data on mount
   useEffect(() => {
@@ -244,6 +256,7 @@ export default function App() {
             seasons={seasons}
             currentSeasonId={currentSeasonId}
             allGames={allGames}
+            showToast={showToast}
           />
         );
       case "games":
@@ -300,6 +313,7 @@ export default function App() {
             navigate={navigate}
             allGames={allGames}
             tournaments={tournaments}
+            showToast={showToast}
           />
         );
       case "tournaments":

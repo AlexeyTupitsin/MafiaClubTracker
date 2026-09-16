@@ -6,6 +6,8 @@ import { getTeam, formatDate } from "../lib/utils";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { EloCell } from "../components/EloCell";
 import { deleteGame } from "../lib/queries";
+import { ShareImageButton } from "../components/share/ShareImageButton";
+import { renderGameCard } from "../lib/shareImage/gameCard";
 
 export function GameDetail({ game, players, navigate, games, currentSeason, showToast, refreshGames, refreshAllGames, tournaments, goBack }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -32,7 +34,7 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
       await refreshGames();
       await refreshAllGames();
       showToast?.(`Игра #${num} удалена`);
-      navigate("games");
+      navigate("games", null, { replace: true });
     } catch (err) {
       console.error("Failed to delete game:", err);
       showToast?.("Ошибка удаления: " + (err.message || "неизвестная ошибка"), "error");
@@ -50,6 +52,21 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
     return { seat, gp, player, isBlack };
   });
   const bestMoveCorrectCount = bestMoveDetails.filter((e) => e.isBlack).length;
+  const tournamentName = (tournaments || []).find((t) => t.id === game.tournamentId)?.name ?? null;
+
+  const renderShareImage = () => renderGameCard({
+    gameNumber: game.gameNumber,
+    date: formatDate(game.date),
+    tournamentName,
+    winner: game.winner,
+    rows: sortedPlayers.map((gp) => ({
+      ...gp,
+      nickname: players.find((p) => p.id === gp.playerId)?.nickname ?? "?",
+    })),
+    firstKilledNickname: firstKilledPlayer?.nickname ?? null,
+    bestMoveSeats,
+    hasElo: sortedPlayers.some((gp) => gp.eloDelta != null),
+  });
 
   return (
     <div>
@@ -63,6 +80,13 @@ export function GameDetail({ game, players, navigate, games, currentSeason, show
         <Badge variant={game.winner === "red" ? "red" : game.winner === "draw" ? "yellow" : "black"}>
           {game.winner === "draw" ? "Ничья" : `${TEAM_NAMES[game.winner]} победили`}
         </Badge>
+        <ShareImageButton
+          className="ml-auto"
+          render={renderShareImage}
+          fileName={`iron-maf-game-${game.gameNumber}.png`}
+          title={`Игра #${game.gameNumber}`}
+          showToast={showToast}
+        />
       </div>
       <p className="text-sm text-slate-400 mb-1 ml-11">{formatDate(game.date)}</p>
       {game.tournamentId && (() => {

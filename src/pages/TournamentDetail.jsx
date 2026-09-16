@@ -6,6 +6,8 @@ import { NOMINATION_CONFIG, TEAM_NAMES, MEDAL_ICON } from "../lib/constants";
 import { formatDate, compareGamesDesc } from "../lib/utils";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { deleteTournament } from "../lib/queries";
+import { ShareImageButton } from "../components/share/ShareImageButton";
+import { renderTournamentCard } from "../lib/shareImage/tournamentCard";
 
 export function TournamentDetail({
   tournament, allGames, players, navigate, seasons, goBack,
@@ -76,6 +78,22 @@ export function TournamentDetail({
     return result;
   }, [tournamentGames, players]);
 
+  const renderShareImage = () => renderTournamentCard({
+    name: tournament.name,
+    date: formatDate(tournament.date),
+    totalGames,
+    redWins,
+    blackWins,
+    draws,
+    rows: ratingData.slice(0, 10).map((row) => ({
+      ...row,
+      avatarUrl: players.find((p) => p.id === row.id)?.avatarUrl ?? null,
+    })),
+    bestByRole: ["citizen", "sheriff", "mafia", "don"]
+      .filter((role) => nominations[role]?.length > 0)
+      .map((role) => ({ role, nickname: nominations[role][0].nickname })),
+  });
+
   const handleDelete = async () => {
     try {
       await deleteTournament(tournament.id);
@@ -102,10 +120,19 @@ export function TournamentDetail({
         <button onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
-        <div>
+        <div className="min-w-0">
           <h2 className="text-xl font-bold gradient-text">{tournament.name}</h2>
           <p className="text-sm text-slate-400">{formatDate(tournament.date)}</p>
         </div>
+        {totalGames > 0 && (
+          <ShareImageButton
+            className="ml-auto shrink-0"
+            render={renderShareImage}
+            fileName={`iron-maf-tournament-${String(tournament.date).slice(0, 10)}.png`}
+            title={`Итоги: ${tournament.name}`}
+            showToast={showToast}
+          />
+        )}
       </div>
 
       {tournament.notes && (

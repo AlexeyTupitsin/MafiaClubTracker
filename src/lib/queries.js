@@ -1,4 +1,4 @@
-import { getAccessToken } from './supabase';
+import { getAccessToken, hasUserSession, isAccessTokenExpiring, refreshAccessToken } from './supabase';
 import { replayElo, ELO_START } from './elo';
 
 // ============================================================
@@ -8,14 +8,43 @@ import { replayElo, ELO_START } from './elo';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_PROXY_URL || import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+/**
+ * fetch с токеном текущего пользователя. Истекающий токен обновляется заранее,
+ * а на 401 — обновляется и запрос повторяется один раз.
+ */
+async function authFetch(url, { headers = {}, ...init } = {}) {
+  if (isAccessTokenExpiring()) await refreshAccessToken();
+
+  const send = () => fetch(url, {
+    ...init,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${getAccessToken()}`,
+      ...headers,
+    },
+  });
+
+  let res = await send();
+  if (res.status === 401 && hasUserSession()) {
+    const token = await refreshAccessToken();
+    if (!token) throw new Error('Сессия истекла — войдите заново');
+    res = await send();
+  }
+  return res;
+}
+
+async function apiError(res) {
+  const body = await res.json().catch(() => ({ message: res.statusText }));
+  const error = new Error(body.message || body.error || `HTTP ${res.status}`);
+  error.status = res.status;
+  error.code = body.code;
+  return error;
+}
+
 async function rest(path, options = {}) {
   const { method = 'GET', body, headers: extra = {}, single = false } = options;
 
-  const token = getAccessToken();
-
   const headers = {
-    'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
     'Prefer': method === 'POST' ? 'return=representation' :
               method === 'PATCH' ? 'return=representation' :
@@ -26,16 +55,13 @@ async function rest(path, options = {}) {
   // Remove undefined headers
   Object.keys(headers).forEach(k => headers[k] === undefined && delete headers[k]);
 
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const res = await authFetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || err.error || `HTTP ${res.status}`);
-  }
+  if (!res.ok) throw await apiError(res);
 
   if (method === 'DELETE' && !options.returning) return null;
 
@@ -217,21 +243,13 @@ export async function uploadPlayerAvatar(playerId, file) {
   const ext = extMap[file.type] || 'jpg';
   const path = `${playerId}/${Date.now()}.${ext}`;
 
-  const token = getAccessToken();
-  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
+  const res = await authFetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
     method: 'POST',
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': file.type,
-    },
+    headers: { 'Content-Type': file.type },
     body: file,
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || `Upload failed: HTTP ${res.status}`);
-  }
+  if (!res.ok) throw await apiError(res);
 
   return `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
 }
@@ -242,14 +260,7 @@ export async function deletePlayerAvatar(avatarUrl) {
   const path = avatarUrl.startsWith(prefix) ? avatarUrl.slice(prefix.length) : null;
   if (!path) return;
 
-  const token = getAccessToken();
-  await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
-    method: 'DELETE',
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
+  await authFetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, { method: 'DELETE' });
   // Игнорируем ошибки — файл мог уже не существовать
 }
 
@@ -330,15 +341,6 @@ export async function recalcElo() {
 
       gamePlayerRows.push({
         id: gp.id,
-        game_id: game.id,
-        player_id: gp.playerId,
-        seat: gp.seat,
-        role: gp.role,
-        result: gp.result,
-        base_score: gp.baseScore,
-        bonus_score: gp.bonusScore,
-        bonus_comment: gp.bonusComment || null,
-        total_score: gp.totalScore,
         elo_before: elo.eloBefore,
         elo_expected: elo.expected,
         elo_k: elo.k,
@@ -348,25 +350,56 @@ export async function recalcElo() {
     }
   }
 
-  await upsertRows('game_players', gamePlayerRows);
-
-  // players: upsert требует все NOT NULL колонки, поэтому кладём строку целиком
   const playerRows = players.map((p) => {
     const f = final.get(p.id);
     return {
       id: p.id,
-      nickname: p.nickname,
-      real_name: p.realName || null,
-      is_active: p.isActive !== false,
-      avatar_url: p.avatarUrl || null,
       elo: f?.elo ?? ELO_START,
       elo_games: f?.eloGames ?? 0,
     };
   });
 
-  await upsertRows('players', playerRows);
+  try {
+    // Одна транзакция: рейтинг не останется пересчитанным наполовину
+    await rest('rpc/apply_elo', {
+      method: 'POST',
+      body: { p_game_players: gamePlayerRows, p_players: playerRows },
+      headers: { 'Prefer': 'return=minimal' },
+    });
+  } catch (err) {
+    if (!isMissingRpc(err)) throw err;
+    console.warn('apply_elo не найдена — примените миграцию 003_atomic_writes.sql');
+    await applyEloLegacy(games, players, gamePlayerRows, playerRows);
+  }
 
   return { gamesProcessed: games.length, playersUpdated: playerRows.length };
+}
+
+// Функции из миграции 003 могут быть ещё не применены к базе
+function isMissingRpc(err) {
+  return err.code === 'PGRST202';
+}
+
+// Запись ELO без транзакции — только пока не применена миграция 003.
+// Upsert требует все NOT NULL колонки, поэтому строки собираются целиком.
+async function applyEloLegacy(games, players, gamePlayerRows, playerRows) {
+  const eloById = new Map(gamePlayerRows.map((r) => [r.id, r]));
+  const fullGamePlayerRows = games.flatMap((game) => game.players
+    .filter((gp) => eloById.has(gp.id))
+    .map((gp) => ({ ...toDbGamePlayer(gp, game.id), id: gp.id, ...eloById.get(gp.id) })));
+  await upsertRows('game_players', fullGamePlayerRows);
+
+  const playerById = new Map(players.map((p) => [p.id, p]));
+  await upsertRows('players', playerRows.map((r) => {
+    const p = playerById.get(r.id);
+    return {
+      ...r,
+      nickname: p.nickname,
+      real_name: p.realName || null,
+      is_active: p.isActive !== false,
+      avatar_url: p.avatarUrl || null,
+    };
+  }));
 }
 
 // ============================================================
@@ -383,28 +416,9 @@ export async function getAllGames() {
   return data.map(toFrontendGame);
 }
 
-export async function createGame(game, { recalc = true } = {}) {
-  // Insert game row
-  const gameRow = await rest('games', {
-    method: 'POST',
-    body: {
-      season_id: game.seasonId,
-      tournament_id: game.tournamentId || null,
-      game_number: game.gameNumber,
-      date: game.date,
-      winner: game.winner,
-      notes: game.notes || null,
-      first_killed: game.firstKilled || null,
-      best_move_seat_1: game.bestMoveSeat1 ?? null,
-      best_move_seat_2: game.bestMoveSeat2 ?? null,
-      best_move_seat_3: game.bestMoveSeat3 ?? null,
-    },
-    single: true,
-  });
-
-  // Insert game_players
-  const gpRows = game.players.map((p) => ({
-    game_id: gameRow.id,
+function toDbGamePlayer(p, gameId) {
+  return {
+    game_id: gameId,
     player_id: p.playerId,
     seat: p.seat,
     role: p.role,
@@ -413,56 +427,80 @@ export async function createGame(game, { recalc = true } = {}) {
     bonus_score: p.bonusScore,
     bonus_comment: p.bonusComment || null,
     total_score: p.totalScore,
-  }));
+  };
+}
 
-  await rest('game_players', { method: 'POST', body: gpRows });
+function toDbGameFields(game) {
+  return {
+    tournament_id: game.tournamentId || null,
+    date: game.date,
+    winner: game.winner,
+    notes: game.notes || null,
+    first_killed: game.firstKilled || null,
+    best_move_seat_1: game.bestMoveSeat1 ?? null,
+    best_move_seat_2: game.bestMoveSeat2 ?? null,
+    best_move_seat_3: game.bestMoveSeat3 ?? null,
+  };
+}
 
-  if (recalc) await recalcElo();
+/**
+ * Сохраняет игру с составом одной транзакцией (RPC save_game).
+ * Без id — создаёт новую. Возвращает id игры.
+ */
+async function saveGame(game) {
+  const gameRow = game.id
+    ? { id: game.id, ...toDbGameFields(game) }
+    : { season_id: game.seasonId, game_number: game.gameNumber, ...toDbGameFields(game) };
+  const playerRows = game.players.map((p) => toDbGamePlayer(p, game.id ?? null));
 
-  // Return full game with players
-  const full = await rest(`games?select=*,game_players(*)&id=eq.${gameRow.id}`, { single: true });
+  try {
+    return await rest('rpc/save_game', {
+      method: 'POST',
+      body: { p_game: gameRow, p_players: playerRows },
+    });
+  } catch (err) {
+    if (!isMissingRpc(err)) throw err;
+    console.warn('save_game не найдена — примените миграцию 003_atomic_writes.sql');
+    return saveGameLegacy(game);
+  }
+}
+
+// Сохранение без транзакции — только пока не применена миграция 003
+async function saveGameLegacy(game) {
+  let gameId = game.id;
+  if (gameId) {
+    await rest(`games?id=eq.${gameId}`, { method: 'PATCH', body: toDbGameFields(game) });
+    await rest(`game_players?game_id=eq.${gameId}`, { method: 'DELETE' });
+  } else {
+    const row = await rest('games', {
+      method: 'POST',
+      body: { season_id: game.seasonId, game_number: game.gameNumber, ...toDbGameFields(game) },
+      single: true,
+    });
+    gameId = row.id;
+  }
+  await rest('game_players', {
+    method: 'POST',
+    body: game.players.map((p) => toDbGamePlayer(p, gameId)),
+  });
+  return gameId;
+}
+
+async function getGame(gameId) {
+  const full = await rest(`games?select=*,game_players(*)&id=eq.${gameId}`, { single: true });
   return toFrontendGame(full);
 }
 
+export async function createGame(game, { recalc = true } = {}) {
+  const gameId = await saveGame({ ...game, id: undefined });
+  if (recalc) await recalcElo();
+  return getGame(gameId);
+}
+
 export async function updateGame(game) {
-  // Update game row
-  await rest(`games?id=eq.${game.id}`, {
-    method: 'PATCH',
-    body: {
-      tournament_id: game.tournamentId || null,
-      date: game.date,
-      winner: game.winner,
-      notes: game.notes || null,
-      first_killed: game.firstKilled || null,
-      best_move_seat_1: game.bestMoveSeat1 ?? null,
-      best_move_seat_2: game.bestMoveSeat2 ?? null,
-      best_move_seat_3: game.bestMoveSeat3 ?? null,
-    },
-  });
-
-  // Delete old game_players
-  await rest(`game_players?game_id=eq.${game.id}`, { method: 'DELETE' });
-
-  // Insert new game_players
-  const gpRows = game.players.map((p) => ({
-    game_id: game.id,
-    player_id: p.playerId,
-    seat: p.seat,
-    role: p.role,
-    result: p.result,
-    base_score: p.baseScore,
-    bonus_score: p.bonusScore,
-    bonus_comment: p.bonusComment || null,
-    total_score: p.totalScore,
-  }));
-
-  await rest('game_players', { method: 'POST', body: gpRows });
-
+  const gameId = await saveGame(game);
   await recalcElo();
-
-  // Return full game
-  const full = await rest(`games?select=*,game_players(*)&id=eq.${game.id}`, { single: true });
-  return toFrontendGame(full);
+  return getGame(gameId);
 }
 
 export async function deleteGame(gameId) {

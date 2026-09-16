@@ -3,8 +3,10 @@ import { Trophy, ChevronUp, ChevronDown } from "lucide-react";
 import { EmptyState } from "../components/ui";
 import { calcPlayerStats, calcExtendedNominations, calcKillRate, calcThreshold } from "../lib/metrics";
 import { NOMINATION_CONFIG, MEDAL_ICON, ROLE_NAMES } from "../lib/constants";
+import { ShareImageButton } from "../components/share/ShareImageButton";
+import { renderRatingCard } from "../lib/shareImage/ratingCard";
 
-export function Leaderboard({ games, players, seasons, currentSeasonId, navigate, allGames, tournaments }) {
+export function Leaderboard({ games, players, seasons, currentSeasonId, navigate, allGames, tournaments, showToast }) {
   const [seasonFilter, setSeasonFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [minGamesInput, setMinGamesInput] = useState("");
@@ -161,6 +163,21 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     ...(roleFilter === "all" ? [{ key: "killRate", label: "ПУ%", sortable: false, title: "Процент первых убийств" }] : []),
   ];
 
+  const renderShareImage = () => {
+    const sortColumn = columns.find((c) => c.key === sortCol);
+    return renderRatingCard({
+      periodName: selectedSeason?.name ?? "Все сезоны",
+      roleName: roleFilter === "all" ? null : ROLE_NAMES[roleFilter],
+      totalGames: ratingCalc.totalGamesInPeriod,
+      minGames: Math.max(showAll ? 0 : ratingCalc.minGames, minGamesFilter),
+      sortLabel: sortColumn ? `${sortColumn.label} ${sortDir === "asc" ? "↑" : "↓"}` : null,
+      rows: sorted.slice(0, 15).map((row) => ({
+        ...row,
+        avatarUrl: players.find((p) => p.id === row.id)?.avatarUrl ?? null,
+      })),
+    });
+  };
+
   const medalColors = ["text-yellow-400", "text-slate-400", "text-amber-600"];
   const renderRank = (idx) => (
     <span className="inline-flex justify-center w-full">
@@ -172,6 +189,14 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold gradient-text">Рейтинг</h2>
+        {sorted.length > 0 && (
+          <ShareImageButton
+            render={renderShareImage}
+            fileName={`iron-maf-rating-${new Date().toISOString().slice(0, 10)}.png`}
+            title="Рейтинг"
+            showToast={showToast}
+          />
+        )}
       </div>
 
       {/* Filters */}
