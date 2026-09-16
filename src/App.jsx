@@ -256,6 +256,7 @@ export default function App() {
             seasons={seasons}
             currentSeasonId={currentSeasonId}
             allGames={allGames}
+            showToast={showToast}
           />
         );
       case "games":

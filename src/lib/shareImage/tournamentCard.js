@@ -1,6 +1,6 @@
-import { ROLE_NAMES, ROLE_COLORS } from '../constants';
+import { NOMINATION_CONFIG, ROLE_COLORS } from '../constants';
 import {
-  COLORS, PAD, WIDTH, createCard, drawFooter, drawTable, drawText,
+  COLORS, PAD, WIDTH, createCard, drawFittedText, drawFooter, drawTable, drawText,
   font, formatNumber, loadPodiumAvatars,
 } from './canvas';
 
@@ -12,7 +12,10 @@ const COLUMNS = [
   { key: 'avg', label: 'Ср. балл', x: 896, width: 120, align: 'right', mono: true },
 ];
 
-const TILE_HEIGHT = 76;
+const NOMINATION_LABELS = Object.fromEntries(NOMINATION_CONFIG.map((n) => [n.role, n.label]));
+
+const TILE_HEIGHT = 50;
+const TILE_GAP = 10;
 
 function pluralGames(n) {
   const mod10 = n % 10;
@@ -44,27 +47,31 @@ function drawScoreLine(ctx, y, { totalGames, redWins, blackWins, draws }) {
   });
 }
 
-// Плитки прижаты к подвалу: высота таблицы зависит от числа игроков
+// Плитки 2×2 прижаты к подвалу: высота таблицы зависит от числа игроков
 function drawRoleTiles(ctx, bestByRole) {
   if (bestByRole.length === 0) return;
-  const gap = 16;
-  const tileWidth = (WIDTH - PAD * 2 - gap * 3) / 4;
-  const tilesTop = ctx.canvas.height - 124 - TILE_HEIGHT;
+  const tileWidth = (WIDTH - PAD * 2 - TILE_GAP) / 2;
+  const blockTop = ctx.canvas.height - 124 - (TILE_HEIGHT * 2 + TILE_GAP);
 
-  drawText(ctx, 'ЛУЧШИЕ ПО РОЛЯМ', PAD, tilesTop - 22, { font: font(600, 22), color: COLORS.textMuted });
   bestByRole.forEach(({ role, nickname }, i) => {
-    const x = PAD + i * (tileWidth + gap);
+    const x = PAD + (i % 2) * (tileWidth + TILE_GAP);
+    const y = blockTop + Math.floor(i / 2) * (TILE_HEIGHT + TILE_GAP);
+    const cy = y + TILE_HEIGHT / 2;
     ctx.fillStyle = 'rgba(99, 102, 241, 0.07)';
     ctx.beginPath();
-    ctx.roundRect(x, tilesTop, tileWidth, TILE_HEIGHT, 14);
+    ctx.roundRect(x, y, tileWidth, TILE_HEIGHT, 12);
     ctx.fill();
-    drawText(ctx, ROLE_NAMES[role], x + 18, tilesTop + 24, {
-      font: font(600, 22),
-      color: ROLE_COLORS[role],
-    });
-    drawText(ctx, nickname, x + 18, tilesTop + 53, {
-      font: font(700, 28),
-      maxWidth: tileWidth - 36,
+
+    const label = NOMINATION_LABELS[role];
+    ctx.font = font(600, 22);
+    const labelWidth = ctx.measureText(label).width;
+    drawText(ctx, label, x + 18, cy, { color: ROLE_COLORS[role] });
+    drawFittedText(ctx, nickname, x + tileWidth - 18, cy, {
+      weight: 700,
+      size: 28,
+      minSize: 18,
+      align: 'right',
+      maxWidth: tileWidth - labelWidth - 54,
     });
   });
 }
@@ -78,7 +85,7 @@ export async function renderTournamentCard({
 }) {
   const topRows = rows.slice(0, 10);
   const [{ canvas, ctx, top }, avatars] = await Promise.all([
-    createCard({ kind: 'Итоги вечера', title: name, subtitle: date }),
+    createCard({ kind: 'Итоги турнира', title: name, subtitle: date }),
     loadPodiumAvatars(topRows),
   ]);
 

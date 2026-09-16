@@ -128,7 +128,7 @@ export function TournamentDetail({
           <ShareImageButton
             className="ml-auto shrink-0"
             render={renderShareImage}
-            fileName={`iron-maf-evening-${String(tournament.date).slice(0, 10)}.png`}
+            fileName={`iron-maf-tournament-${String(tournament.date).slice(0, 10)}.png`}
             title={`Итоги: ${tournament.name}`}
             showToast={showToast}
           />

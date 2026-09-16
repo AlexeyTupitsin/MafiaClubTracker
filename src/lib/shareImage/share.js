@@ -17,9 +17,10 @@ export function canShareFile(file) {
   }
 }
 
-export async function shareFile(file, title) {
+// Только файл: title/text мессенджеры вставляют подписью к картинке
+export async function shareFile(file) {
   try {
-    await navigator.share({ files: [file], title });
+    await navigator.share({ files: [file] });
     return 'shared';
   } catch (err) {
     if (err?.name === 'AbortError') return 'cancelled';

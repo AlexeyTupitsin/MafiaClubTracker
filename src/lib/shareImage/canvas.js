@@ -85,6 +85,20 @@ export function drawText(ctx, text, x, y, { font: f, color = COLORS.text, align 
   ctx.fillText(fitText(ctx, text, maxWidth), x, y);
 }
 
+/**
+ * Текст, который уменьшается до minSize, чтобы влезть в maxWidth,
+ * и только потом обрезается с «…». Для ников и заголовков.
+ */
+export function drawFittedText(ctx, text, x, y, { weight, size, minSize = Math.round(size * 0.65), maxWidth, color, align }) {
+  let current = size;
+  ctx.font = font(weight, current);
+  while (current > minSize && ctx.measureText(String(text ?? '')).width > maxWidth) {
+    current -= 1;
+    ctx.font = font(weight, current);
+  }
+  drawText(ctx, text, x, y, { color, align, maxWidth });
+}
+
 function drawImageCover(ctx, image, x, y, size) {
   const scale = Math.max(size / image.naturalWidth, size / image.naturalHeight);
   const w = image.naturalWidth * scale;
@@ -194,7 +208,7 @@ export async function createCard({ kind, title, subtitle, height = HEIGHT }) {
 
   drawDivider(ctx, 184);
 
-  drawText(ctx, title, PAD, 248, { font: font(700, 58), maxWidth: WIDTH - PAD * 2 });
+  drawFittedText(ctx, title, PAD, 248, { weight: 700, size: 58, minSize: 40, maxWidth: WIDTH - PAD * 2 });
   let top = 296;
   if (subtitle) {
     drawText(ctx, subtitle, PAD, 312, {
@@ -299,8 +313,10 @@ export function drawTable(ctx, { top, columns, rows, rowHeight = 62, podiumHeigh
           x += PODIUM_AVATAR + 20;
           width -= PODIUM_AVATAR + 20;
         }
-        drawText(ctx, row.nickname, x, cy, {
-          font: podium ? font(700, 38) : font(600, 32),
+        drawFittedText(ctx, row.nickname, x, cy, {
+          weight: podium ? 700 : 600,
+          size: podium ? 38 : 32,
+          minSize: podium ? 24 : 22,
           color: col.color?.(row) ?? COLORS.text,
           maxWidth: width,
         });
@@ -309,7 +325,7 @@ export function drawTable(ctx, { top, columns, rows, rowHeight = 62, podiumHeigh
 
       drawText(ctx, row[col.key] ?? '', cellX(col), cy, {
         font: col.mono
-          ? font(podium ? 700 : 500, podium ? 34 : 30, true)
+          ? font(podium ? 700 : 500, podium ? 32 : 30, true)
           : font(podium ? 700 : 600, podium ? 32 : 28),
         color: col.color?.(row) ?? COLORS.text,
         align: col.align || 'left',
@@ -323,10 +339,12 @@ export function drawTable(ctx, { top, columns, rows, rowHeight = 62, podiumHeigh
   return y;
 }
 
-// 1.50 → «1.5», 2 → «2», null → «—»
+// Баллы всегда с двумя знаками: 1.5 → «1.50»; отрицательные — с настоящим минусом
 export function formatNumber(value, digits = 2) {
   if (value == null || Number.isNaN(value)) return '—';
-  return String(Number(Number(value).toFixed(digits)));
+  const n = Number(value);
+  const text = Math.abs(n).toFixed(digits);
+  return n < 0 && Number(text) !== 0 ? `−${text}` : text;
 }
 
 // Аватары для «подиума» — первые три строки таблицы

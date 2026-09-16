@@ -7,8 +7,21 @@ import { CLUB_NAME } from "../lib/clubConfig";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { useAuth } from "../hooks/useAuth";
 import { PlayerHeroCard } from "../components/PlayerHeroCard";
+import { ShareImageButton } from "../components/share/ShareImageButton";
+import { renderRatingCard } from "../lib/shareImage/ratingCard";
 
-export function Dashboard({ games, players, navigate, currentSeason, seasons, currentSeasonId, allGames }) {
+// Подписи колонок таблицы — для строки «Сортировка: …» на картинке
+const SORT_LABELS = {
+  nickname: "Ник",
+  totalGames: "Игры",
+  wins: "Побед",
+  winrate: "WR%",
+  totalScore: "Баллы",
+  avgScore: "Ср. балл",
+  avgBonus: "Ср. доп.",
+};
+
+export function Dashboard({ games, players, navigate, currentSeason, seasons, currentSeasonId, allGames, showToast }) {
   const { isAdmin } = useAuth();
   const hasPlayers = players.length > 0;
   const [showAll, setShowAll] = useState(false);
@@ -99,6 +112,25 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
     return sortDir === "asc"
       ? <ChevronUp size={14} className="inline ml-0.5" />
       : <ChevronDown size={14} className="inline ml-0.5" />;
+  };
+
+  const renderShareImage = () => {
+    const sortLabel = SORT_LABELS[sortCol];
+    return renderRatingCard({
+      periodName: currentSeason?.name ?? "Рейтинг",
+      roleName: null,
+      totalGames: games.length,
+      minGames: showAll ? 0 : threshold,
+      sortLabel: sortLabel ? `${sortLabel} ${sortDir === "asc" ? "↑" : "↓"}` : null,
+      rows: filteredRating.slice(0, 15).map((row) => {
+        const player = players.find((p) => p.id === row.id);
+        return {
+          ...row,
+          avatarUrl: player?.avatarUrl ?? null,
+          elo: player?.eloGames > 0 ? player.elo : null,
+        };
+      }),
+    });
   };
 
   const medalColors = ["text-yellow-400", "text-slate-400", "text-amber-600"];
@@ -198,6 +230,14 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-indigo-50">Рейтинг</h3>
               <div className="flex items-center gap-2">
+                {filteredRating.length > 0 && (
+                  <ShareImageButton
+                    render={renderShareImage}
+                    fileName={`iron-maf-rating-${new Date().toISOString().slice(0, 10)}.png`}
+                    title="Рейтинг"
+                    showToast={showToast}
+                  />
+                )}
                 {hasBelowThreshold && (
                   <button onClick={() => setShowAll(!showAll)}
                     className="text-xs text-indigo-400 hover:text-indigo-300 cursor-pointer">

@@ -5,11 +5,12 @@ import {
 
 const COLUMNS = [
   { key: 'place', label: '#', x: PAD, width: 56, align: 'center' },
-  { key: 'nickname', label: 'Игрок', x: 136, width: 400 },
-  { key: 'games', label: 'Игры', x: 550, width: 100, align: 'right', mono: true },
-  { key: 'winrate', label: 'WR', x: 666, width: 110, align: 'right', mono: true },
-  { key: 'avg', label: 'Ср. балл', x: 792, width: 110, align: 'right', mono: true },
-  { key: 'elo', label: 'ELO', x: 918, width: 98, align: 'right', mono: true, color: () => COLORS.accentLight },
+  { key: 'nickname', label: 'Игрок', x: 136, width: 356 },
+  { key: 'games', label: 'Игры', x: 500, width: 86, align: 'right', mono: true },
+  { key: 'winrate', label: 'WR', x: 596, width: 90, align: 'right', mono: true },
+  { key: 'avg', label: 'Ср. балл', x: 696, width: 108, align: 'right', mono: true },
+  { key: 'bonus', label: 'Ср. доп.', x: 814, width: 108, align: 'right', mono: true },
+  { key: 'elo', label: 'ELO', x: 930, width: 86, align: 'right', mono: true, color: () => COLORS.accentLight },
 ];
 
 const MAX_ROWS = 15;
@@ -27,7 +28,7 @@ function cardHeight(rowCount) {
 }
 
 /**
- * rows: строки в порядке страницы { nickname, avatarUrl, totalGames, winrate, avgScore, elo }.
+ * rows: строки в порядке страницы { nickname, avatarUrl, totalGames, winrate, avgScore, avgBonus, elo }.
  */
 export async function renderRatingCard({ periodName, roleName, totalGames, minGames, sortLabel, rows }) {
   const topRows = rows.slice(0, MAX_ROWS);
@@ -54,6 +55,7 @@ export async function renderRatingCard({ periodName, roleName, totalGames, minGa
       games: String(r.totalGames),
       winrate: `${Math.round(r.winrate ?? 0)}%`,
       avg: formatNumber(r.avgScore),
+      bonus: formatNumber(r.avgBonus),
       elo: r.elo == null ? '—' : String(Math.round(r.elo)),
     })),
     rowHeight: ROW_HEIGHT,

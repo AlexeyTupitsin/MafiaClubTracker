@@ -38,7 +38,7 @@ export function ShareImageButton({ render, fileName, title, showToast, className
 
   const handleShare = async () => {
     try {
-      const result = await shareFile(image.file, title);
+      const result = await shareFile(image.file);
       if (result === "shared") close();
     } catch (err) {
       fail(err);
@@ -54,10 +54,9 @@ export function ShareImageButton({ render, fileName, title, showToast, className
         disabled={busy}
         title="Картинка для отправки"
         aria-label="Картинка для отправки"
-        className={`btn-ghost flex items-center gap-1.5 px-3 py-2 text-sm cursor-pointer disabled:opacity-60 disabled:cursor-wait ${className}`}
+        className={`btn-ghost flex items-center justify-center p-2 cursor-pointer disabled:opacity-60 disabled:cursor-wait ${className}`}
       >
         {busy ? <Loader size={16} className="animate-spin" /> : <Share2 size={16} />}
-        <span className="hidden sm:inline">Картинка</span>
       </button>
 
       {image && (
