@@ -3,7 +3,7 @@ import { ArrowLeft, Pencil, Trash2, Award, Sword } from "lucide-react";
 import { StatCard, Badge, ConfirmDialog, EmptyState } from "../components/ui";
 import { calcPlayerStats, calcKillRate } from "../lib/metrics";
 import { NOMINATION_CONFIG, TEAM_NAMES, MEDAL_ICON } from "../lib/constants";
-import { formatDate } from "../lib/utils";
+import { formatDate, compareGamesDesc } from "../lib/utils";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { deleteTournament } from "../lib/queries";
 
@@ -257,7 +257,7 @@ export function TournamentDetail({
                 </tr>
               </thead>
               <tbody>
-                {[...tournamentGames].sort((a, b) => a.gameNumber - b.gameNumber).map((g) => (
+                {[...tournamentGames].sort(compareGamesDesc).map((g) => (
                   <tr key={g.id} className="border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5 cursor-pointer"
                     onClick={() => navigate("gameDetail", g.id)}>
                     <td className="px-2 py-2 text-center font-medium">#{g.gameNumber}</td>
