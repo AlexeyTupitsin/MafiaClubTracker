@@ -256,6 +256,7 @@ export default function App() {
             seasons={seasons}
             currentSeasonId={currentSeasonId}
             allGames={allGames}
+            showToast={showToast}
           />
         );
       case "games":
@@ -312,6 +313,7 @@ export default function App() {
             navigate={navigate}
             allGames={allGames}
             tournaments={tournaments}
+            showToast={showToast}
           />
         );
       case "tournaments":
