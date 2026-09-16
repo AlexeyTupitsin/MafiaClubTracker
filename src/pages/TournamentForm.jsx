@@ -43,7 +43,7 @@ export function TournamentForm({
         showToast?.(`Турнир "${t.name}" создан`);
         await refreshTournaments?.();
         await refreshAllTournaments?.();
-        navigate("tournamentDetail", t.id);
+        navigate("tournamentDetail", t.id, { replace: true });
       }
     } catch (err) {
       showToast?.("Ошибка: " + (err.message || "неизвестная ошибка"), "error");

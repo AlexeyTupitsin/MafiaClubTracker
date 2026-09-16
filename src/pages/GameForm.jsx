@@ -248,7 +248,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
         await refreshGames();
         await refreshAllGames();
         showToast?.("Игра обновлена");
-        navigate("gameDetail", editingGame.id);
+        navigate("gameDetail", editingGame.id, { replace: true });
       } else {
         const gameNumber = games.reduce((max, g) => Math.max(max, g.gameNumber), 0) + 1;
         await createGame({
@@ -268,7 +268,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
         await refreshAllGames();
         localStorage.removeItem(DRAFT_KEY);
         showToast?.(`Игра #${gameNumber} сохранена`);
-        navigate("games");
+        navigate("games", null, { replace: true });
       }
     } catch (err) {
       console.error("Failed to save game:", err);
