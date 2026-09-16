@@ -66,4 +66,5 @@ export const ELO_CONFIG = {
   kNew: 40,             // k для игроков, сыгравших <= newPlayerGames рейтинговых игр
   kNormal: 20,          // k для всех остальных
   newPlayerGames: 30,
+  meanBonus: 0.17,      // обычный доп. балл за игру (среднее по истории клуба), вычитается из S_A
 };

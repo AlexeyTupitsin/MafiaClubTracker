@@ -21,7 +21,7 @@ export function PlayerHeroCard({ title, player, navigate }) {
               <span>Ср.: <span className="text-slate-200 font-data">{player.avgScore.toFixed(2)}</span></span>
               <span>Доп.: <span className={`font-data ${player.avgBonus > 0 ? "text-emerald-400" : player.avgBonus < 0 ? "text-red-400" : "text-slate-200"}`}>{player.avgBonus > 0 ? "+" : ""}{player.avgBonus.toFixed(2)}</span></span>
               {player.elo != null && (
-                <span>ELO: <span className="text-slate-200 font-data">{player.elo}</span></span>
+                <span>ELO: <span className="text-slate-200 font-data">{Math.round(player.elo)}</span></span>
               )}
             </div>
           </div>

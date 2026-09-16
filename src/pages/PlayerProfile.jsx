@@ -4,7 +4,7 @@ import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Ba
 import { Badge, StatCard, EmptyState, PlayerAvatar } from "../components/ui";
 import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate, calcRoleKillRate, calcBestMoveStats } from "../lib/metrics";
 import { ROLE_NAMES, ROLE_BADGE_VARIANT, RESULT_NAMES, ROLE_COLORS } from "../lib/constants";
-import { formatDate } from "../lib/utils";
+import { formatDate, compareGamesDesc } from "../lib/utils";
 import { playerEloHistory } from "../lib/elo";
 import { EloCell } from "../components/EloCell";
 import { EloSparkline } from "../components/EloSparkline";
@@ -142,17 +142,17 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
     const current = eloHistory[eloHistory.length - 1].eloAfter;
     const recent = eloHistory.slice(-10);
     return {
-      current,
+      current: Math.round(current),
       recentCount: recent.length,
-      recentDelta: current - recent[0].eloBefore,
-      peak: Math.max(...eloHistory.map((h) => h.eloAfter)),
+      recentDelta: Math.round(current - recent[0].eloBefore),
+      peak: Math.round(Math.max(...eloHistory.map((h) => h.eloAfter))),
     };
   }, [eloHistory]);
 
   const gameHistory = useMemo(() => {
     return activeGames
       .filter((g) => g.players.some((p) => p.playerId === player.id))
-      .sort((a, b) => b.date.localeCompare(a.date))
+      .sort(compareGamesDesc)
       .map((g) => {
         const gp = g.players.find((p) => p.playerId === player.id);
         return { game: g, ...gp };

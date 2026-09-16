@@ -1,10 +1,10 @@
 import { ELO_CONFIG } from "./constants";
-import { getTeam } from "./utils";
+import { getTeam, compareGamesAsc } from "./utils";
 
 // ELO-рейтинг игроков.
 //
 //   E_A  = 1 / (1 + 10 ^ ((R_B - R_A) / 400))
-//   R_A' = R_A + k * (S_A - E_A)
+//   R_A' = R_A + k * (S_A - E_A - B)
 //
 // Классическая логистическая кривая: E_A монотонна и всегда лежит в (0; 1),
 // диапазон не ограничивается искусственно.
@@ -12,11 +12,19 @@ import { getTeam } from "./utils";
 // R_A — средний рейтинг своей команды (включая самого игрока),
 // R_B — средний рейтинг команды соперника, оба на момент игры.
 // S_A — фактически набранные в игре баллы (totalScore = база + доп.).
+// B   — обычный доп. балл (ELO_CONFIG.meanBonus): без этой поправки рейтинг
+//       рос бы у всех просто от количества сыгранных игр.
 //
 // Рейтинг сквозной по всем сезонам, пересчитывается прогоном всей истории
 // в хронологическом порядке (см. replayElo).
 
 export const ELO_START = ELO_CONFIG.start;
+export const ELO_MEAN_BONUS = ELO_CONFIG.meanBonus;
+
+// ELO хранится без округления, округляется только при показе.
+export function formatElo(value) {
+  return Math.round(value);
+}
 
 export function expectedScore(rA, rB) {
   return 1 / (1 + Math.pow(10, (rB - rA) / 400));
@@ -34,10 +42,8 @@ export function describeK(k) {
 
 // Хронология: дата → номер игры → время создания.
 export function compareGamesChronologically(a, b) {
-  const dateDiff = new Date(a.date) - new Date(b.date);
-  if (dateDiff !== 0) return dateDiff;
-  const numDiff = (a.gameNumber ?? 0) - (b.gameNumber ?? 0);
-  if (numDiff !== 0) return numDiff;
+  const byOrder = compareGamesAsc(a, b);
+  if (byOrder !== 0) return byOrder;
   return new Date(a.createdAt ?? 0) - new Date(b.createdAt ?? 0);
 }
 
@@ -87,7 +93,7 @@ export function calcGameElo(game, ratings, gamesPlayed) {
 
     const k = kFactor(gamesPlayed.get(gp.playerId) ?? 0);
     const sA = gp.totalScore;
-    const delta = k * (sA - expected);
+    const delta = k * (sA - expected - ELO_MEAN_BONUS);
 
     return {
       playerId: gp.playerId,
@@ -98,7 +104,7 @@ export function calcGameElo(game, ratings, gamesPlayed) {
       k,
       sA,
       delta,
-      eloAfter: Math.round(eloBefore + delta),
+      eloAfter: eloBefore + delta,
     };
   });
 }
@@ -175,8 +181,10 @@ export function eloTeamAverages(game) {
   return { red: avg("red"), black: avg("black") };
 }
 
-const num = (value, digits) =>
-  value.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const num = (value, digits, maxDigits = digits) =>
+  value.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: maxDigits });
+
+const signed = (value, digits) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${num(Math.abs(value), digits)}`;
 
 /**
  * Построчная расшифровка расчёта для подсказки.
@@ -191,11 +199,18 @@ export function eloExplanationLines(game, gp) {
   const rB = averages[team === "red" ? "black" : "red"];
   if (rA == null || rB == null) return null;
 
+  const sA = num(gp.totalScore, 1, 2);
+  const delta = gp.eloAfter - gp.eloBefore;
+
   return [
-    `Своя команда R_A = ${num(rA, 0)}`,
-    `Соперники R_B = ${num(rB, 0)}`,
-    `E_A = 1 / (1 + 10 ^ ((${num(rB, 0)} − ${num(rA, 0)}) / 400)) = ${num(gp.eloExpected, 3)}`,
-    `S_A = ${num(gp.sA ?? gp.totalScore, 1)}, k = ${gp.eloK} (${describeK(gp.eloK)})`,
-    `ELO = ${gp.eloBefore} + ${gp.eloK} × (${num(gp.totalScore, 1)} − ${num(gp.eloExpected, 3)}) = ${gp.eloAfter}`,
+    `R_A = ${num(rA, 0)} (своя команда)`,
+    `R_B = ${num(rB, 0)} (соперники)`,
+    `E_A = 1 / (1 + 10^((${num(rB, 0)} − ${num(rA, 0)}) / 400))`,
+    `    = ${num(gp.eloExpected, 3)}`,
+    `S_A = ${sA} (баллы за игру)`,
+    `B = ${num(ELO_MEAN_BONUS, 2)} (обычный доп. балл)`,
+    `k = ${gp.eloK} (${describeK(gp.eloK)})`,
+    `Δ = ${gp.eloK} × (${sA} − ${num(gp.eloExpected, 3)} − ${num(ELO_MEAN_BONUS, 2)}) = ${signed(delta, 1)}`,
+    `ELO = ${num(gp.eloBefore, 1)} ${delta < 0 ? "−" : "+"} ${num(Math.abs(delta), 1)} = ${num(gp.eloAfter, 1)}`,
   ];
 }

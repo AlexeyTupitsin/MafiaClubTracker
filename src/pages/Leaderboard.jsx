@@ -306,7 +306,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
                         <span className="text-slate-600">—</span>
                       ) : (
                         <span className="inline-flex items-baseline gap-1.5">
-                          <span className="font-semibold text-slate-200">{row.elo}</span>
+                          <span className="font-semibold text-slate-200">{Math.round(row.elo)}</span>
                           {row.eloDelta !== 0 && (
                             <span className={`text-xs ${row.eloDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
                               {row.eloDelta > 0 ? "+" : ""}{row.eloDelta}

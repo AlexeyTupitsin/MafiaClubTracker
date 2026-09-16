@@ -42,7 +42,7 @@ create table players (
   is_active  boolean not null default true,
   created_at timestamptz not null default now(),
   avatar_url text,
-  elo        integer not null default 1000,
+  elo        numeric not null default 1000,
   elo_games  integer not null default 0
 );
 
@@ -87,11 +87,11 @@ create table game_players (
   bonus_comment text,
   total_score   numeric not null default 0,
   -- ELO: заполняется пересчётом из приложения (Настройки → Пересчитать ELO)
-  elo_before    integer,
-  elo_expected  numeric(12,4),
+  elo_before    numeric,
+  elo_expected  numeric,
   elo_k         integer,
-  elo_delta     numeric(12,3),
-  elo_after     integer,
+  elo_delta     numeric,
+  elo_after     numeric,
   unique (game_id, seat),
   unique (game_id, player_id)
 );

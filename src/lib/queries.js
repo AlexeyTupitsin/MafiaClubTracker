@@ -86,7 +86,7 @@ function toFrontendPlayer(row) {
     isActive: row.is_active,
     createdAt: row.created_at,
     avatarUrl: row.avatar_url ?? null,
-    elo: row.elo ?? ELO_START,
+    elo: row.elo == null ? ELO_START : Number(row.elo),
     eloGames: row.elo_games ?? 0,
   };
 }
@@ -111,11 +111,11 @@ function toFrontendGamePlayer(row) {
     bonusScore: Number(row.bonus_score),
     bonusComment: row.bonus_comment,
     totalScore: Number(row.total_score),
-    eloBefore: row.elo_before ?? null,
+    eloBefore: row.elo_before == null ? null : Number(row.elo_before),
     eloExpected: row.elo_expected == null ? null : Number(row.elo_expected),
     eloK: row.elo_k ?? null,
     eloDelta: row.elo_delta == null ? null : Number(row.elo_delta),
-    eloAfter: row.elo_after ?? null,
+    eloAfter: row.elo_after == null ? null : Number(row.elo_after),
   };
 }
 
@@ -340,9 +340,9 @@ export async function recalcElo() {
         bonus_comment: gp.bonusComment || null,
         total_score: gp.totalScore,
         elo_before: elo.eloBefore,
-        elo_expected: elo.expected == null ? null : Number(elo.expected.toFixed(4)),
+        elo_expected: elo.expected,
         elo_k: elo.k,
-        elo_delta: Number(elo.delta.toFixed(3)),
+        elo_delta: elo.delta,
         elo_after: elo.eloAfter,
       });
     }

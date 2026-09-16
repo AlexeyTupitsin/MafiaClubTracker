@@ -1,5 +1,5 @@
 import { Tooltip } from "./ui";
-import { eloExplanationLines } from "../lib/elo";
+import { eloExplanationLines, formatElo } from "../lib/elo";
 
 // Значение ELO после игры + изменение. При наведении — расшифровка расчёта.
 export function EloCell({ game, gp, align = "right" }) {
@@ -13,7 +13,7 @@ export function EloCell({ game, gp, align = "right" }) {
 
   const value = (
     <span className="inline-flex items-baseline gap-1.5">
-      <span className="font-semibold text-slate-200">{gp.eloAfter}</span>
+      <span className="font-semibold text-slate-200">{formatElo(gp.eloAfter)}</span>
       <span
         className={
           rounded > 0 ? "text-xs text-emerald-400"
@@ -34,7 +34,7 @@ export function EloCell({ game, gp, align = "right" }) {
       content={
         <span className="block space-y-0.5 font-mono leading-relaxed">
           {lines.map((line) => (
-            <span key={line} className="block whitespace-nowrap">{line}</span>
+            <span key={line} className="block whitespace-pre-wrap break-words">{line}</span>
           ))}
         </span>
       }

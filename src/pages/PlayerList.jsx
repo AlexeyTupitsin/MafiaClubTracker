@@ -189,7 +189,7 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
                       <span>Побед: <span className="text-slate-200 font-data">{s?.wins ?? 0}</span></span>
                       <span>WR: <span className={`font-data ${s?.winrate > 60 ? "text-emerald-400" : s?.winrate < 40 ? "text-red-400" : "text-slate-200"}`}>{s?.totalGames ? `${s.winrate.toFixed(0)}%` : "—"}</span></span>
                       <span>Ср.: <span className="text-slate-200 font-data">{s?.totalGames ? s.avgScore.toFixed(2) : "—"}</span></span>
-                      <span className="col-span-2">ELO: <span className="text-slate-200 font-data">{player.eloGames > 0 ? player.elo : "—"}</span></span>
+                      <span className="col-span-2">ELO: <span className="text-slate-200 font-data">{player.eloGames > 0 ? Math.round(player.elo) : "—"}</span></span>
                     </div>
                   </div>
                 </div>
