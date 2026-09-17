@@ -6,7 +6,7 @@ import { Modal } from "../ui";
 import { LoginForm } from "../auth/LoginForm";
 
 export function Header({ seasons, currentSeasonId, setCurrentSeasonId }) {
-  const { user, isAdmin, signOut } = useAuth();
+  const { isAdmin, signOut } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
 
   return (

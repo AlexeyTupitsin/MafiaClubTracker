@@ -97,6 +97,8 @@ export function AuthProvider({ children }) {
   );
 }
 
+// Провайдер и хук живут вместе — Fast Refresh для этого файла не критичен
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   return useContext(AuthContext);
 }

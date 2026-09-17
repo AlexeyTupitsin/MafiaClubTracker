@@ -33,7 +33,7 @@ export function SettingsPage({
   currentSeasonId, setCurrentSeasonId,
   showToast, refreshData,
   refreshSeasons, refreshGames, refreshPlayers, refreshAllGames,
-  tournaments, refreshTournaments,
+  refreshTournaments,
 }) {
   const [showNewSeason, setShowNewSeason] = useState(false);
   const [seasonName, setSeasonName] = useState("");
@@ -59,8 +59,8 @@ export function SettingsPage({
   const [thresholdType, setThresholdType] = useState("none");
   const [thresholdValue, setThresholdValue] = useState("");
   const [savingSeason, setSavingSeason] = useState(false);
-  const [deletingSeason, setDeletingSeason] = useState(null);
-  const [generatingDemo, setGeneratingDemo] = useState(false);
+  const [, setDeletingSeason] = useState(null);
+  const [, setGeneratingDemo] = useState(false); // кнопка демо-данных скрыта
   const [resetting, setResetting] = useState(false);
 
   // --- Season handlers ---
@@ -396,7 +396,7 @@ export function SettingsPage({
   const handleReset = async () => {
     setResetting(true);
     try {
-      const firstSeason = await resetAllData();
+      await resetAllData();
       await refreshData();
       setConfirmReset(false);
       setResetWord("");
