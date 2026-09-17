@@ -9,12 +9,10 @@ import { deleteTournament } from "../lib/queries";
 import { ShareImageButton } from "../components/share/ShareImageButton";
 import { renderTournamentCard } from "../lib/shareImage/tournamentCard";
 
-export function TournamentDetail({
-  tournament, allGames, players, navigate, seasons, goBack,
-  showToast, refreshTournaments, refreshAllTournaments,
-}) {
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
+// Проверка «турнир не найден» — отдельно от содержимого: хуки нельзя вызывать
+// после раннего return (турнир может появиться позже, когда догрузятся данные).
+export function TournamentDetail(props) {
+  const { tournament, goBack } = props;
   if (!tournament) {
     return (
       <EmptyState icon={Award} title="Турнир не найден"
@@ -27,6 +25,14 @@ export function TournamentDetail({
       />
     );
   }
+  return <TournamentDetailContent {...props} />;
+}
+
+function TournamentDetailContent({
+  tournament, allGames, players, navigate, seasons, goBack,
+  showToast, refreshTournaments, refreshAllTournaments,
+}) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const tournamentGames = useMemo(
     () => (allGames || []).filter((g) => g.tournamentId === tournament.id),

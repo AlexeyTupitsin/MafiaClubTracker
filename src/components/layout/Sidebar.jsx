@@ -36,7 +36,7 @@ const MOBILE_TABS = [
 ];
 
 export function Sidebar({ currentPage, navigate, seasons, currentSeasonId, setCurrentSeasonId }) {
-  const { user, isAdmin, signOut } = useAuth();
+  const { isAdmin, signOut } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 

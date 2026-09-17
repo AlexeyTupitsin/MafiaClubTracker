@@ -6,7 +6,7 @@ import { NOMINATION_CONFIG, MEDAL_ICON, ROLE_NAMES } from "../lib/constants";
 import { ShareImageButton } from "../components/share/ShareImageButton";
 import { renderRatingCard } from "../lib/shareImage/ratingCard";
 
-export function Leaderboard({ games, players, seasons, currentSeasonId, navigate, allGames, tournaments, showToast }) {
+export function Leaderboard({ games, players, seasons, currentSeasonId, navigate, allGames, showToast }) {
   const [seasonFilter, setSeasonFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [minGamesInput, setMinGamesInput] = useState("");

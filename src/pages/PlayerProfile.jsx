@@ -25,7 +25,10 @@ function Section({ title, defaultOpen = true, children }) {
   );
 }
 
-export function PlayerProfile({ player, games, players, navigate, seasons, currentSeasonId, allGames, tournaments, goBack }) {
+// Проверка «игрок не найден» — отдельно от содержимого: хуки нельзя вызывать
+// после раннего return (игрок может появиться позже, когда догрузятся данные).
+export function PlayerProfile(props) {
+  const { player, goBack } = props;
   if (!player) {
     return (
       <EmptyState
@@ -40,7 +43,10 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
       />
     );
   }
+  return <PlayerProfileContent {...props} />;
+}
 
+function PlayerProfileContent({ player, games, players, navigate, seasons, currentSeasonId, allGames, tournaments, goBack }) {
   const [periodFilter, setPeriodFilter] = useState("all");
   const [pairsLimit, setPairsLimit] = useState(10);
   const [gamesLimit, setGamesLimit] = useState(10);
@@ -56,11 +62,6 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
   const formTrend = useMemo(() => calcFormTrend(player.id, activeGames), [player.id, activeGames]);
   const killRateData = useMemo(() => calcKillRate(player.id, activeGames, seasons), [player.id, activeGames, seasons]);
   const roleKillRates = useMemo(() => calcRoleKillRate(player.id, activeGames, seasons), [player.id, activeGames, seasons]);
-
-  const currentSeason = useMemo(
-    () => seasons?.find(s => s.id === currentSeasonId) ?? null,
-    [seasons, currentSeasonId]
-  );
 
   const bestMoveStats = useMemo(
     () => calcBestMoveStats(player.id, allGames),
@@ -157,7 +158,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
         const gp = g.players.find((p) => p.playerId === player.id);
         return { game: g, ...gp };
       });
-  }, [player.id, games]);
+  }, [player.id, activeGames]);
 
   if (stats.totalGames === 0) {
     return (
@@ -405,7 +406,7 @@ export function PlayerProfile({ player, games, players, navigate, seasons, curre
                   <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#a1a1aa' }} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#a1a1aa' }} unit="%" />
                   <Tooltip
-                    formatter={(v, name) => [`${v}%`, "Winrate"]}
+                    formatter={(v) => [`${v}%`, "Winrate"]}
                     labelFormatter={(l) => l}
                     contentStyle={{ backgroundColor: '#0f1729', border: '1px solid rgba(16,185,129,0.15)', borderRadius: '8px', color: '#fafafa' }}
                   />

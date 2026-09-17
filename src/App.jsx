@@ -83,6 +83,8 @@ export default function App() {
   // Сезон, выбранный пользователем, пока шла фоновая загрузка, не перетираем
   const seasonTouchedRef = useRef(false);
   const currentSeasonIdRef = useRef(currentSeasonId);
+  // Сезон, чьи игры и турниры уже лежат в state — повторно не запрашиваем
+  const loadedSeasonRef = useRef(cached?.seasonId ?? null);
   useEffect(() => { currentSeasonIdRef.current = currentSeasonId; }, [currentSeasonId]);
 
   const selectSeason = useCallback((id) => {
@@ -182,6 +184,7 @@ export default function App() {
       getAllTournaments(),
     ]);
     seasonTouchedRef.current = false;
+    loadedSeasonRef.current = seasonId;
     setSeasons(loadedSeasons);
     setPlayers(loadedPlayers);
     setCurrentSeasonId(seasonId);
@@ -210,6 +213,7 @@ export default function App() {
         const seasonId = seasonTouchedRef.current && loadedSeasons.some((s) => s.id === touchedId)
           ? touchedId
           : pickDefaultSeasonId(loadedSeasons);
+        loadedSeasonRef.current = seasonId; // игры этого сезона грузятся ниже
         setCurrentSeasonId(seasonId);
 
         // Wave 2: all parallel
@@ -241,7 +245,7 @@ export default function App() {
     }
     loadData();
     return () => { cancelled = true; };
-  }, []); // загрузка один раз при старте
+  }, [cached, showToast]); // обе зависимости стабильны — загрузка один раз при старте
 
   // Свежие данные — в кэш для следующего открытия
   useEffect(() => {
@@ -250,19 +254,14 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [freshState, seasons, players, allGames, allTournaments]);
 
-  // Reload games when season changes (after initial load)
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  // Смена сезона пользователем — подгружаем его игры и турниры
   useEffect(() => {
-    if (loading) return;
-    if (!initialLoadDone) {
-      setInitialLoadDone(true);
-      return;
-    }
-    if (!currentSeasonId) return;
+    if (loading || !currentSeasonId || currentSeasonId === loadedSeasonRef.current) return;
     let cancelled = false;
     Promise.all([getGamesBySeason(currentSeasonId), getTournamentsBySeason(currentSeasonId)])
       .then(([loaded, loadedTournaments]) => {
         if (cancelled) return;
+        loadedSeasonRef.current = currentSeasonId;
         setGames(loaded);
         setTournaments(loadedTournaments);
       })
@@ -271,7 +270,7 @@ export default function App() {
         if (!cancelled) showToast("Не удалось загрузить данные сезона", "error");
       });
     return () => { cancelled = true; };
-  }, [currentSeasonId, loading]);
+  }, [currentSeasonId, loading, showToast]);
 
   const currentSeason = useMemo(
     () => seasons.find((s) => s.id === currentSeasonId),

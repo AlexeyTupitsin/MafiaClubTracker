@@ -9,7 +9,7 @@ import { deleteGame } from "../lib/queries";
 import { ShareImageButton } from "../components/share/ShareImageButton";
 import { renderGameCard } from "../lib/shareImage/gameCard";
 
-export function GameDetail({ game, players, navigate, games, currentSeason, showToast, refreshGames, refreshAllGames, tournaments, goBack }) {
+export function GameDetail({ game, players, navigate, showToast, refreshGames, refreshAllGames, tournaments, goBack }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!game) {
