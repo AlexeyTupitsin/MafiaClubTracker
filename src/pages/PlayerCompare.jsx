@@ -5,7 +5,7 @@ import { EmptyState, PlayerSelect } from "../components/ui";
 import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate } from "../lib/metrics";
 import { ROLE_NAMES } from "../lib/constants";
 
-export function PlayerCompare({ players, allGames, games, seasons, currentSeasonId, navigate, preselectedId, goBack }) {
+export function PlayerCompare({ players, allGames, games, seasons, currentSeasonId, preselectedId, goBack }) {
   const [playerAId, setPlayerAId] = useState(preselectedId || "");
   const [playerBId, setPlayerBId] = useState("");
   const [seasonFilter, setSeasonFilter] = useState("all");
@@ -68,7 +68,7 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
     return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 text-xs font-medium"><Minus size={12} />Стабильно</span>;
   };
 
-  const statRows = statsA && statsB ? [
+  const statRows = useMemo(() => statsA && statsB ? [
     { label: "Игры", a: statsA.totalGames, b: statsB.totalGames, better: false },
     { label: "Победы", a: statsA.wins, b: statsB.wins, better: true },
     { label: "Ничьи", a: statsA.draws, b: statsB.draws, better: false },
@@ -77,7 +77,7 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
     { label: "Ср. балл", a: statsA.avgScore, b: statsB.avgScore, better: true, fmt: (v) => v.toFixed(2) },
     { label: "Ср. доп.", a: statsA.avgBonus, b: statsB.avgBonus, better: true, fmt: (v) => v.toFixed(2) },
     { label: "KillRate", a: krA?.killRate ?? null, b: krB?.killRate ?? null, better: false, fmt: (v) => v != null ? `${v.toFixed(1)}%` : "—" },
-  ] : [];
+  ] : [], [statsA, statsB, krA, krB]);
 
   // Calculate wins for each player across compared metrics
   const { winsA, winsB, totalMetrics } = useMemo(() => {

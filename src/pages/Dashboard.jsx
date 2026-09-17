@@ -21,7 +21,7 @@ const SORT_LABELS = {
   avgBonus: "Ср. доп.",
 };
 
-export function Dashboard({ games, players, navigate, currentSeason, seasons, currentSeasonId, allGames, showToast }) {
+export function Dashboard({ games, players, navigate, currentSeason, seasons, showToast }) {
   const { isAdmin } = useAuth();
   const hasPlayers = players.length > 0;
   const [showAll, setShowAll] = useState(false);
@@ -42,7 +42,7 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, cu
       const kr = calcKillRate(pid, games, seasons);
       return { id: pid, nickname: player?.nickname || "?", ...stats, killRate: kr };
     });
-  }, [games, players]);
+  }, [games, players, seasons]);
 
   const threshold = useMemo(() => calcThreshold(currentSeason, games.length), [currentSeason, games.length]);
 
