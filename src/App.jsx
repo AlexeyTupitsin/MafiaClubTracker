@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { Loader } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
+import { WifiOff } from "lucide-react";
 
 import { getSeasons, getPlayers, getGamesBySeason, getAllGames, getTournamentsBySeason, getAllTournaments } from "./lib/queries";
 import { Toast, EmptyState } from "./components/ui";
@@ -7,32 +7,88 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { useAuth } from "./hooks/useAuth";
 import { AdminOnly } from "./components/auth/AuthGuard";
 import { hashToRoute, routeToHash } from "./lib/router";
+import { readDataCache, writeDataCache, pickDefaultSeasonId, seasonSlice } from "./lib/dataCache";
 
 import { Dashboard } from "./pages/Dashboard";
-import { GameList } from "./pages/GameList";
-import { GameDetail } from "./pages/GameDetail";
-import { GameForm } from "./pages/GameForm";
-import { Leaderboard } from "./pages/Leaderboard";
-import { PlayerList } from "./pages/PlayerList";
-import { PlayerProfile } from "./pages/PlayerProfile";
-import { PlayerCompare } from "./pages/PlayerCompare";
-import { SettingsPage } from "./pages/Settings";
-import { TournamentList } from "./pages/TournamentList";
-import { TournamentDetail } from "./pages/TournamentDetail";
-import { TournamentForm } from "./pages/TournamentForm";
+
+// Дашборд — в основном бандле (его видят все при открытии), остальные страницы
+// подгружаются при первом переходе.
+const lazyPage = (load, name) => lazy(() => load().then((m) => ({ default: m[name] })));
+const GameList = lazyPage(() => import("./pages/GameList"), "GameList");
+const GameDetail = lazyPage(() => import("./pages/GameDetail"), "GameDetail");
+const GameForm = lazyPage(() => import("./pages/GameForm"), "GameForm");
+const Leaderboard = lazyPage(() => import("./pages/Leaderboard"), "Leaderboard");
+const PlayerList = lazyPage(() => import("./pages/PlayerList"), "PlayerList");
+const PlayerProfile = lazyPage(() => import("./pages/PlayerProfile"), "PlayerProfile");
+const PlayerCompare = lazyPage(() => import("./pages/PlayerCompare"), "PlayerCompare");
+const SettingsPage = lazyPage(() => import("./pages/Settings"), "SettingsPage");
+const TournamentList = lazyPage(() => import("./pages/TournamentList"), "TournamentList");
+const TournamentDetail = lazyPage(() => import("./pages/TournamentDetail"), "TournamentDetail");
+const TournamentForm = lazyPage(() => import("./pages/TournamentForm"), "TournamentForm");
+
+// Страницы, где устаревшие данные опасны (номер новой игры, импорт, сезоны):
+// открываются только после загрузки свежих данных с сервера.
+const FRESH_DATA_PAGES = new Set(["gameForm", "tournamentForm", "settings"]);
+
+function SkeletonBlocks() {
+  return (
+    <>
+      {/* Skeleton stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="glass-card p-4 animate-pulse">
+            <div className="h-4 bg-indigo-500/10 rounded w-20 mb-3" />
+            <div className="h-8 bg-indigo-500/10 rounded w-16" />
+          </div>
+        ))}
+      </div>
+      {/* Skeleton table */}
+      <div className="glass-card p-4">
+        {[1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="flex gap-4 py-3 border-b border-indigo-500/5 last:border-0 animate-pulse">
+            <div className="h-4 bg-indigo-500/10 rounded w-8" />
+            <div className="h-4 bg-indigo-500/10 rounded w-24" />
+            <div className="h-4 bg-indigo-500/10 rounded w-12" />
+            <div className="h-4 bg-indigo-500/10 rounded w-12" />
+            <div className="h-4 bg-indigo-500/10 rounded w-16" />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
 
 export default function App() {
   const { isAdmin } = useAuth();
-  const [seasons, setSeasons] = useState([]);
-  const [players, setPlayers] = useState([]);
-  const [games, setGames] = useState([]);
-  const [allGames, setAllGames] = useState([]);
-  const [tournaments, setTournaments] = useState([]);
-  const [allTournaments, setAllTournaments] = useState([]);
-  const [currentSeasonId, setCurrentSeasonId] = useState(null);
+  // Сохранённые данные прошлого визита: показываем сразу, свежие грузятся в фоне
+  const [cached] = useState(() => {
+    const cache = readDataCache();
+    if (!cache) return null;
+    const seasonId = pickDefaultSeasonId(cache.seasons);
+    return { ...cache, seasonId, ...seasonSlice(cache, seasonId) };
+  });
+  const [seasons, setSeasons] = useState(cached?.seasons ?? []);
+  const [players, setPlayers] = useState(cached?.players ?? []);
+  const [games, setGames] = useState(cached?.games ?? []);
+  const [allGames, setAllGames] = useState(cached?.allGames ?? []);
+  const [tournaments, setTournaments] = useState(cached?.tournaments ?? []);
+  const [allTournaments, setAllTournaments] = useState(cached?.allTournaments ?? []);
+  const [currentSeasonId, setCurrentSeasonId] = useState(cached?.seasonId ?? null);
   const [route, setRoute] = useState(() => hashToRoute(window.location.hash));
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cached);
   const [loadError, setLoadError] = useState(null);
+  // pending — ждём сервер, fresh — данные свежие, failed — показан только кэш
+  const [freshState, setFreshState] = useState("pending");
+
+  // Сезон, выбранный пользователем, пока шла фоновая загрузка, не перетираем
+  const seasonTouchedRef = useRef(false);
+  const currentSeasonIdRef = useRef(currentSeasonId);
+  useEffect(() => { currentSeasonIdRef.current = currentSeasonId; }, [currentSeasonId]);
+
+  const selectSeason = useCallback((id) => {
+    seasonTouchedRef.current = true;
+    setCurrentSeasonId(id);
+  }, []);
   const [toast, setToast] = useState(null);
   const { page: currentPage, id: selectedId } = route;
 
@@ -117,25 +173,21 @@ export default function App() {
 
   // Full data refresh (used after import/reset/demo)
   const refreshData = useCallback(async () => {
-    const loadedSeasons = await getSeasons();
-    const loadedPlayers = await getPlayers();
+    const [loadedSeasons, loadedPlayers] = await Promise.all([getSeasons(), getPlayers()]);
+    const seasonId = pickDefaultSeasonId(loadedSeasons);
+    const [seasonGames, seasonTournaments, all, allT] = await Promise.all([
+      seasonId ? getGamesBySeason(seasonId) : [],
+      seasonId ? getTournamentsBySeason(seasonId) : [],
+      getAllGames(),
+      getAllTournaments(),
+    ]);
+    seasonTouchedRef.current = false;
     setSeasons(loadedSeasons);
     setPlayers(loadedPlayers);
-    const active = loadedSeasons.find((s) => s.isActive);
-    const seasonId = active?.id || loadedSeasons[loadedSeasons.length - 1]?.id;
     setCurrentSeasonId(seasonId);
-    if (seasonId) {
-      const loadedGames = await getGamesBySeason(seasonId);
-      setGames(loadedGames);
-      const loadedTournaments = await getTournamentsBySeason(seasonId);
-      setTournaments(loadedTournaments);
-    } else {
-      setGames([]);
-      setTournaments([]);
-    }
-    const all = await getAllGames();
+    setGames(seasonGames);
+    setTournaments(seasonTournaments);
     setAllGames(all);
-    const allT = await getAllTournaments();
     setAllTournaments(allT);
     navigate("dashboard", null, { replace: true });
   }, [navigate]);
@@ -154,8 +206,10 @@ export default function App() {
         setSeasons(loadedSeasons);
         setPlayers(loadedPlayers);
 
-        const active = loadedSeasons.find((s) => s.isActive);
-        const seasonId = active?.id || loadedSeasons[loadedSeasons.length - 1]?.id;
+        const touchedId = currentSeasonIdRef.current;
+        const seasonId = seasonTouchedRef.current && loadedSeasons.some((s) => s.id === touchedId)
+          ? touchedId
+          : pickDefaultSeasonId(loadedSeasons);
         setCurrentSeasonId(seasonId);
 
         // Wave 2: all parallel
@@ -174,16 +228,27 @@ export default function App() {
         }
         setAllGames(results[i++]);
         setAllTournaments(results[i++]);
+        setFreshState("fresh");
       } catch (error) {
         console.error("Failed to load data:", error);
-        if (!cancelled) setLoadError(error?.message || String(error));
+        if (cancelled) return;
+        setFreshState("failed");
+        if (cached) showToast("Не удалось обновить данные, показаны сохранённые", "error");
+        else setLoadError(error?.message || String(error));
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
     loadData();
     return () => { cancelled = true; };
-  }, []);
+  }, []); // загрузка один раз при старте
+
+  // Свежие данные — в кэш для следующего открытия
+  useEffect(() => {
+    if (freshState !== "fresh") return;
+    const timer = setTimeout(() => writeDataCache({ seasons, players, allGames, allTournaments }), 300);
+    return () => clearTimeout(timer);
+  }, [freshState, seasons, players, allGames, allTournaments]);
 
   // Reload games when season changes (after initial load)
   const [initialLoadDone, setInitialLoadDone] = useState(false);
@@ -194,13 +259,18 @@ export default function App() {
       return;
     }
     if (!currentSeasonId) return;
-    async function loadSeasonData() {
-      const loaded = await getGamesBySeason(currentSeasonId);
-      setGames(loaded);
-      const loadedTournaments = await getTournamentsBySeason(currentSeasonId);
-      setTournaments(loadedTournaments);
-    }
-    loadSeasonData();
+    let cancelled = false;
+    Promise.all([getGamesBySeason(currentSeasonId), getTournamentsBySeason(currentSeasonId)])
+      .then(([loaded, loadedTournaments]) => {
+        if (cancelled) return;
+        setGames(loaded);
+        setTournaments(loadedTournaments);
+      })
+      .catch((error) => {
+        console.error("Failed to load season data:", error);
+        if (!cancelled) showToast("Не удалось загрузить данные сезона", "error");
+      });
+    return () => { cancelled = true; };
   }, [currentSeasonId, loading]);
 
   const currentSeason = useMemo(
@@ -212,27 +282,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[#0a0908]">
         <div className="md:ml-[220px] max-w-6xl mx-auto px-4 py-6 pt-16 md:pt-6">
-          {/* Skeleton stat cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="glass-card p-4 animate-pulse">
-                <div className="h-4 bg-indigo-500/10 rounded w-20 mb-3" />
-                <div className="h-8 bg-indigo-500/10 rounded w-16" />
-              </div>
-            ))}
-          </div>
-          {/* Skeleton table */}
-          <div className="glass-card p-4">
-            {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="flex gap-4 py-3 border-b border-indigo-500/5 last:border-0 animate-pulse">
-                <div className="h-4 bg-indigo-500/10 rounded w-8" />
-                <div className="h-4 bg-indigo-500/10 rounded w-24" />
-                <div className="h-4 bg-indigo-500/10 rounded w-12" />
-                <div className="h-4 bg-indigo-500/10 rounded w-12" />
-                <div className="h-4 bg-indigo-500/10 rounded w-16" />
-              </div>
-            ))}
-          </div>
+          <SkeletonBlocks />
           {loadError && (
             <div className="mt-4 max-w-md mx-auto bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-400 text-sm">
               <p className="font-medium mb-1">Ошибка загрузки данных:</p>
@@ -245,6 +295,23 @@ export default function App() {
   }
 
   const renderPage = () => {
+    if (FRESH_DATA_PAGES.has(currentPage) && freshState !== "fresh") {
+      if (freshState === "pending") return <SkeletonBlocks />;
+      return (
+        <EmptyState
+          icon={WifiOff}
+          title="Нет связи с сервером"
+          description="Эта страница открывается только со свежими данными. Проверьте интернет и обновите страницу."
+          action={
+            <button onClick={() => window.location.reload()}
+              className="btn-ghost px-4 py-2 text-sm cursor-pointer">
+              Обновить
+            </button>
+          }
+        />
+      );
+    }
+
     switch (currentPage) {
       case "dashboard":
         return (
@@ -399,7 +466,7 @@ export default function App() {
             games={games}
             players={players}
             currentSeasonId={currentSeasonId}
-            setCurrentSeasonId={setCurrentSeasonId}
+            setCurrentSeasonId={selectSeason}
             showToast={showToast}
             refreshData={refreshData}
             refreshSeasons={refreshSeasons}
@@ -429,11 +496,13 @@ export default function App() {
         navigate={navigate}
         seasons={seasons}
         currentSeasonId={currentSeasonId}
-        setCurrentSeasonId={setCurrentSeasonId}
+        setCurrentSeasonId={selectSeason}
       />
 
       <main className="md:ml-[220px] max-w-6xl mx-auto px-4 py-6 pt-16 md:pt-6 animate-page-enter" key={currentPage + (selectedId || "")}>
-        {renderPage()}
+        <Suspense fallback={<SkeletonBlocks />}>
+          {renderPage()}
+        </Suspense>
       </main>
 
       {toast && (
