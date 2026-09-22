@@ -9,7 +9,7 @@ import { deleteGame } from "../lib/queries";
 import { ShareImageButton } from "../components/share/ShareImageButton";
 import { renderGameCard } from "../lib/shareImage/gameCard";
 
-export function GameDetail({ game, players, navigate, showToast, refreshGames, refreshAllGames, tournaments, goBack }) {
+export function GameDetail({ game, players, navigate, showToast, refreshAfterGameWrite, tournaments, goBack }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!game) {
@@ -29,16 +29,31 @@ export function GameDetail({ game, players, navigate, showToast, refreshGames, r
 
   const handleDelete = async () => {
     const num = game.gameNumber;
+    let eloError;
     try {
-      await deleteGame(game.id);
-      await refreshGames();
-      await refreshAllGames();
-      showToast?.(`Игра #${num} удалена`);
-      navigate("games", null, { replace: true });
+      ({ eloError } = await deleteGame(game.id));
     } catch (err) {
       console.error("Failed to delete game:", err);
       showToast?.("Ошибка удаления: " + (err.message || "неизвестная ошибка"), "error");
+      return;
     }
+
+    // Игра удалена — ошибки ниже уже не «ошибка удаления»
+    let refreshed = true;
+    try {
+      await refreshAfterGameWrite();
+    } catch (err) {
+      console.error("Failed to refresh after delete:", err);
+      refreshed = false;
+    }
+    if (eloError) {
+      showToast?.(`Игра #${num} удалена, но ELO не пересчитан: ${eloError.message}. Настройки → «Пересчитать ELO»`, "warning");
+    } else if (!refreshed) {
+      showToast?.(`Игра #${num} удалена, но список не обновился — обновите страницу`, "warning");
+    } else {
+      showToast?.(`Игра #${num} удалена`);
+    }
+    navigate("games", null, { replace: true });
   };
 
   const sortedPlayers = [...game.players].sort((a, b) => a.seat - b.seat);

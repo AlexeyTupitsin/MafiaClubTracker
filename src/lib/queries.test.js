@@ -4,13 +4,15 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { makeGame, makePlayers } from '../test/fixtures';
 
 vi.mock('./supabase', () => ({
+  SUPABASE_URL: 'https://db.test',
+  SUPABASE_ANON_KEY: 'anon',
   getAccessToken: () => 'token',
   hasUserSession: () => false,
   isAccessTokenExpiring: () => false,
   refreshAccessToken: async () => null,
 }));
 
-const { getAllGames, importData } = await import('./queries');
+const { getAllGames, getPlayers, createGame, deleteGame, importData } = await import('./queries');
 
 function gameRow(i) {
   return { id: `g${i}`, season_id: 's1', game_number: i, date: '2026-01-01T19:00:00Z', winner: 'red', game_players: [] };
@@ -118,5 +120,72 @@ describe('importData', () => {
 
     const { eloError } = await importData(file());
     expect(eloError.message).toBe('timeout');
+  });
+});
+
+describe('createGame / deleteGame', () => {
+  const newGame = () => ({ newId: 'new-uuid', seasonId: 's1', gameNumber: 7, ...makeGame() });
+
+  function server({ saveStatus = 200, eloFails = false } = {}) {
+    fetchMock.mockImplementation(async (url, init) => {
+      if (url.includes('rpc/save_game')) return json('new-uuid', saveStatus);
+      if (url.includes('rest/v1/games?id=eq.')) return json(null, 204);
+      if (url.includes('rest/v1/games')) return pageResponse([], init, 1000);
+      if (url.includes('rest/v1/players')) return json([]);
+      if (url.includes('rpc/apply_elo')) return eloFails ? json({ message: 'timeout' }, 500) : json(null, 204);
+      throw new Error(`unexpected ${url}`);
+    });
+  }
+
+  it('новая игра уходит с заранее выданным id', async () => {
+    server();
+    expect(await createGame(newGame())).toEqual({ id: 'new-uuid', eloError: null });
+
+    const body = JSON.parse(calls('rpc/save_game')[0][1].body);
+    expect(body.p_game).toMatchObject({ new_id: 'new-uuid', season_id: 's1' });
+    expect(body.p_game.id).toBeUndefined();
+  });
+
+  it('игра сохранена, пересчёт ELO упал — возвращается eloError, а не исключение', async () => {
+    server({ eloFails: true });
+    const { id, eloError } = await createGame(newGame());
+    expect(id).toBe('new-uuid');
+    expect(eloError.message).toBe('timeout');
+  });
+
+  it('сбой сохранения — исключение, пересчёт не запускается', async () => {
+    server({ saveStatus: 500 });
+    await expect(createGame(newGame())).rejects.toThrow();
+    expect(calls('rpc/apply_elo')).toHaveLength(0);
+  });
+
+  it('удаление: сбой пересчёта ELO не выдаётся за сбой удаления', async () => {
+    server({ eloFails: true });
+    const { eloError } = await deleteGame('g1');
+    expect(eloError.message).toBe('timeout');
+  });
+});
+
+describe('таймаут запросов', () => {
+  it('зависший запрос обрывается с понятной ошибкой', async () => {
+    fetchMock.mockImplementation(() => Promise.reject(new DOMException('signal timed out', 'TimeoutError')));
+    await expect(getPlayers()).rejects.toThrow('Сервер не ответил за 20 с');
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe('аватары', () => {
+  it('старый полный URL показывается через текущий адрес Supabase', async () => {
+    fetchMock.mockResolvedValue(json([
+      { id: 'p1', nickname: 'A', avatar_url: '/supabase-proxy/storage/v1/object/public/avatars/p1/1.jpg' },
+      { id: 'p2', nickname: 'B', avatar_url: 'p2/2.jpg' },
+      { id: 'p3', nickname: 'C', avatar_url: null },
+    ]));
+    const players = await getPlayers();
+    expect(players.map((p) => p.avatarUrl)).toEqual([
+      'https://db.test/storage/v1/object/public/avatars/p1/1.jpg',
+      'https://db.test/storage/v1/object/public/avatars/p2/2.jpg',
+      null,
+    ]);
   });
 });

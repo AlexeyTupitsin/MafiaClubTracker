@@ -1,18 +1,20 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, setAccessToken } from '../lib/supabase';
+import { supabase, setAccessToken, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const PROFILE_TIMEOUT_MS = 10_000;
 
+// Тот же адрес, что у остальных запросов: при включённом прокси профиль
+// раньше запрашивался напрямую, падал, и админ молча становился зрителем
 async function fetchProfile(userId, token) {
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=role`,
       {
+        signal: AbortSignal.timeout(PROFILE_TIMEOUT_MS),
         headers: {
-          'apikey': SUPABASE_KEY,
+          'apikey': SUPABASE_ANON_KEY,
           'Authorization': `Bearer ${token}`,
         },
       }
@@ -31,9 +33,12 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Listen for auth state changes
+    // Колбэк синхронный, а запрос профиля отложен: supabase-js вызывает
+    // колбэк под своей блокировкой, и пока он ждёт (await), стоят все
+    // остальные вызовы auth — getSession, refreshSession, signOut.
+    // Supabase прямо советует не делать в нём await.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         const currentUser = session?.user || null;
         const token = session?.access_token || null;
 
@@ -41,12 +46,16 @@ export function AuthProvider({ children }) {
         setAccessToken(token);
 
         if (currentUser && token) {
-          const profile = await fetchProfile(currentUser.id, token);
-          setIsAdmin(profile?.role === 'admin');
+          setTimeout(() => {
+            fetchProfile(currentUser.id, token).then((profile) => {
+              setIsAdmin(profile?.role === 'admin');
+              setLoading(false);
+            });
+          }, 0);
         } else {
           setIsAdmin(false);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 

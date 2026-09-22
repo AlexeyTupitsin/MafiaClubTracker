@@ -5,7 +5,7 @@ import { getSeasons, getPlayers, getGamesBySeason, getAllGames, getTournamentsBy
 import { Toast, EmptyState } from "./components/ui";
 import { Sidebar } from "./components/layout/Sidebar";
 import { useAuth } from "./hooks/useAuth";
-import { AdminOnly } from "./components/auth/AuthGuard";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { hashToRoute, routeToHash } from "./lib/router";
 import { readDataCache, writeDataCache, pickDefaultSeasonId, seasonSlice } from "./lib/dataCache";
 
@@ -59,7 +59,7 @@ function SkeletonBlocks() {
 }
 
 export default function App() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, loading: authLoading } = useAuth();
   // Сохранённые данные прошлого визита: показываем сразу, свежие грузятся в фоне
   const [cached] = useState(() => {
     const cache = readDataCache();
@@ -173,6 +173,13 @@ export default function App() {
     return data;
   }, []);
 
+  // После создания, изменения или удаления игры. Игроков тоже: сервер
+  // пересчитал их ELO. Возвращает свежие игры текущего сезона.
+  const refreshAfterGameWrite = useCallback(async () => {
+    const [seasonGames] = await Promise.all([refreshGames(), refreshAllGames(), refreshPlayers()]);
+    return seasonGames;
+  }, [refreshGames, refreshAllGames, refreshPlayers]);
+
   // Full data refresh (used after import/reset/demo)
   const refreshData = useCallback(async () => {
     const [loadedSeasons, loadedPlayers] = await Promise.all([getSeasons(), getPlayers()]);
@@ -277,6 +284,14 @@ export default function App() {
     [seasons, currentSeasonId]
   );
 
+  // Настройки — только админу. Решаем после загрузки профиля: при F5 на
+  // #/settings роль админа приходит не сразу
+  useEffect(() => {
+    if (currentPage === "settings" && !authLoading && !isAdmin) {
+      navigate("dashboard", null, { replace: true });
+    }
+  }, [currentPage, authLoading, isAdmin, navigate]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0908]">
@@ -286,12 +301,29 @@ export default function App() {
             <div className="mt-4 max-w-md mx-auto bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-400 text-sm">
               <p className="font-medium mb-1">Ошибка загрузки данных:</p>
               <p className="font-mono text-xs">{loadError}</p>
+              <button onClick={() => window.location.reload()}
+                className="btn-ghost mt-3 px-4 py-2 text-sm cursor-pointer">
+                Повторить
+              </button>
             </div>
           )}
         </div>
       </div>
     );
   }
+
+  const dashboard = (
+    <Dashboard
+      games={games}
+      players={players}
+      navigate={navigate}
+      currentSeason={currentSeason}
+      seasons={seasons}
+      currentSeasonId={currentSeasonId}
+      allGames={allGames}
+      showToast={showToast}
+    />
+  );
 
   const renderPage = () => {
     if (FRESH_DATA_PAGES.has(currentPage) && freshState !== "fresh") {
@@ -313,18 +345,7 @@ export default function App() {
 
     switch (currentPage) {
       case "dashboard":
-        return (
-          <Dashboard
-            games={games}
-            players={players}
-            navigate={navigate}
-            currentSeason={currentSeason}
-            seasons={seasons}
-            currentSeasonId={currentSeasonId}
-            allGames={allGames}
-            showToast={showToast}
-          />
-        );
+        return dashboard;
       case "games":
         return (
           <GameList
@@ -347,8 +368,7 @@ export default function App() {
             games={games}
             currentSeason={currentSeason}
             showToast={showToast}
-            refreshGames={refreshGames}
-            refreshAllGames={refreshAllGames}
+            refreshAfterGameWrite={refreshAfterGameWrite}
             tournaments={tournaments}
             goBack={goBack}
           />
@@ -363,8 +383,7 @@ export default function App() {
             navigate={navigate}
             editingGame={selectedId ? (games.find((g) => g.id === selectedId) || allGames.find((g) => g.id === selectedId)) : null}
             showToast={showToast}
-            refreshGames={refreshGames}
-            refreshAllGames={refreshAllGames}
+            refreshAfterGameWrite={refreshAfterGameWrite}
             tournaments={tournaments}
             refreshTournaments={refreshTournaments}
           />
@@ -458,7 +477,7 @@ export default function App() {
           />
         );
       case "settings":
-        if (!isAdmin) return <Dashboard games={games} players={players} navigate={navigate} currentSeason={currentSeason} seasons={seasons} currentSeasonId={currentSeasonId} allGames={allGames} />;
+        if (!isAdmin) return <SkeletonBlocks />; // эффект выше уведёт на дашборд
         return (
           <SettingsPage
             seasons={seasons}
@@ -473,14 +492,7 @@ export default function App() {
           />
         );
       default:
-        return (
-          <Dashboard
-            games={games}
-            players={players}
-            navigate={navigate}
-            currentSeason={currentSeason}
-          />
-        );
+        return dashboard;
     }
   };
 
@@ -495,9 +507,11 @@ export default function App() {
       />
 
       <main className="md:ml-[220px] max-w-6xl mx-auto px-4 py-6 pt-16 md:pt-6 animate-page-enter" key={currentPage + (selectedId || "")}>
-        <Suspense fallback={<SkeletonBlocks />}>
-          {renderPage()}
-        </Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={<SkeletonBlocks />}>
+            {renderPage()}
+          </Suspense>
+        </ErrorBoundary>
       </main>
 
       {toast && (
