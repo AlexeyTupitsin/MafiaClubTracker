@@ -6,7 +6,7 @@ import { DataSection } from "./settings/DataSection";
 export function SettingsPage({
   seasons, currentSeasonId, setCurrentSeasonId,
   showToast, refreshData,
-  refreshSeasons, refreshGames, refreshPlayers, refreshAllGames,
+  refreshSeasons, refreshPlayers, refreshAllGames,
 }) {
   // Общая плашка ошибки для всех разделов
   const [error, setError] = useState("");
@@ -29,7 +29,6 @@ export function SettingsPage({
         currentSeasonId={currentSeasonId}
         setCurrentSeasonId={setCurrentSeasonId}
         refreshSeasons={refreshSeasons}
-        refreshGames={refreshGames}
         showToast={showToast}
         onError={setError}
       />
@@ -38,7 +37,6 @@ export function SettingsPage({
         showToast={showToast}
         onError={setError}
         refreshData={refreshData}
-        refreshGames={refreshGames}
         refreshAllGames={refreshAllGames}
         refreshPlayers={refreshPlayers}
       />

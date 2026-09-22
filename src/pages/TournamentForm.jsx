@@ -4,7 +4,7 @@ import { createTournament, updateTournament } from "../lib/queries";
 
 export function TournamentForm({
   seasons, currentSeasonId, navigate, goBack,
-  editingTournament, showToast, refreshTournaments, refreshAllTournaments,
+  editingTournament, showToast, refreshAllTournaments,
 }) {
   const [name, setName] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -30,7 +30,6 @@ export function TournamentForm({
           notes: notes.trim() || null,
         });
         showToast?.("Турнир обновлён");
-        await refreshTournaments?.();
         await refreshAllTournaments?.();
         goBack();
       } else {
@@ -41,7 +40,6 @@ export function TournamentForm({
           notes: notes.trim() || null,
         });
         showToast?.(`Турнир "${t.name}" создан`);
-        await refreshTournaments?.();
         await refreshAllTournaments?.();
         navigate("tournamentDetail", t.id, { replace: true });
       }

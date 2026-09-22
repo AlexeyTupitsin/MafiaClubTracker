@@ -18,7 +18,7 @@ const NO_BEST_MOVES = [null, null, null];
 // Замена одного элемента массива — для полей по местам
 const replaceAt = (list, idx, value) => list.map((item, i) => (i === idx ? value : item));
 
-export function GameForm({ players, games, currentSeasonId, currentSeason, navigate, editingGame, showToast, refreshAfterGameWrite, tournaments, refreshTournaments }) {
+export function GameForm({ players, games, currentSeasonId, currentSeason, navigate, editingGame, showToast, refreshAfterGameWrite, tournaments, refreshAllTournaments }) {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   // id новой игры — заранее, чтобы повторное нажатие «Сохранить» после
@@ -170,7 +170,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
         // возьмёт его, а не создаст второй с тем же названием
         setTournamentId(t.id);
         setNewTournamentMode(false);
-        refreshTournaments?.();
+        refreshAllTournaments?.();
       }
 
       saved = editingGame
@@ -191,20 +191,20 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
 
     // Игра в базе — дальше ошибки уже не «ошибка сохранения»
     if (!editingGame) draft.clear();
-    let seasonGames = null;
+    let freshGames = null;
     try {
-      seasonGames = await refreshAfterGameWrite();
+      freshGames = await refreshAfterGameWrite();
     } catch (err) {
       console.error("Failed to refresh after save:", err);
     }
     setSaving(false);
 
     // Номер новой игры назначает сервер
-    const number = editingGame?.gameNumber ?? seasonGames?.find((g) => g.id === saved.id)?.gameNumber;
+    const number = editingGame?.gameNumber ?? freshGames?.find((g) => g.id === saved.id)?.gameNumber;
     const title = editingGame ? "Игра обновлена" : number ? `Игра #${number} сохранена` : "Игра сохранена";
     if (saved.eloError) {
       showToast?.(`${title}, но ELO не пересчитан: ${saved.eloError.message}. Настройки → «Пересчитать ELO»`, "warning");
-    } else if (!seasonGames) {
+    } else if (!freshGames) {
       showToast?.(`${title}, но список не обновился — обновите страницу`, "warning");
     } else {
       showToast?.(title);

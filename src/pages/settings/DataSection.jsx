@@ -20,7 +20,7 @@ function downloadJson(text, name = "mafia-club-export") {
 
 // Данные: экспорт, импорт, пересчёт ELO.
 // onError — текст для общей плашки ошибки страницы («» — скрыть).
-export function DataSection({ showToast, onError, refreshData, refreshGames, refreshAllGames, refreshPlayers }) {
+export function DataSection({ showToast, onError, refreshData, refreshAllGames, refreshPlayers }) {
   const [exportText, setExportText] = useState(null);
   const [copied, setCopied] = useState(false);
   const [pendingImport, setPendingImport] = useState(null);
@@ -36,9 +36,7 @@ export function DataSection({ showToast, onError, refreshData, refreshGames, ref
     onError("");
     try {
       const { gamesProcessed } = await recalcElo();
-      await refreshGames();
-      await refreshAllGames();
-      await refreshPlayers();
+      await Promise.all([refreshAllGames(), refreshPlayers()]);
       showToast(`ELO пересчитан, игр обработано: ${gamesProcessed}`);
     } catch (err) {
       fail("Ошибка пересчёта ELO", err);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { WifiOff } from "lucide-react";
 
-import { getSeasons, getPlayers, getGamesBySeason, getAllGames, getTournamentsBySeason, getAllTournaments } from "./lib/queries";
+import { getSeasons, getPlayers, getAllGames, getAllTournaments } from "./lib/queries";
 import { Toast, EmptyState } from "./components/ui";
 import { Sidebar } from "./components/layout/Sidebar";
 import { useAuth } from "./hooks/useAuth";
@@ -64,14 +64,11 @@ export default function App() {
   const [cached] = useState(() => {
     const cache = readDataCache();
     if (!cache) return null;
-    const seasonId = pickDefaultSeasonId(cache.seasons);
-    return { ...cache, seasonId, ...seasonSlice(cache, seasonId) };
+    return { ...cache, seasonId: pickDefaultSeasonId(cache.seasons) };
   });
   const [seasons, setSeasons] = useState(cached?.seasons ?? []);
   const [players, setPlayers] = useState(cached?.players ?? []);
-  const [games, setGames] = useState(cached?.games ?? []);
   const [allGames, setAllGames] = useState(cached?.allGames ?? []);
-  const [tournaments, setTournaments] = useState(cached?.tournaments ?? []);
   const [allTournaments, setAllTournaments] = useState(cached?.allTournaments ?? []);
   const [currentSeasonId, setCurrentSeasonId] = useState(cached?.seasonId ?? null);
   const [route, setRoute] = useState(() => hashToRoute(window.location.hash));
@@ -80,11 +77,16 @@ export default function App() {
   // pending — ждём сервер, fresh — данные свежие, failed — показан только кэш
   const [freshState, setFreshState] = useState("pending");
 
+  // Игры и турниры выбранного сезона — срез общих списков, отдельно не
+  // запрашиваются: смена сезона мгновенная, и две копии не расходятся
+  const { games, tournaments } = useMemo(
+    () => seasonSlice({ allGames, allTournaments }, currentSeasonId),
+    [allGames, allTournaments, currentSeasonId]
+  );
+
   // Сезон, выбранный пользователем, пока шла фоновая загрузка, не перетираем
   const seasonTouchedRef = useRef(false);
   const currentSeasonIdRef = useRef(currentSeasonId);
-  // Сезон, чьи игры и турниры уже лежат в state — повторно не запрашиваем
-  const loadedSeasonRef = useRef(cached?.seasonId ?? null);
   useEffect(() => { currentSeasonIdRef.current = currentSeasonId; }, [currentSeasonId]);
 
   const selectSeason = useCallback((id) => {
@@ -145,27 +147,11 @@ export default function App() {
     return data;
   }, []);
 
-  const refreshGames = useCallback(async (seasonId) => {
-    const sid = seasonId || currentSeasonId;
-    if (!sid) return [];
-    const data = await getGamesBySeason(sid);
-    setGames(data);
-    return data;
-  }, [currentSeasonId]);
-
   const refreshAllGames = useCallback(async () => {
     const data = await getAllGames();
     setAllGames(data);
     return data;
   }, []);
-
-  const refreshTournaments = useCallback(async (seasonId) => {
-    const sid = seasonId || currentSeasonId;
-    if (!sid) return [];
-    const data = await getTournamentsBySeason(sid);
-    setTournaments(data);
-    return data;
-  }, [currentSeasonId]);
 
   const refreshAllTournaments = useCallback(async () => {
     const data = await getAllTournaments();
@@ -174,29 +160,21 @@ export default function App() {
   }, []);
 
   // После создания, изменения или удаления игры. Игроков тоже: сервер
-  // пересчитал их ELO. Возвращает свежие игры текущего сезона.
+  // пересчитал их ELO. Возвращает свежий список всех игр.
   const refreshAfterGameWrite = useCallback(async () => {
-    const [seasonGames] = await Promise.all([refreshGames(), refreshAllGames(), refreshPlayers()]);
-    return seasonGames;
-  }, [refreshGames, refreshAllGames, refreshPlayers]);
+    const [freshGames] = await Promise.all([refreshAllGames(), refreshPlayers()]);
+    return freshGames;
+  }, [refreshAllGames, refreshPlayers]);
 
   // Full data refresh (used after import/reset/demo)
   const refreshData = useCallback(async () => {
-    const [loadedSeasons, loadedPlayers] = await Promise.all([getSeasons(), getPlayers()]);
-    const seasonId = pickDefaultSeasonId(loadedSeasons);
-    const [seasonGames, seasonTournaments, all, allT] = await Promise.all([
-      seasonId ? getGamesBySeason(seasonId) : [],
-      seasonId ? getTournamentsBySeason(seasonId) : [],
-      getAllGames(),
-      getAllTournaments(),
+    const [loadedSeasons, loadedPlayers, all, allT] = await Promise.all([
+      getSeasons(), getPlayers(), getAllGames(), getAllTournaments(),
     ]);
     seasonTouchedRef.current = false;
-    loadedSeasonRef.current = seasonId;
     setSeasons(loadedSeasons);
     setPlayers(loadedPlayers);
-    setCurrentSeasonId(seasonId);
-    setGames(seasonGames);
-    setTournaments(seasonTournaments);
+    setCurrentSeasonId(pickDefaultSeasonId(loadedSeasons));
     setAllGames(all);
     setAllTournaments(allT);
     navigate("dashboard", null, { replace: true });
@@ -207,38 +185,21 @@ export default function App() {
     let cancelled = false;
     async function loadData() {
       try {
-        // Wave 1: independent calls
-        const [loadedSeasons, loadedPlayers] = await Promise.all([
-          getSeasons(),
-          getPlayers(),
+        // Все запросы независимы — одной волной
+        const [loadedSeasons, loadedPlayers, loadedGames, loadedTournaments] = await Promise.all([
+          getSeasons(), getPlayers(), getAllGames(), getAllTournaments(),
         ]);
         if (cancelled) return;
-        setSeasons(loadedSeasons);
-        setPlayers(loadedPlayers);
 
         const touchedId = currentSeasonIdRef.current;
         const seasonId = seasonTouchedRef.current && loadedSeasons.some((s) => s.id === touchedId)
           ? touchedId
           : pickDefaultSeasonId(loadedSeasons);
-        loadedSeasonRef.current = seasonId; // игры этого сезона грузятся ниже
+        setSeasons(loadedSeasons);
+        setPlayers(loadedPlayers);
         setCurrentSeasonId(seasonId);
-
-        // Wave 2: all parallel
-        const promises = [getAllGames(), getAllTournaments()];
-        if (seasonId) {
-          promises.unshift(getGamesBySeason(seasonId), getTournamentsBySeason(seasonId));
-        }
-
-        const results = await Promise.all(promises);
-        if (cancelled) return;
-
-        let i = 0;
-        if (seasonId) {
-          setGames(results[i++]);
-          setTournaments(results[i++]);
-        }
-        setAllGames(results[i++]);
-        setAllTournaments(results[i++]);
+        setAllGames(loadedGames);
+        setAllTournaments(loadedTournaments);
         setFreshState("fresh");
       } catch (error) {
         console.error("Failed to load data:", error);
@@ -260,24 +221,6 @@ export default function App() {
     const timer = setTimeout(() => writeDataCache({ seasons, players, allGames, allTournaments }), 300);
     return () => clearTimeout(timer);
   }, [freshState, seasons, players, allGames, allTournaments]);
-
-  // Смена сезона пользователем — подгружаем его игры и турниры
-  useEffect(() => {
-    if (loading || !currentSeasonId || currentSeasonId === loadedSeasonRef.current) return;
-    let cancelled = false;
-    Promise.all([getGamesBySeason(currentSeasonId), getTournamentsBySeason(currentSeasonId)])
-      .then(([loaded, loadedTournaments]) => {
-        if (cancelled) return;
-        loadedSeasonRef.current = currentSeasonId;
-        setGames(loaded);
-        setTournaments(loadedTournaments);
-      })
-      .catch((error) => {
-        console.error("Failed to load season data:", error);
-        if (!cancelled) showToast("Не удалось загрузить данные сезона", "error");
-      });
-    return () => { cancelled = true; };
-  }, [currentSeasonId, loading, showToast]);
 
   const currentSeason = useMemo(
     () => seasons.find((s) => s.id === currentSeasonId),
@@ -385,7 +328,7 @@ export default function App() {
             showToast={showToast}
             refreshAfterGameWrite={refreshAfterGameWrite}
             tournaments={tournaments}
-            refreshTournaments={refreshTournaments}
+            refreshAllTournaments={refreshAllTournaments}
           />
         );
       case "rating":
@@ -421,7 +364,6 @@ export default function App() {
             seasons={seasons}
             goBack={goBack}
             showToast={showToast}
-            refreshTournaments={refreshTournaments}
             refreshAllTournaments={refreshAllTournaments}
           />
         );
@@ -434,7 +376,6 @@ export default function App() {
             goBack={goBack}
             editingTournament={selectedId ? allTournaments.find((t) => t.id === selectedId) : null}
             showToast={showToast}
-            refreshTournaments={refreshTournaments}
             refreshAllTournaments={refreshAllTournaments}
           />
         );
@@ -486,7 +427,6 @@ export default function App() {
             showToast={showToast}
             refreshData={refreshData}
             refreshSeasons={refreshSeasons}
-            refreshGames={refreshGames}
             refreshPlayers={refreshPlayers}
             refreshAllGames={refreshAllGames}
           />

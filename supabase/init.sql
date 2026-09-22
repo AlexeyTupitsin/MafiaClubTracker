@@ -164,6 +164,52 @@ create policy avatars_delete on storage.objects for delete using (bucket_id = 'a
 -- ---------------------------------------------------------------------
 -- Атомарные операции записи (сохранение игры, пересчёт ELO, импорт)
 -- ---------------------------------------------------------------------
+-- Проверка состава игры: 10 игроков, роли 6 мирных / шериф / 2 мафии / дон,
+-- результат каждого согласован с победителем, итог = база + доп. балл.
+-- Места 1–10 и уникальность игроков проверяют ограничения game_players.
+create or replace function check_game_lineup(p_winner text, p_players jsonb)
+returns void
+language plpgsql
+immutable
+set search_path = public
+as $$
+declare
+  v record;
+begin
+  select
+    count(*)                                   as total,
+    count(*) filter (where role = 'citizen')   as citizens,
+    count(*) filter (where role = 'sheriff')   as sheriffs,
+    count(*) filter (where role = 'mafia')     as mafia,
+    count(*) filter (where role = 'don')       as dons,
+    count(*) filter (where result is distinct from
+      case
+        when p_winner = 'draw' then 'draw'
+        when (case when role in ('citizen', 'sheriff') then 'red' else 'black' end) = p_winner then 'win'
+        else 'lose'
+      end)                                     as wrong_results,
+    count(*) filter (where coalesce(total_score, 0) <> coalesce(base_score, 0) + coalesce(bonus_score, 0)) as wrong_totals
+  into v
+  from jsonb_to_recordset(coalesce(p_players, '[]')) as x(
+    role text, result text, base_score numeric, bonus_score numeric, total_score numeric
+  );
+
+  if v.total <> 10 then
+    raise exception 'В игре должно быть 10 игроков, передано %', v.total using errcode = '22023';
+  end if;
+  if (v.citizens, v.sheriffs, v.mafia, v.dons) <> (6, 1, 2, 1) then
+    raise exception 'Неверный набор ролей: мирных %, шерифов %, мафии %, донов % (нужно 6/1/2/1)',
+      v.citizens, v.sheriffs, v.mafia, v.dons using errcode = '22023';
+  end if;
+  if v.wrong_results > 0 then
+    raise exception 'Результаты игроков не совпадают с победителем (%)', p_winner using errcode = '22023';
+  end if;
+  if v.wrong_totals > 0 then
+    raise exception 'Итоговый балл не равен сумме базового и дополнительного' using errcode = '22023';
+  end if;
+end;
+$$;
+
 create or replace function save_game(p_game jsonb, p_players jsonb)
 returns uuid
 language plpgsql
@@ -178,6 +224,10 @@ begin
   if not is_admin() then
     raise exception 'Недостаточно прав для сохранения игры' using errcode = '42501';
   end if;
+
+  -- Состав проверяется и здесь, а не только в форме: база не должна принять
+  -- игру, которую форма не дала бы сохранить
+  perform check_game_lineup(p_game->>'winner', p_players);
 
   if v_id is null then
     -- Параллельные сохранения в один сезон выполняются по очереди: каждое
