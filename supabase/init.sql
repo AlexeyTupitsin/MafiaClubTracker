@@ -104,7 +104,9 @@ create index game_players_elo_idx on game_players (player_id) where elo_after is
 create or replace function is_admin()
 returns boolean
 language sql
+stable
 security definer
+set search_path = public
 as $$
   select exists (
     select 1 from profiles where id = auth.uid() and role = 'admin'
@@ -125,7 +127,12 @@ alter table game_players enable row level security;
 create policy profiles_read_own   on profiles for select using (id = auth.uid() or is_admin());
 create policy profiles_update_own on profiles for update using (id = auth.uid());
 
--- seasons / players / games / game_players: читают все, пишет только админ
+-- В своём профиле можно менять только display_name — иначе пользователь
+-- выставил бы себе role = 'admin'
+revoke update on profiles from anon, authenticated;
+grant update (display_name) on profiles to authenticated;
+
+-- seasons / players / games / game_players / tournaments: читают все, пишет только админ
 create policy seasons_read       on seasons      for select using (true);
 create policy seasons_write      on seasons      for all    using (is_admin());
 
@@ -138,11 +145,8 @@ create policy games_write        on games        for all    using (is_admin());
 create policy game_players_read  on game_players for select using (true);
 create policy game_players_write on game_players for all    using (is_admin());
 
--- tournaments: открыты на чтение и запись всем аутентифицированным
-create policy tournaments_select on tournaments for select using (true);
-create policy tournaments_insert on tournaments for insert with check (true);
-create policy tournaments_update on tournaments for update using (true);
-create policy tournaments_delete on tournaments for delete using (true);
+create policy tournaments_read   on tournaments  for select using (true);
+create policy tournaments_write  on tournaments  for all    using (is_admin()) with check (is_admin());
 
 -- ---------------------------------------------------------------------
 -- Storage: бакет аватаров игроков
@@ -158,7 +162,7 @@ create policy avatars_update on storage.objects for update using (bucket_id = 'a
 create policy avatars_delete on storage.objects for delete using (bucket_id = 'avatars' and is_admin());
 
 -- ---------------------------------------------------------------------
--- Атомарные операции записи (сохранение игры, пересчёт ELO)
+-- Атомарные операции записи (сохранение игры, пересчёт ELO, импорт)
 -- ---------------------------------------------------------------------
 create or replace function save_game(p_game jsonb, p_players jsonb)
 returns uuid
@@ -259,5 +263,129 @@ begin
 end;
 $$;
 
+-- ---------------------------------------------------------------------
+-- Импорт данных из файла экспорта одной транзакцией
+-- ---------------------------------------------------------------------
+-- p_data — файл экспорта из приложения (формат exportAllData, version 2):
+-- { seasons: [...], players: [...], tournaments: [...], games: { <id сезона>: [...] } }
+-- id из файла заменяются новыми uuid, ссылки между записями переводятся на них.
+create or replace function import_data(p_data jsonb)
+returns void
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  -- старый id → новый uuid
+  v_seasons     jsonb;
+  v_players     jsonb;
+  v_tournaments jsonb;
+  v_game        record;
+  v_game_id     uuid;
+begin
+  if not is_admin() then
+    raise exception 'Недостаточно прав для импорта' using errcode = '42501';
+  end if;
+
+  -- where true: Supabase не пропускает DELETE без WHERE (pg_safeupdate)
+  delete from game_players where true;
+  delete from games        where true;
+  delete from tournaments  where true;
+  delete from players      where true;
+  delete from seasons      where true;
+
+  -- Сезоны
+  select coalesce(jsonb_object_agg(s->>'id', gen_random_uuid()), '{}')
+  into v_seasons
+  from jsonb_array_elements(coalesce(p_data->'seasons', '[]')) s;
+
+  insert into seasons (
+    id, name, start_date, end_date, is_active, track_first_kill, track_best_move,
+    rating_threshold_type, rating_threshold_value
+  )
+  select
+    (v_seasons->>(s->>'id'))::uuid,
+    s->>'name',
+    (s->>'startDate')::date,
+    nullif(s->>'endDate', '')::date,
+    coalesce((s->>'isActive')::boolean, false),
+    coalesce((s->>'trackFirstKill')::boolean, false),
+    coalesce((s->>'trackBestMove')::boolean, false),
+    coalesce(nullif(s->>'ratingThresholdType', ''), 'none'),
+    coalesce((s->>'ratingThresholdValue')::integer, 0)
+  from jsonb_array_elements(coalesce(p_data->'seasons', '[]')) s;
+
+  -- Игроки
+  select coalesce(jsonb_object_agg(p->>'id', gen_random_uuid()), '{}')
+  into v_players
+  from jsonb_array_elements(coalesce(p_data->'players', '[]')) p;
+
+  insert into players (id, nickname, real_name, is_active, avatar_url)
+  select
+    (v_players->>(p->>'id'))::uuid,
+    p->>'nickname',
+    nullif(p->>'realName', ''),
+    coalesce((p->>'isActive')::boolean, true),
+    nullif(p->>'avatarUrl', '')
+  from jsonb_array_elements(coalesce(p_data->'players', '[]')) p;
+
+  -- Турниры
+  select coalesce(jsonb_object_agg(t->>'id', gen_random_uuid()), '{}')
+  into v_tournaments
+  from jsonb_array_elements(coalesce(p_data->'tournaments', '[]')) t;
+
+  insert into tournaments (id, season_id, name, date, notes)
+  select
+    (v_tournaments->>(t->>'id'))::uuid,
+    (v_seasons->>(t->>'seasonId'))::uuid,
+    t->>'name',
+    (t->>'date')::date,
+    nullif(t->>'notes', '')
+  from jsonb_array_elements(coalesce(p_data->'tournaments', '[]')) t;
+
+  -- Игры с составом. Неизвестный сезон или игрок даст null в NOT NULL
+  -- колонке — ошибка откатит весь импорт.
+  for v_game in
+    select (v_seasons->>sg.key)::uuid as season_id, g.value as data
+    from jsonb_each(coalesce(p_data->'games', '{}')) sg
+    cross join lateral jsonb_array_elements(sg.value) g
+  loop
+    insert into games (
+      season_id, tournament_id, game_number, date, winner, notes,
+      first_killed, best_move_seat_1, best_move_seat_2, best_move_seat_3
+    ) values (
+      v_game.season_id,
+      (v_tournaments->>(v_game.data->>'tournamentId'))::uuid,
+      (v_game.data->>'gameNumber')::integer,
+      coalesce((v_game.data->>'date')::timestamptz, now()),
+      v_game.data->>'winner',
+      nullif(v_game.data->>'notes', ''),
+      (v_players->>(v_game.data->>'firstKilled'))::uuid,
+      (v_game.data->>'bestMoveSeat1')::integer,
+      (v_game.data->>'bestMoveSeat2')::integer,
+      (v_game.data->>'bestMoveSeat3')::integer
+    )
+    returning id into v_game_id;
+
+    insert into game_players (
+      game_id, player_id, seat, role, result,
+      base_score, bonus_score, bonus_comment, total_score
+    )
+    select
+      v_game_id,
+      (v_players->>(gp->>'playerId'))::uuid,
+      (gp->>'seat')::integer,
+      gp->>'role',
+      gp->>'result',
+      coalesce((gp->>'baseScore')::numeric, 0),
+      coalesce((gp->>'bonusScore')::numeric, 0),
+      nullif(gp->>'bonusComment', ''),
+      coalesce((gp->>'totalScore')::numeric, 0)
+    from jsonb_array_elements(coalesce(v_game.data->'players', '[]')) gp;
+  end loop;
+end;
+$$;
+
 grant execute on function save_game(jsonb, jsonb) to authenticated;
 grant execute on function apply_elo(jsonb, jsonb) to authenticated;
+grant execute on function import_data(jsonb) to authenticated;
