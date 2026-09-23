@@ -115,7 +115,7 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <button onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
+        <button aria-label="Назад" onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
         <h2 className="text-xl font-bold gradient-text">Сравнение игроков</h2>
@@ -130,7 +130,7 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
             players={players.filter((p) => p.id !== playerBId)}
             placeholder="Игрок A..."
           />
-          <button onClick={handleSwap} disabled={!bothSelected}
+          <button aria-label="Поменять игроков местами" onClick={handleSwap} disabled={!bothSelected}
             className="p-2 btn-ghost cursor-pointer disabled:opacity-30 transition-colors">
             <ArrowRightLeft size={16} />
           </button>

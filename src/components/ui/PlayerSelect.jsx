@@ -116,7 +116,7 @@ export function PlayerSelect({ value, onChange, players, disabledIds = [], place
           className="flex-1 outline-none bg-transparent min-w-0 text-slate-200"
         />
         {value && (
-          <button onClick={handleClear}
+          <button aria-label="Очистить выбор" onClick={handleClear}
             className="p-0.5 hover:bg-indigo-500/10 rounded text-slate-500 shrink-0 ml-1 cursor-pointer">
             <X size={14} />
           </button>

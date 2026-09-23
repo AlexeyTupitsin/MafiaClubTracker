@@ -181,13 +181,11 @@
 
 У некоторых провайдеров запросы к `*.supabase.co` блокируются. Тогда их можно проксировать через Vercel:
 
-1. В репозитории открыть файл `vercel.json` и заменить URL в `destination` на **свой** Project URL из Шага 5:
+1. В репозитории открыть файл `vercel.json` и в разделе `rewrites` заменить URL в `destination` на **свой** Project URL из Шага 5 — остальное в файле (раздел `headers`) не трогать:
    ```json
-   {
-     "rewrites": [
-       { "source": "/supabase-proxy/:path*", "destination": "https://ВАШ-ПРОЕКТ.supabase.co/:path*" }
-     ]
-   }
+   "rewrites": [
+     { "source": "/supabase-proxy/:path*", "destination": "https://ВАШ-ПРОЕКТ.supabase.co/:path*" }
+   ],
    ```
 2. В Vercel → **Environment Variables** добавить переменную:
 

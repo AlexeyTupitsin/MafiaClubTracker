@@ -51,7 +51,7 @@ export function TournamentForm({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <button onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
+        <button aria-label="Назад" onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
         <h2 className="text-xl font-bold gradient-text">

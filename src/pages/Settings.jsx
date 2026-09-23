@@ -18,7 +18,7 @@ export function SettingsPage({
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2 text-red-400 text-sm">
           <AlertTriangle size={16} /> {error}
-          <button onClick={() => setError("")} className="ml-auto p-0.5 hover:bg-red-500/20 rounded">
+          <button aria-label="Скрыть ошибку" onClick={() => setError("")} className="ml-auto p-0.5 hover:bg-red-500/20 rounded">
             <X size={14} />
           </button>
         </div>

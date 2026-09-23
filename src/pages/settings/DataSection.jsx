@@ -151,7 +151,7 @@ export function DataSection({ showToast, onError, refreshData, refreshAllGames, 
               <button onClick={handleCopy} className={linkButton}>
                 <CheckCircle size={14} /> {copied ? "Скопировано ✓" : "Копировать"}
               </button>
-              <button onClick={() => setExportText(null)} className="text-sm text-slate-500 hover:text-slate-300">
+              <button aria-label="Закрыть" onClick={() => setExportText(null)} className="text-sm text-slate-500 hover:text-slate-300">
                 <X size={14} />
               </button>
             </div>
