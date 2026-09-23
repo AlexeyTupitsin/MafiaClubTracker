@@ -462,8 +462,6 @@ export default function App() {
         return (
           <SettingsPage
             seasons={seasons}
-            games={games}
-            players={players}
             currentSeasonId={currentSeasonId}
             setCurrentSeasonId={selectSeason}
             showToast={showToast}
@@ -472,8 +470,6 @@ export default function App() {
             refreshGames={refreshGames}
             refreshPlayers={refreshPlayers}
             refreshAllGames={refreshAllGames}
-            tournaments={tournaments}
-            refreshTournaments={refreshTournaments}
           />
         );
       default:
