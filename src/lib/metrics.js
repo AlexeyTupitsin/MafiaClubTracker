@@ -110,22 +110,6 @@ export function calcPairStats(playerIdA, playerIdB, games) {
   return result;
 }
 
-export function calcDashboardStats(games) {
-  const total = games.length;
-  const redWins = games.filter((g) => g.winner === "red").length;
-  const blackWins = games.filter((g) => g.winner === "black").length;
-  const draws = games.filter((g) => g.winner === "draw").length;
-  return {
-    totalGames: total,
-    redWins,
-    blackWins,
-    draws,
-    redWinrate: total > 0 ? (redWins / total) * 100 : 0,
-    blackWinrate: total > 0 ? (blackWins / total) * 100 : 0,
-    drawRate: total > 0 ? (draws / total) * 100 : 0,
-  };
-}
-
 export function calcThreshold(season, totalGames) {
   if (!season || season.ratingThresholdType === 'none') return 0;
   if (season.ratingThresholdType === 'absolute') return season.ratingThresholdValue;

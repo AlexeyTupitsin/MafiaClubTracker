@@ -316,11 +316,6 @@ export async function deletePlayerAvatar(avatarUrl) {
 // Tournaments
 // ============================================================
 
-export async function getTournamentsBySeason(seasonId) {
-  const data = await rest(`tournaments?select=*&season_id=eq.${seasonId}&order=date.desc`);
-  return data.map(toFrontendTournament);
-}
-
 export async function getAllTournaments() {
   const data = await rest('tournaments?select=*&order=date.desc');
   return data.map(toFrontendTournament);
@@ -374,8 +369,7 @@ async function upsertRows(table, rows, chunkSize = 500) {
  * старую, а это сдвигает всю последующую цепочку рейтингов.
  */
 export async function recalcElo() {
-  const games = await getAllGames();
-  const players = await getPlayers();
+  const [games, players] = await Promise.all([getAllGames(), getPlayers()]);
   const { perGame, final } = replayElo(games);
 
   const gamePlayerRows = [];
@@ -454,11 +448,6 @@ async function applyEloLegacy(games, players, gamePlayerRows, playerRows) {
 // ============================================================
 // Games
 // ============================================================
-
-export async function getGamesBySeason(seasonId) {
-  const data = await restAll(`games?select=*,game_players(*)&season_id=eq.${seasonId}&order=game_number`);
-  return data.map(toFrontendGame);
-}
 
 // Без пагинации после 1000-й игры пропадали бы самые старые — и пересчёт ELO
 // прогонял бы неполную историю

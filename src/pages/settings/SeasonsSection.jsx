@@ -65,7 +65,7 @@ function ModalFooter({ saving, disabled, onCancel, onSubmit, idleText, busyText 
 
 // Сезоны: список, создание, редактирование, завершение, удаление.
 // onError — текст для общей плашки ошибки страницы («» — скрыть).
-export function SeasonsSection({ seasons, currentSeasonId, setCurrentSeasonId, refreshSeasons, refreshGames, showToast, onError }) {
+export function SeasonsSection({ seasons, currentSeasonId, setCurrentSeasonId, refreshSeasons, showToast, onError }) {
   const [newForm, setNewForm] = useState(null); // null — окно закрыто
   const [newStartDate, setNewStartDate] = useState(today);
   const [editing, setEditing] = useState(null); // { season, form }
@@ -96,7 +96,6 @@ export function SeasonsSection({ seasons, currentSeasonId, setCurrentSeasonId, r
       });
       await refreshSeasons();
       setCurrentSeasonId(season.id);
-      await refreshGames(season.id);
       setNewForm(null);
       onError("");
       showToast("Сезон создан");
@@ -158,7 +157,6 @@ export function SeasonsSection({ seasons, currentSeasonId, setCurrentSeasonId, r
         const fallback = updatedSeasons.find((s) => s.isActive) || updatedSeasons[updatedSeasons.length - 1];
         if (fallback) {
           setCurrentSeasonId(fallback.id);
-          await refreshGames(fallback.id);
         }
       }
       setConfirmDelete(null);

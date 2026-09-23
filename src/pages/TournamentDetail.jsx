@@ -30,7 +30,7 @@ export function TournamentDetail(props) {
 
 function TournamentDetailContent({
   tournament, allGames, players, navigate, seasons, goBack,
-  showToast, refreshTournaments, refreshAllTournaments,
+  showToast, refreshAllTournaments,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -103,7 +103,6 @@ function TournamentDetailContent({
   const handleDelete = async () => {
     try {
       await deleteTournament(tournament.id);
-      await refreshTournaments?.();
       await refreshAllTournaments?.();
       showToast?.(`Турнир "${tournament.name}" удалён`);
       goBack();
