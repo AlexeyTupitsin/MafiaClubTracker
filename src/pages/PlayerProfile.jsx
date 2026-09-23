@@ -1,29 +1,18 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, ArrowRightLeft, TrendingUp, TrendingDown, Minus, User, Sword, ChevronRight } from "lucide-react";
-import { Badge, StatCard, EmptyState, PlayerAvatar } from "../components/ui";
-import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate, calcRoleKillRate, calcBestMoveStats } from "../lib/metrics";
-import { ROLE_NAMES, ROLE_BADGE_VARIANT, RESULT_NAMES, ROLE_COLORS } from "../lib/constants";
-import { formatDate, compareGamesDesc } from "../lib/utils";
+import { ArrowLeft, User, Sword } from "lucide-react";
+import { EmptyState } from "../components/ui";
+import { calcPlayerStats, calcRoleStats, calcFormTrend, calcKillRate, calcRoleKillRate, calcBestMoveStats } from "../lib/metrics";
 import { playerEloHistory } from "../lib/elo";
-import { EloCell } from "../components/EloCell";
-import { EloSparkline } from "../components/EloSparkline";
-import { RoleWinrateChart } from "../components/RoleWinrateChart";
-
-function Section({ title, defaultOpen = true, children }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="mb-6">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 text-lg font-semibold text-slate-200 mb-3 hover:text-indigo-400 transition-colors w-full text-left"
-      >
-        <ChevronRight size={18} className={`transition-transform ${open ? "rotate-90" : ""}`} />
-        {title}
-      </button>
-      {open && <div className="animate-page-enter">{children}</div>}
-    </div>
-  );
-}
+import {
+  gamesForPeriod, recentTournamentStats, partnerStats, eloSummary as summarizeElo, playerGameHistory,
+  fmtScore, fmtWr,
+} from "./playerProfile/profileLogic";
+import { ProfileHeader, PeriodSelect } from "./playerProfile/ProfileHeader";
+import { OverviewSection } from "./playerProfile/OverviewSection";
+import { EloSection } from "./playerProfile/EloSection";
+import { PerformanceSection } from "./playerProfile/PerformanceSection";
+import { BestMoveSection } from "./playerProfile/BestMoveSection";
+import { InteractionSection } from "./playerProfile/InteractionSection";
 
 // Проверка «игрок не найден» — отдельно от содержимого: хуки нельзя вызывать
 // после раннего return (игрок может появиться позже, когда догрузятся данные).
@@ -46,580 +35,70 @@ export function PlayerProfile(props) {
   return <PlayerProfileContent {...props} />;
 }
 
-function PlayerProfileContent({ player, games, players, navigate, seasons, currentSeasonId, allGames, tournaments, goBack }) {
-  const [periodFilter, setPeriodFilter] = useState("all");
-  const [pairsLimit, setPairsLimit] = useState(10);
-  const [gamesLimit, setGamesLimit] = useState(10);
+function PlayerProfileContent({ player, players, navigate, seasons, allGames, tournaments, goBack }) {
+  const [period, setPeriod] = useState("all");
 
-  const activeGames = useMemo(() => {
-    if (periodFilter === "all") return allGames;
-    if (periodFilter === currentSeasonId) return games;
-    return allGames.filter((g) => g.seasonId === periodFilter);
-  }, [periodFilter, games, currentSeasonId, allGames]);
+  const activeGames = useMemo(() => gamesForPeriod(period, allGames), [period, allGames]);
 
   const stats = useMemo(() => calcPlayerStats(player.id, activeGames), [player.id, activeGames]);
   const roleStats = useMemo(() => calcRoleStats(player.id, activeGames), [player.id, activeGames]);
   const formTrend = useMemo(() => calcFormTrend(player.id, activeGames), [player.id, activeGames]);
   const killRateData = useMemo(() => calcKillRate(player.id, activeGames, seasons), [player.id, activeGames, seasons]);
   const roleKillRates = useMemo(() => calcRoleKillRate(player.id, activeGames, seasons), [player.id, activeGames, seasons]);
+  const pairs = useMemo(() => partnerStats(player.id, activeGames, players), [player.id, activeGames, players]);
+  const gameHistory = useMemo(() => playerGameHistory(player.id, activeGames), [player.id, activeGames]);
 
-  const bestMoveStats = useMemo(
-    () => calcBestMoveStats(player.id, allGames),
-    [player.id, allGames]
+  // Не зависят от периода: ELO сквозной, лучший ход и турниры — по всем играм
+  const bestMoveStats = useMemo(() => calcBestMoveStats(player.id, allGames), [player.id, allGames]);
+  const tournamentStats = useMemo(
+    () => recentTournamentStats(player.id, tournaments, allGames),
+    [player.id, tournaments, allGames]
   );
+  const eloHistory = useMemo(() => playerEloHistory(player.id, allGames), [player.id, allGames]);
+  const eloSummary = useMemo(() => summarizeElo(eloHistory), [eloHistory]);
 
-  const showBestMove = bestMoveStats.total > 0 || seasons?.some(s => s.trackBestMove);
-
-  // Tournament stats: last 3 tournaments where player participated
-  const tournamentStats = useMemo(() => {
-    if (!tournaments || tournaments.length === 0) return [];
-    // Find tournaments where this player has games
-    const tStats = tournaments
-      .map((t) => {
-        const tGames = allGames.filter((g) => g.tournamentId === t.id);
-        const playerTGames = tGames.filter((g) => g.players.some((p) => p.playerId === player.id));
-        if (playerTGames.length === 0) return null;
-        const wins = playerTGames.filter((g) => {
-          const gp = g.players.find((p) => p.playerId === player.id);
-          return gp?.result === "win";
-        }).length;
-        const totalScore = playerTGames.reduce((sum, g) => {
-          const gp = g.players.find((p) => p.playerId === player.id);
-          return sum + (gp?.totalScore || 0);
-        }, 0);
-        return {
-          id: t.id,
-          name: t.name,
-          date: t.date,
-          games: playerTGames.length,
-          wins,
-          winrate: (wins / playerTGames.length) * 100,
-          totalScore,
-          avgScore: totalScore / playerTGames.length,
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 3);
-    return tStats;
-  }, [tournaments, allGames, player.id]);
-
-  const roleChartData = useMemo(
-    () => roleStats.filter((r) => r.games > 0).map((r) => ({
-      name: ROLE_NAMES[r.role],
-      role: r.role,
-      winrate: Math.round(r.winrate),
-      games: r.games,
-    })),
-    [roleStats]
-  );
-
-  // Pair stats
-  const pairData = useMemo(() => {
-    const partnerIds = new Set();
-    activeGames.forEach((g) => {
-      const inGame = g.players.some((p) => p.playerId === player.id);
-      if (inGame) g.players.forEach((p) => { if (p.playerId !== player.id) partnerIds.add(p.playerId); });
-    });
-
-    return Array.from(partnerIds)
-      .map((pid) => {
-        const partner = players.find((p) => p.id === pid);
-        const pair = calcPairStats(player.id, pid, activeGames);
-        return { id: pid, nickname: partner?.nickname || "?", ...pair };
-      })
-      .sort((a, b) => b.totalGames - a.totalGames);
-  }, [player.id, activeGames, players]);
-
-  // Game history
-  // ELO сквозной: история строится по всем играм независимо от фильтра периода
-  const eloHistory = useMemo(
-    () => playerEloHistory(player.id, allGames),
-    [player.id, allGames]
-  );
-
-  const eloSummary = useMemo(() => {
-    if (eloHistory.length === 0) return null;
-    const current = eloHistory[eloHistory.length - 1].eloAfter;
-    const recent = eloHistory.slice(-10);
-    return {
-      current: Math.round(current),
-      recentCount: recent.length,
-      recentDelta: Math.round(current - recent[0].eloBefore),
-      peak: Math.round(Math.max(...eloHistory.map((h) => h.eloAfter))),
-    };
-  }, [eloHistory]);
-
-  const gameHistory = useMemo(() => {
-    return activeGames
-      .filter((g) => g.players.some((p) => p.playerId === player.id))
-      .sort(compareGamesDesc)
-      .map((g) => {
-        const gp = g.players.find((p) => p.playerId === player.id);
-        return { game: g, ...gp };
-      });
-  }, [player.id, activeGames]);
+  const showBestMove = bestMoveStats.total > 0 || seasons?.some((s) => s.trackBestMove);
+  const periodSelect = <PeriodSelect value={period} onChange={setPeriod} seasons={seasons} />;
 
   if (stats.totalGames === 0) {
     return (
       <div>
-        <div className="flex items-center gap-3 mb-4">
-          <button aria-label="Назад" onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
-            <ArrowLeft size={20} />
-          </button>
-          <PlayerAvatar player={player} size="lg" />
-          <div>
-            <h2 className="text-xl font-bold gradient-text">{player.nickname}</h2>
-            {player.realName && <p className="text-sm text-slate-400">{player.realName}</p>}
-          </div>
+        <div className="mb-4">
+          <ProfileHeader player={player} subtitle={player.realName} onBack={() => goBack()} />
         </div>
-        <div className="flex flex-wrap gap-2 mb-4">
-          <select
-            value={periodFilter}
-            onChange={(e) => setPeriodFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
-          >
-            <option value="all">Все сезоны</option>
-            {seasons.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
+        {periodSelect}
         <EmptyState icon={Sword} title="Нет игр за выбранный период" />
       </div>
     );
   }
 
-  const fmtScore = (v) => (v % 1 === 0 ? v : v.toFixed(1));
-  const fmtWr = (v) => `${v.toFixed(0)}%`;
-  const fmtPairCell = (games, wins, winrate) => games > 0 ? `${games} / ${wins} (${winrate.toFixed(0)}%)` : "—";
+  const subtitle = `${player.realName ? `${player.realName} · ` : ""}`
+    + `${stats.totalGames} игр · ${stats.wins} побед · ${fmtWr(stats.winrate)} · ${fmtScore(stats.totalScore)} баллов`;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <button aria-label="Назад" onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
-          <ArrowLeft size={20} />
-        </button>
-        <PlayerAvatar player={player} size="lg" />
-        <div>
-          <h2 className="text-xl font-bold gradient-text">{player.nickname}</h2>
-          <p className="text-sm text-slate-400">
-            {player.realName ? `${player.realName} · ` : ""}
-            {stats.totalGames} игр · {stats.wins} побед · {fmtWr(stats.winrate)} · {fmtScore(stats.totalScore)} баллов
-          </p>
-        </div>
-      </div>
+      <ProfileHeader player={player} subtitle={subtitle} onBack={() => goBack()} />
 
-      {/* Обзор */}
-      <Section title="Обзор" defaultOpen={true}>
-        {/* Period filter */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <select
-            value={periodFilter}
-            onChange={(e) => setPeriodFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
-          >
-            <option value="all">Все сезоны</option>
-            {seasons.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
+      <OverviewSection
+        periodSelect={periodSelect}
+        stats={stats}
+        eloSummary={eloSummary}
+        killRateData={killRateData}
+        tournamentStats={tournamentStats}
+      />
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-4">
-          {eloSummary && (
-            <StatCard label="ELO" value={
-              <span className="inline-flex items-baseline gap-1.5">
-                {eloSummary.current}
-                {eloSummary.recentDelta !== 0 && (
-                  <span className={`text-xs ${eloSummary.recentDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {eloSummary.recentDelta > 0 ? "+" : ""}{eloSummary.recentDelta}
-                  </span>
-                )}
-              </span>
-            } />
-          )}
-          <StatCard label="Игры" value={stats.totalGames} />
-          <StatCard label="Победы" value={stats.wins} />
-          {stats.draws > 0 && (
-            <StatCard label="Ничьи" value={<span className="text-indigo-400">{stats.draws}</span>} />
-          )}
-          <StatCard label="Поражения" value={stats.losses} />
-          <StatCard label="Winrate" value={fmtWr(stats.winrate)} />
-          <StatCard label="Баллы" value={fmtScore(stats.totalScore)} />
-          <StatCard label="Ср. балл" value={stats.avgScore.toFixed(2)} />
-          <StatCard label="Ср. доп." value={
-            <span className={
-              stats.avgBonus > 0 ? "text-emerald-400" :
-              stats.avgBonus < 0 ? "text-red-400" : ""
-            }>
-              {stats.avgBonus.toFixed(2)}
-            </span>
-          } />
-          {killRateData && (
-            <StatCard label="ПУ%" value={
-              <span className={
-                killRateData.killRate > 25 ? "text-red-400" :
-                killRateData.killRate < 10 ? "text-emerald-400" : ""
-              }>
-                {killRateData.killRate.toFixed(1)}%
-                <span className="text-xs text-slate-500 ml-1">({killRateData.timesKilled}/{killRateData.gamesTracked})</span>
-              </span>
-            } />
-          )}
-        </div>
+      {eloSummary && eloHistory.length > 1 && <EloSection history={eloHistory} summary={eloSummary} />}
 
-        {/* Tournament stats */}
-        {tournamentStats.length > 0 && (
-          <div className="glass-card rounded-2xl p-4">
-            <h3 className="font-semibold mb-3">Последние турниры</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-indigo-500/10">
-                    <th className="text-left px-2 py-1.5 font-medium text-slate-400">Турнир</th>
-                    <th className="text-left px-2 py-1.5 font-medium text-slate-400">Дата</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-slate-400">Игр</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-slate-400">Побед</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-slate-400">WR%</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-slate-400">Баллы</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-slate-400">Ср. балл</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tournamentStats.map((t) => (
-                    <tr key={t.id} className="border-b border-indigo-500/10 last:border-b-0">
-                      <td className="px-2 py-1.5 font-medium">{t.name}</td>
-                      <td className="px-2 py-1.5 text-slate-400">{formatDate(t.date)}</td>
-                      <td className="px-2 py-1.5 text-center">{t.games}</td>
-                      <td className="px-2 py-1.5 text-center">{t.wins}</td>
-                      <td className="px-2 py-1.5 text-center">
-                        <span className={t.winrate > 60 ? "text-emerald-400 font-medium" : t.winrate < 40 ? "text-red-400" : ""}>
-                          {t.winrate.toFixed(0)}%
-                        </span>
-                      </td>
-                      <td className="px-2 py-1.5 text-center font-semibold">{fmtScore(t.totalScore)}</td>
-                      <td className="px-2 py-1.5 text-center">{t.avgScore.toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </Section>
+      <PerformanceSection
+        roleStats={roleStats}
+        roleKillRates={roleKillRates}
+        formTrend={formTrend}
+        onCompare={() => navigate("compare", player.id)}
+      />
 
-      {/* Динамика ELO */}
-      {eloSummary && eloHistory.length > 1 && (
-        <Section title="Динамика ELO" defaultOpen={true}>
-          <div className="glass-card rounded-2xl p-4 mb-4">
-            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 mb-3">
-              <span className="text-sm text-slate-400">
-                Текущий: <span className="text-lg font-semibold text-slate-200">{eloSummary.current}</span>
-              </span>
-              <span className="text-sm text-slate-400">
-                Пик: <span className="text-slate-200">{eloSummary.peak}</span>
-              </span>
-              <span className="text-sm text-slate-400">
-                За последние {eloSummary.recentCount}:{" "}
-                <span className={
-                  eloSummary.recentDelta > 0 ? "text-emerald-400" :
-                  eloSummary.recentDelta < 0 ? "text-red-400" : "text-slate-200"
-                }>
-                  {eloSummary.recentDelta > 0 ? "+" : ""}{eloSummary.recentDelta}
-                </span>
-              </span>
-            </div>
-            <EloSparkline history={eloHistory} />
-            <p className="text-xs text-slate-500 mt-2">
-              Рейтинг сквозной по всем сезонам — фильтр периода на него не влияет.
-            </p>
-          </div>
-        </Section>
-      )}
+      {showBestMove && <BestMoveSection stats={bestMoveStats} />}
 
-      {/* Результативность */}
-      <Section title="Результативность" defaultOpen={true}>
-        {/* Role stats table + chart */}
-        <div className="glass-card rounded-2xl p-4 mb-4">
-          <h3 className="font-semibold mb-3">Статистика по ролям</h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-indigo-500/10">
-                  <th className="text-left py-1.5 font-medium text-slate-400">Роль</th>
-                  <th className="text-center py-1.5 font-medium text-slate-400">Игр</th>
-                  <th className="text-center py-1.5 font-medium text-slate-400">Побед</th>
-                  <th className="text-center py-1.5 font-medium text-slate-400">WR%</th>
-                  <th className="text-center py-1.5 font-medium text-slate-400">Ср. балл</th>
-                  <th className="text-center py-1.5 font-medium text-slate-400">Ср. доп.</th>
-                  <th className="text-center py-1.5 font-medium text-slate-400">ПУ%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {roleStats.map((r) => (
-                  <tr key={r.role} className="border-b border-indigo-500/10 last:border-b-0">
-                    <td className="py-1.5">
-                      <Badge variant={ROLE_BADGE_VARIANT[r.role]}>{ROLE_NAMES[r.role]}</Badge>
-                    </td>
-                    <td className="py-1.5 text-center">{r.games}</td>
-                    <td className="py-1.5 text-center">{r.wins}</td>
-                    <td className="py-1.5 text-center">
-                      {r.games > 0 ? fmtWr(r.winrate) : "—"}
-                    </td>
-                    <td className="py-1.5 text-center">
-                      {r.games > 0 ? r.avgScore.toFixed(2) : "—"}
-                    </td>
-                    <td className="py-1.5 text-center">
-                      {r.games > 0 ? (
-                        <span className={
-                          r.avgBonus > 0 ? "text-emerald-400" :
-                          r.avgBonus < 0 ? "text-red-400" : ""
-                        }>
-                          {r.avgBonus.toFixed(2)}
-                        </span>
-                      ) : "—"}
-                    </td>
-                    <td className="py-1.5 text-center text-xs">
-                      {(() => {
-                        const rk = roleKillRates.find((x) => x.role === r.role);
-                        if (!rk || rk.killRate === null) return "—";
-                        return (
-                          <span className={rk.killRate > 25 ? "text-red-400" : rk.killRate < 10 ? "text-emerald-400" : ""}>
-                            {rk.killRate.toFixed(1)}%
-                          </span>
-                        );
-                      })()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Bar chart for winrate by role */}
-            {roleChartData.length > 0 ? (
-              <RoleWinrateChart
-                groups={roleChartData.map((r) => ({
-                  label: r.name,
-                  bars: [{ value: r.winrate, color: ROLE_COLORS[r.role] }],
-                }))}
-              />
-            ) : (
-              <div className="h-48 flex items-center justify-center text-slate-500 text-sm">
-                Недостаточно данных для графика
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Form trend */}
-        {formTrend && formTrend.recentGames >= 3 && (
-          <div className="glass-card rounded-2xl p-4">
-            <h3 className="font-semibold mb-3">Тренд формы (последние {formTrend.recentGames} игр)</h3>
-            <div className="flex flex-wrap items-center gap-1.5 mb-3">
-              {formTrend.recentResults.map((r, i) => (
-                <span key={i} className={`w-7 h-7 flex items-center justify-center rounded text-sm ${
-                  r === "win" ? "bg-emerald-500/10 text-emerald-400" :
-                  r === "draw" ? "bg-amber-500/10 text-amber-400" :
-                  "bg-red-500/10 text-red-400"
-                }`}>
-                  {r === "win" ? "✅" : r === "draw" ? "➖" : "❌"}
-                </span>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-4 text-sm">
-              <div>
-                <span className="text-slate-400">WR за {formTrend.recentGames}:</span>{" "}
-                <span className="font-medium">{formTrend.recentWinrate.toFixed(0)}%</span>
-                <span className="text-slate-500"> vs {formTrend.overallWinrate.toFixed(0)}%</span>
-              </div>
-              <div>
-                <span className="text-slate-400">Ср. балл за {formTrend.recentGames}:</span>{" "}
-                <span className="font-medium">{formTrend.recentAvgScore.toFixed(2)}</span>
-                <span className="text-slate-500"> vs {formTrend.overallAvgScore.toFixed(2)}</span>
-              </div>
-              <div>
-                {formTrend.trend === "up" && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-medium">
-                    <TrendingUp size={12} /> На подъёме
-                  </span>
-                )}
-                {formTrend.trend === "stable" && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 text-xs font-medium">
-                    <Minus size={12} /> Стабильно
-                  </span>
-                )}
-                {formTrend.trend === "down" && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 text-xs font-medium">
-                    <TrendingDown size={12} /> В спаде
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Compare button */}
-        <button onClick={() => navigate("compare", player.id)}
-          className="flex items-center gap-2 px-4 py-2 btn-ghost cursor-pointer text-sm transition-colors mt-4">
-          <ArrowRightLeft size={16} /> Сравнить с...
-        </button>
-      </Section>
-
-      {/* Лучший ход */}
-      {showBestMove && (
-        <Section title="Лучший ход">
-          <div className="glass-card p-4 rounded-xl">
-            <p className="text-sm text-slate-400 mb-3">Всего ходов: {bestMoveStats.total}</p>
-            <div className="space-y-2">
-              {[3, 2, 1, 0].map(n => {
-                const count = bestMoveStats.hits[n] ?? 0;
-                const pct = bestMoveStats.total > 0 ? Math.round(count / bestMoveStats.total * 100) : 0;
-                const barColor =
-                  n === 3 ? 'bg-emerald-500' :
-                  n === 2 ? 'bg-lime-500' :
-                  n === 1 ? 'bg-yellow-500' :
-                  'bg-slate-600';
-                const labelColor =
-                  n === 3 ? 'text-emerald-400' :
-                  n === 2 ? 'text-lime-400' :
-                  n === 1 ? 'text-yellow-400' :
-                  'text-slate-400';
-                return (
-                  <div key={n} className="flex items-center gap-3">
-                    <span className={`text-xs font-mono w-8 shrink-0 ${labelColor}`}>{n}/3</span>
-                    <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${barColor}`}
-                        style={{ width: bestMoveStats.total > 0 ? `${pct}%` : '0%' }}
-                      />
-                    </div>
-                    <span className="text-xs text-slate-300 w-6 text-right shrink-0">{count}</span>
-                    <span className="text-xs text-slate-500 w-10 text-right shrink-0">({pct}%)</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </Section>
-      )}
-
-      {/* Взаимодействие */}
-      <Section title="Взаимодействие" defaultOpen={true}>
-        {/* Pair stats */}
-        {pairData.length > 0 && (
-          <div className="glass-card rounded-2xl p-4 mb-4">
-            <h3 className="font-semibold mb-3">Статистика по парам</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-indigo-500/10">
-                    <th className="text-left px-2 py-1.5 font-medium text-slate-400">Партнёр</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-slate-400">Игр</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-slate-400 whitespace-nowrap">Оба красн.</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-slate-400 whitespace-nowrap">Оба чёрн.</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-slate-400 whitespace-nowrap">Я кр. / Он чёр.</th>
-                    <th className="text-center px-2 py-1.5 font-medium text-slate-400 whitespace-nowrap">Я чёр. / Он кр.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pairData.slice(0, pairsLimit).map((p) => (
-                    <tr key={p.id} className="border-b border-indigo-500/10 last:border-b-0">
-                      <td className="px-2 py-1.5">
-                        <button onClick={() => navigate("playerProfile", p.id)}
-                          className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{p.nickname}</button>
-                      </td>
-                      <td className="px-2 py-1.5 text-center font-medium">{p.totalGames}</td>
-                      <td className="px-2 py-1.5 text-center text-xs">
-                        {fmtPairCell(p.bothRed.games, p.bothRed.wins, p.bothRed.winrate)}
-                      </td>
-                      <td className="px-2 py-1.5 text-center text-xs">
-                        {fmtPairCell(p.bothBlack.games, p.bothBlack.wins, p.bothBlack.winrate)}
-                      </td>
-                      <td className="px-2 py-1.5 text-center text-xs">
-                        {fmtPairCell(p.aRedBBlack.games, p.aRedBBlack.winsA, p.aRedBBlack.winrateA)}
-                      </td>
-                      <td className="px-2 py-1.5 text-center text-xs">
-                        {fmtPairCell(p.aBlackBRed.games, p.aBlackBRed.winsA, p.aBlackBRed.winrateA)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {pairData.length > pairsLimit && (
-              <button onClick={() => setPairsLimit((n) => n + 10)}
-                className="mt-3 text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer">
-                Показать ещё
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Game history */}
-        <div className="glass-card rounded-2xl p-4">
-          <h3 className="font-semibold mb-3">История игр</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-indigo-500/10">
-                  <th className="text-left px-2 py-1.5 font-medium text-slate-400">Дата</th>
-                  <th className="text-left px-2 py-1.5 font-medium text-slate-400">Роль</th>
-                  <th className="text-left px-2 py-1.5 font-medium text-slate-400">Результат</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-slate-400">База</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-slate-400">Бонус</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-slate-400">Итого</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-slate-400">ELO</th>
-                </tr>
-              </thead>
-              <tbody>
-                {gameHistory.slice(0, gamesLimit).map((h) => (
-                  <tr key={h.game.id} className="border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5">
-                    <td className="px-2 py-1.5 text-slate-400">
-                      <button onClick={() => navigate("gameDetail", h.game.id)}
-                        className="text-indigo-400 hover:text-indigo-300 cursor-pointer">
-                        {formatDate(h.game.date)}
-                      </button>
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <Badge variant={ROLE_BADGE_VARIANT[h.role]}>{ROLE_NAMES[h.role]}</Badge>
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <span className={
-                        h.result === "win" ? "text-emerald-400 font-medium" :
-                        h.result === "draw" ? "text-amber-400 font-medium" :
-                        "text-red-400"
-                      }>
-                        {RESULT_NAMES[h.result]}
-                      </span>
-                    </td>
-                    <td className="px-2 py-1.5 text-center">{h.baseScore}</td>
-                    <td className="px-2 py-1.5 text-center">
-                      {h.bonusScore !== 0 && (
-                        <span className={h.bonusScore > 0 ? "text-emerald-400" : "text-red-400"}>
-                          {h.bonusScore > 0 ? "+" : ""}{fmtScore(h.bonusScore)}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-2 py-1.5 text-center font-semibold">{fmtScore(h.totalScore)}</td>
-                    <td className="px-2 py-1.5 text-center whitespace-nowrap">
-                      <EloCell game={h.game} gp={h} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {gameHistory.length > gamesLimit && (
-            <button onClick={() => setGamesLimit((n) => n + 10)}
-              className="mt-3 text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer">
-              Показать ещё
-            </button>
-          )}
-        </div>
-      </Section>
+      <InteractionSection pairs={pairs} history={gameHistory} navigate={navigate} />
     </div>
   );
 }
