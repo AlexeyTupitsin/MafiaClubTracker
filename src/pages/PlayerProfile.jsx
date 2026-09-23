@@ -164,7 +164,7 @@ function PlayerProfileContent({ player, games, players, navigate, seasons, curre
     return (
       <div>
         <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
+          <button aria-label="Назад" onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
             <ArrowLeft size={20} />
           </button>
           <PlayerAvatar player={player} size="lg" />
@@ -198,7 +198,7 @@ function PlayerProfileContent({ player, games, players, navigate, seasons, curre
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
+        <button aria-label="Назад" onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
           <ArrowLeft size={20} />
         </button>
         <PlayerAvatar player={player} size="lg" />

@@ -87,7 +87,7 @@ export function GameDetail({ game, players, navigate, showToast, refreshAfterGam
     <div>
       {/* Header */}
       <div className="flex items-center gap-3 mb-1">
-        <button onClick={() => goBack()}
+        <button aria-label="Назад" onClick={() => goBack()}
           className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors cursor-pointer">
           <ArrowLeft size={20} />
         </button>
