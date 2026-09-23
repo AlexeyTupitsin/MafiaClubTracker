@@ -35,9 +35,12 @@ export function DataSection({ showToast, onError, refreshData, refreshAllGames, 
     setRecalculating(true);
     onError("");
     try {
-      const { gamesProcessed } = await recalcElo();
+      const { gamesProcessed, rowsUpdated, playersUpdated } = await recalcElo();
       await Promise.all([refreshAllGames(), refreshPlayers()]);
-      showToast(`ELO пересчитан, игр обработано: ${gamesProcessed}`);
+      const updated = rowsUpdated + playersUpdated;
+      showToast(updated > 0
+        ? `ELO пересчитан: игр ${gamesProcessed}, обновлено записей ${updated}`
+        : `ELO актуален — игр проверено: ${gamesProcessed}`);
     } catch (err) {
       fail("Ошибка пересчёта ELO", err);
     } finally {

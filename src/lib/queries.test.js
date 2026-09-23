@@ -12,7 +12,8 @@ vi.mock('./supabase', () => ({
   refreshAccessToken: async () => null,
 }));
 
-const { getAllGames, getPlayers, createGame, deleteGame, importData } = await import('./queries');
+const { getAllGames, getPlayers, createGame, deleteGame, importData, recalcElo } = await import('./queries');
+const { replayElo } = await import('./elo');
 
 function gameRow(i) {
   return { id: `g${i}`, season_id: 's1', game_number: i, date: '2026-01-01T19:00:00Z', winner: 'red', game_players: [] };
@@ -25,6 +26,10 @@ function pageResponse(rows, init, maxRows) {
   const range = page.length ? `${from}-${from + page.length - 1}/${rows.length}` : `*/${rows.length}`;
   return new Response(JSON.stringify(page), { status: 206, headers: { 'content-range': range } });
 }
+
+// Игрок с устаревшим рейтингом: при пустой истории у него должно быть 1000,
+// поэтому пересчёт отправит запись в apply_elo
+const STALE_PLAYERS = [{ id: 'p1', nickname: 'A', elo: 1500, elo_games: 3 }];
 
 const json = (body, status = 200) => new Response(body == null ? null : JSON.stringify(body), { status });
 
@@ -82,7 +87,7 @@ describe('importData', () => {
     fetchMock.mockImplementation(async (url, init) => {
       if (url.includes('rpc/import_data')) return json(importBody, importStatus);
       if (url.includes('rest/v1/games')) return pageResponse([], init, 1000);
-      if (url.includes('rest/v1/players')) return json([]);
+      if (url.includes('rest/v1/players')) return json(STALE_PLAYERS);
       if (url.includes('rpc/apply_elo')) return eloFails ? json({ message: 'timeout' }, 500) : json(null, 204);
       throw new Error(`unexpected ${url}`);
     });
@@ -131,7 +136,7 @@ describe('createGame / deleteGame', () => {
       if (url.includes('rpc/save_game')) return json('new-uuid', saveStatus);
       if (url.includes('rest/v1/games?id=eq.')) return json(null, 204);
       if (url.includes('rest/v1/games')) return pageResponse([], init, 1000);
-      if (url.includes('rest/v1/players')) return json([]);
+      if (url.includes('rest/v1/players')) return json(STALE_PLAYERS);
       if (url.includes('rpc/apply_elo')) return eloFails ? json({ message: 'timeout' }, 500) : json(null, 204);
       throw new Error(`unexpected ${url}`);
     });
@@ -187,5 +192,76 @@ describe('аватары', () => {
       'https://db.test/storage/v1/object/public/avatars/p2/2.jpg',
       null,
     ]);
+  });
+});
+
+describe('recalcElo — пишет только изменившееся', () => {
+  // Игра в формате БД; stored — сохранённый ELO (Map playerId → entry) или ничего
+  function dbGame(game, stored) {
+    return {
+      id: game.id, season_id: game.seasonId, game_number: game.gameNumber, date: game.date,
+      winner: game.winner, created_at: game.createdAt ?? null,
+      game_players: game.players.map((gp) => {
+        const e = stored?.get(gp.playerId);
+        return {
+          id: gp.id, player_id: gp.playerId, seat: gp.seat, role: gp.role, result: gp.result,
+          base_score: gp.baseScore, bonus_score: gp.bonusScore, total_score: gp.totalScore,
+          elo_before: e?.eloBefore ?? null, elo_expected: e?.expected ?? null, elo_k: e?.k ?? null,
+          elo_delta: e?.delta ?? null, elo_after: e?.eloAfter ?? null,
+        };
+      }),
+    };
+  }
+
+  const dbPlayers = (final) => makePlayers().map((p) => ({
+    id: p.id, nickname: p.nickname,
+    elo: final?.get(p.id)?.elo ?? 1000, elo_games: final?.get(p.id)?.eloGames ?? 0,
+  }));
+
+  const g1 = makeGame({ id: 'g1', gameNumber: 1, date: '2026-01-01T19:00:00Z', winner: 'red' });
+  const g2 = makeGame({ id: 'g2', gameNumber: 2, date: '2026-01-02T19:00:00Z', winner: 'black' });
+
+  function server(gameRows, playerRows) {
+    fetchMock.mockImplementation(async (url, init) => {
+      if (url.includes('rest/v1/games')) return pageResponse(gameRows, init, 1000);
+      if (url.includes('rest/v1/players')) return json(playerRows);
+      if (url.includes('rpc/apply_elo')) return json(null, 204);
+      throw new Error(`unexpected ${url}`);
+    });
+  }
+  const applied = () => JSON.parse(calls('rpc/apply_elo')[0][1].body);
+
+  it('новая игра в конце истории — пишутся только её строки', async () => {
+    const after1 = replayElo([g1]);
+    server([dbGame(g2), dbGame(g1, after1.perGame.get('g1'))], dbPlayers(after1.final));
+
+    const result = await recalcElo();
+
+    const body = applied();
+    expect(body.p_game_players.map((r) => r.id).every((id) => id.startsWith('g2-'))).toBe(true);
+    expect(body.p_game_players).toHaveLength(10);
+    expect(body.p_players).toHaveLength(10);
+    expect(result).toEqual({ gamesProcessed: 2, rowsUpdated: 10, playersUpdated: 10 });
+  });
+
+  it('всё актуально — запись не отправляется', async () => {
+    const all = replayElo([g1, g2]);
+    server([dbGame(g2, all.perGame.get('g2')), dbGame(g1, all.perGame.get('g1'))], dbPlayers(all.final));
+
+    expect(await recalcElo()).toEqual({ gamesProcessed: 2, rowsUpdated: 0, playersUpdated: 0 });
+    expect(calls('rpc/apply_elo')).toHaveLength(0);
+  });
+
+  it('изменилась старая игра — переписывается она и всё после неё', async () => {
+    // Сохранено по старому результату первой игры, теперь в ней победили чёрные
+    const before = replayElo([g1, g2]);
+    const g1edited = makeGame({ id: 'g1', gameNumber: 1, date: '2026-01-01T19:00:00Z', winner: 'black' });
+    server([dbGame(g2, before.perGame.get('g2')), dbGame(g1edited, before.perGame.get('g1'))], dbPlayers(before.final));
+
+    await recalcElo();
+
+    const ids = applied().p_game_players.map((r) => r.id);
+    expect(ids.filter((id) => id.startsWith('g1-'))).toHaveLength(10);
+    expect(ids.filter((id) => id.startsWith('g2-'))).toHaveLength(10);
   });
 });

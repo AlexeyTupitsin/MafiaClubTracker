@@ -362,14 +362,19 @@ async function upsertRows(table, rows, chunkSize = 500) {
   }
 }
 
+// Сохранённое значение совпадает с пересчитанным. numeric в БД хранит ровно
+// то, что пришло из JSON, но сравниваем с запасом на округление double.
+function sameElo(stored, fresh) {
+  if (stored == null || fresh == null) return stored == fresh;
+  return Math.abs(stored - fresh) < 1e-9;
+}
+
 /**
- * Пересчитывает ELO по всей истории игр и сохраняет результат в БД.
- *
- * Пересчёт всегда полный: игру можно завести задним числом или отредактировать
- * старую, а это сдвигает всю последующую цепочку рейтингов.
+ * Строки для записи: только те, где пересчитанный ELO отличается от
+ * сохранённого. Новая игра в конце истории меняет ~10 строк, правка старой —
+ * всё, что после неё.
  */
-export async function recalcElo() {
-  const [games, players] = await Promise.all([getAllGames(), getPlayers()]);
+function collectEloChanges(games, players) {
   const { perGame, final } = replayElo(games);
 
   const gamePlayerRows = [];
@@ -380,6 +385,13 @@ export async function recalcElo() {
     for (const gp of game.players) {
       const elo = byPlayer.get(gp.playerId);
       if (!elo) continue;
+
+      const unchanged = sameElo(gp.eloBefore, elo.eloBefore)
+        && sameElo(gp.eloExpected, elo.expected)
+        && sameElo(gp.eloK, elo.k)
+        && sameElo(gp.eloDelta, elo.delta)
+        && sameElo(gp.eloAfter, elo.eloAfter);
+      if (unchanged) continue;
 
       gamePlayerRows.push({
         id: gp.id,
@@ -392,14 +404,35 @@ export async function recalcElo() {
     }
   }
 
-  const playerRows = players.map((p) => {
+  const playerRows = [];
+  for (const p of players) {
     const f = final.get(p.id);
-    return {
-      id: p.id,
-      elo: f?.elo ?? ELO_START,
-      elo_games: f?.eloGames ?? 0,
-    };
-  });
+    const elo = f?.elo ?? ELO_START;
+    const eloGames = f?.eloGames ?? 0;
+    if (sameElo(p.elo, elo) && p.eloGames === eloGames) continue;
+    playerRows.push({ id: p.id, elo, elo_games: eloGames });
+  }
+
+  return { gamePlayerRows, playerRows };
+}
+
+/**
+ * Пересчитывает ELO и сохраняет изменения в БД.
+ *
+ * Прогон всегда по всей истории: игру можно завести задним числом или
+ * отредактировать старую, а это сдвигает всю последующую цепочку рейтингов.
+ * Прогон в памяти дешёвый; дорогая часть — запись, поэтому пишутся только
+ * изменившиеся строки.
+ */
+export async function recalcElo() {
+  const [games, players] = await Promise.all([getAllGames(), getPlayers()]);
+  const { gamePlayerRows, playerRows } = collectEloChanges(games, players);
+  const result = {
+    gamesProcessed: games.length,
+    rowsUpdated: gamePlayerRows.length,
+    playersUpdated: playerRows.length,
+  };
+  if (gamePlayerRows.length === 0 && playerRows.length === 0) return result;
 
   try {
     // Одна транзакция: рейтинг не останется пересчитанным наполовину
@@ -415,7 +448,7 @@ export async function recalcElo() {
     await applyEloLegacy(games, players, gamePlayerRows, playerRows);
   }
 
-  return { gamesProcessed: games.length, playersUpdated: playerRows.length };
+  return result;
 }
 
 // Функции из миграции 003 могут быть ещё не применены к базе
