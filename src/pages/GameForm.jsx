@@ -18,9 +18,12 @@ const NO_BEST_MOVES = [null, null, null];
 // Замена одного элемента массива — для полей по местам
 const replaceAt = (list, idx, value) => list.map((item, i) => (i === idx ? value : item));
 
-export function GameForm({ players, games, currentSeasonId, currentSeason, navigate, editingGame, showToast, refreshGames, refreshAllGames, tournaments, refreshTournaments }) {
+export function GameForm({ players, games, currentSeasonId, currentSeason, navigate, editingGame, showToast, refreshAfterGameWrite, tournaments, refreshTournaments }) {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  // id новой игры — заранее, чтобы повторное нажатие «Сохранить» после
+  // потерянного ответа не создало вторую такую же игру
+  const [newGameId] = useState(() => crypto.randomUUID());
 
   // Турнир
   const [tournamentId, setTournamentId] = useState("");
@@ -153,6 +156,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     };
 
     setSaving(true);
+    let saved;
     try {
       let resolvedTournamentId = tournamentId || null;
       if (newTournamentMode && newTournamentName.trim()) {
@@ -162,35 +166,52 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           date: newTournamentDate,
         });
         resolvedTournamentId = t.id;
+        // Турнир уже создан: если игра не сохранится, повторное нажатие
+        // возьмёт его, а не создаст второй с тем же названием
+        setTournamentId(t.id);
+        setNewTournamentMode(false);
         refreshTournaments?.();
       }
 
-      if (editingGame) {
-        await updateGame({ id: editingGame.id, tournamentId: resolvedTournamentId, ...details });
-        await refreshGames();
-        await refreshAllGames();
-        showToast?.("Игра обновлена");
-        navigate("gameDetail", editingGame.id, { replace: true });
-      } else {
-        const gameNumber = nextGameNumber(games);
-        await createGame({
+      saved = editingGame
+        ? await updateGame({ id: editingGame.id, tournamentId: resolvedTournamentId, ...details })
+        : await createGame({
+          newId: newGameId,
           seasonId: currentSeasonId,
           tournamentId: resolvedTournamentId,
-          gameNumber,
+          gameNumber: nextGameNumber(games),
           ...details,
         });
-        await refreshGames();
-        await refreshAllGames();
-        draft.clear();
-        showToast?.(`Игра #${gameNumber} сохранена`);
-        navigate("games", null, { replace: true });
-      }
     } catch (err) {
       console.error("Failed to save game:", err);
       showToast?.("Ошибка сохранения: " + (err.message || "неизвестная ошибка"), "error");
-    } finally {
       setSaving(false);
+      return;
     }
+
+    // Игра в базе — дальше ошибки уже не «ошибка сохранения»
+    if (!editingGame) draft.clear();
+    let seasonGames = null;
+    try {
+      seasonGames = await refreshAfterGameWrite();
+    } catch (err) {
+      console.error("Failed to refresh after save:", err);
+    }
+    setSaving(false);
+
+    // Номер новой игры назначает сервер
+    const number = editingGame?.gameNumber ?? seasonGames?.find((g) => g.id === saved.id)?.gameNumber;
+    const title = editingGame ? "Игра обновлена" : number ? `Игра #${number} сохранена` : "Игра сохранена";
+    if (saved.eloError) {
+      showToast?.(`${title}, но ELO не пересчитан: ${saved.eloError.message}. Настройки → «Пересчитать ELO»`, "warning");
+    } else if (!seasonGames) {
+      showToast?.(`${title}, но список не обновился — обновите страницу`, "warning");
+    } else {
+      showToast?.(title);
+    }
+
+    if (editingGame) navigate("gameDetail", editingGame.id, { replace: true });
+    else navigate("games", null, { replace: true });
   };
 
   return (

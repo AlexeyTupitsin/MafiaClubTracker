@@ -171,20 +171,32 @@ security invoker
 set search_path = public
 as $$
 declare
-  v_id uuid := nullif(p_game->>'id', '')::uuid;
+  v_id     uuid := nullif(p_game->>'id', '')::uuid;
+  v_new_id uuid := nullif(p_game->>'new_id', '')::uuid;
+  v_season uuid := nullif(p_game->>'season_id', '')::uuid;
 begin
   if not is_admin() then
     raise exception 'Недостаточно прав для сохранения игры' using errcode = '42501';
   end if;
 
   if v_id is null then
+    -- Параллельные сохранения в один сезон выполняются по очереди: каждое
+    -- видит номер предыдущего, а повтор запроса — уже записанную игру
+    perform pg_advisory_xact_lock(hashtext('save_game:' || v_season::text));
+
+    -- Повтор запроса, игра уже сохранена
+    if v_new_id is not null and exists (select 1 from games where id = v_new_id) then
+      return v_new_id;
+    end if;
+
     insert into games (
-      season_id, tournament_id, game_number, date, winner, notes,
+      id, season_id, tournament_id, game_number, date, winner, notes,
       first_killed, best_move_seat_1, best_move_seat_2, best_move_seat_3
     ) values (
-      (p_game->>'season_id')::uuid,
+      coalesce(v_new_id, gen_random_uuid()),
+      v_season,
       nullif(p_game->>'tournament_id', '')::uuid,
-      (p_game->>'game_number')::integer,
+      (select coalesce(max(game_number), 0) + 1 from games where season_id = v_season),
       coalesce((p_game->>'date')::timestamptz, now()),
       p_game->>'winner',
       p_game->>'notes',

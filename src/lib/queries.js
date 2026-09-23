@@ -1,29 +1,41 @@
-import { getAccessToken, hasUserSession, isAccessTokenExpiring, refreshAccessToken } from './supabase';
+import {
+  SUPABASE_URL, SUPABASE_ANON_KEY,
+  getAccessToken, hasUserSession, isAccessTokenExpiring, refreshAccessToken,
+} from './supabase';
 import { replayElo, ELO_START } from './elo';
 import { validateImportData, formatImportErrors } from './importValidation';
+import { avatarPath, avatarPublicUrl, avatarDbValue } from './avatarUrl';
 
 // ============================================================
 // REST helper: direct fetch to bypass supabase-js hanging issue
 // ============================================================
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_PROXY_URL || import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Без таймаута зависший запрос держал бы спиннер «Сохранение...» вечно
+const DEFAULT_TIMEOUT_MS = 20_000;
 
 /**
  * fetch с токеном текущего пользователя. Истекающий токен обновляется заранее,
  * а на 401 — обновляется и запрос повторяется один раз.
  */
-async function authFetch(url, { headers = {}, ...init } = {}) {
+async function authFetch(url, { headers = {}, timeoutMs = DEFAULT_TIMEOUT_MS, ...init } = {}) {
   if (isAccessTokenExpiring()) await refreshAccessToken();
 
-  const send = () => fetch(url, {
-    ...init,
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${getAccessToken()}`,
-      ...headers,
-    },
-  });
+  const send = async () => {
+    try {
+      return await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(timeoutMs),
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${getAccessToken()}`,
+          ...headers,
+        },
+      });
+    } catch (err) {
+      if (err.name !== 'TimeoutError') throw err;
+      throw new Error(`Сервер не ответил за ${Math.round(timeoutMs / 1000)} с — проверьте интернет`, { cause: err });
+    }
+  };
 
   let res = await send();
   if (res.status === 401 && hasUserSession()) {
@@ -43,7 +55,7 @@ async function apiError(res) {
 }
 
 async function rest(path, options = {}) {
-  const { method = 'GET', body, headers: extra = {}, single = false } = options;
+  const { method = 'GET', body, headers: extra = {}, single = false, timeoutMs } = options;
 
   const headers = {
     'Content-Type': 'application/json',
@@ -60,6 +72,7 @@ async function rest(path, options = {}) {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
+    timeoutMs,
   });
 
   if (!res.ok) throw await apiError(res);
@@ -143,7 +156,7 @@ function toFrontendPlayer(row) {
     realName: row.real_name,
     isActive: row.is_active,
     createdAt: row.created_at,
-    avatarUrl: row.avatar_url ?? null,
+    avatarUrl: avatarPublicUrl(row.avatar_url, SUPABASE_URL),
     elo: row.elo == null ? ELO_START : Number(row.elo),
     eloGames: row.elo_games ?? 0,
   };
@@ -154,7 +167,7 @@ function toDbPlayer(obj) {
   if (obj.nickname !== undefined) row.nickname = obj.nickname;
   if (obj.realName !== undefined) row.real_name = obj.realName;
   if (obj.isActive !== undefined) row.is_active = obj.isActive;
-  if (obj.avatarUrl !== undefined) row.avatar_url = obj.avatarUrl;
+  if (obj.avatarUrl !== undefined) row.avatar_url = avatarDbValue(obj.avatarUrl);
   return row;
 }
 
@@ -279,21 +292,24 @@ export async function uploadPlayerAvatar(playerId, file) {
     method: 'POST',
     headers: { 'Content-Type': file.type },
     body: file,
+    timeoutMs: 60_000,
   });
 
   if (!res.ok) throw await apiError(res);
 
-  return `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
+  return avatarPublicUrl(path, SUPABASE_URL);
 }
 
 export async function deletePlayerAvatar(avatarUrl) {
-  if (!avatarUrl) return;
-  const prefix = `${SUPABASE_URL}/storage/v1/object/public/avatars/`;
-  const path = avatarUrl.startsWith(prefix) ? avatarUrl.slice(prefix.length) : null;
+  const path = avatarPath(avatarUrl);
   if (!path) return;
 
-  await authFetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, { method: 'DELETE' });
-  // Игнорируем ошибки — файл мог уже не существовать
+  try {
+    await authFetch(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, { method: 'DELETE' });
+  } catch (err) {
+    // Файл мог уже не существовать; осиротевший файл не повод срывать сохранение игрока
+    console.warn('Не удалось удалить аватар:', err);
+  }
 }
 
 // ============================================================
@@ -397,6 +413,7 @@ export async function recalcElo() {
       method: 'POST',
       body: { p_game_players: gamePlayerRows, p_players: playerRows },
       headers: { 'Prefer': 'return=minimal' },
+      timeoutMs: 60_000,
     });
   } catch (err) {
     if (!isMissingRpc(err)) throw err;
@@ -429,7 +446,7 @@ async function applyEloLegacy(games, players, gamePlayerRows, playerRows) {
       nickname: p.nickname,
       real_name: p.realName || null,
       is_active: p.isActive !== false,
-      avatar_url: p.avatarUrl || null,
+      avatar_url: avatarDbValue(p.avatarUrl),
     };
   }));
 }
@@ -480,11 +497,16 @@ function toDbGameFields(game) {
 /**
  * Сохраняет игру с составом одной транзакцией (RPC save_game).
  * Без id — создаёт новую. Возвращает id игры.
+ *
+ * Новой игре клиент заранее даёт id (newId): если ответ потерялся, а игра
+ * записалась, повторное сохранение вернёт её же, а не создаст дубликат.
+ * Номер новой игры назначает сервер (миграция 006) — gameNumber нужен только
+ * старой записи без RPC.
  */
 async function saveGame(game) {
   const gameRow = game.id
     ? { id: game.id, ...toDbGameFields(game) }
-    : { season_id: game.seasonId, game_number: game.gameNumber, ...toDbGameFields(game) };
+    : { new_id: game.newId, season_id: game.seasonId, game_number: game.gameNumber, ...toDbGameFields(game) };
   const playerRows = game.players.map((p) => toDbGamePlayer(p, game.id ?? null));
 
   try {
@@ -508,7 +530,7 @@ async function saveGameLegacy(game) {
   } else {
     const row = await rest('games', {
       method: 'POST',
-      body: { season_id: game.seasonId, game_number: game.gameNumber, ...toDbGameFields(game) },
+      body: { id: game.newId, season_id: game.seasonId, game_number: game.gameNumber, ...toDbGameFields(game) },
       single: true,
     });
     gameId = row.id;
@@ -520,26 +542,37 @@ async function saveGameLegacy(game) {
   return gameId;
 }
 
-async function getGame(gameId) {
-  const full = await rest(`games?select=*,game_players(*)&id=eq.${gameId}`, { single: true });
-  return toFrontendGame(full);
+/**
+ * Пересчёт ELO после записи. Данные к этому моменту уже в базе, поэтому
+ * сбой пересчёта возвращается, а не бросается: иначе пользователь увидел бы
+ * «Ошибка сохранения» и сохранил бы игру второй раз.
+ */
+async function recalcEloAfterWrite() {
+  try {
+    await recalcElo();
+    return null;
+  } catch (err) {
+    console.error('ELO recalc failed:', err);
+    return err;
+  }
 }
 
-export async function createGame(game, { recalc = true } = {}) {
-  const gameId = await saveGame({ ...game, id: undefined });
-  if (recalc) await recalcElo();
-  return getGame(gameId);
+/** @returns { id, eloError } */
+export async function createGame(game) {
+  const id = await saveGame({ ...game, id: undefined });
+  return { id, eloError: await recalcEloAfterWrite() };
 }
 
+/** @returns { id, eloError } */
 export async function updateGame(game) {
-  const gameId = await saveGame(game);
-  await recalcElo();
-  return getGame(gameId);
+  const id = await saveGame(game);
+  return { id, eloError: await recalcEloAfterWrite() };
 }
 
+/** @returns { eloError } */
 export async function deleteGame(gameId) {
   await rest(`games?id=eq.${gameId}`, { method: 'DELETE' });
-  await recalcElo();
+  return { eloError: await recalcEloAfterWrite() };
 }
 
 // ============================================================
@@ -583,6 +616,7 @@ export async function importData(data) {
       method: 'POST',
       body: { p_data: data },
       headers: { 'Prefer': 'return=minimal' },
+      timeoutMs: 120_000,
     });
   } catch (err) {
     // Старый неатомарный импорт мог оставить базу полупустой — не откатываемся на него
@@ -590,13 +624,7 @@ export async function importData(data) {
     throw err;
   }
 
-  try {
-    await recalcElo();
-    return { eloError: null };
-  } catch (err) {
-    console.error('ELO recalc after import failed:', err);
-    return { eloError: err };
-  }
+  return { eloError: await recalcEloAfterWrite() };
 }
 
 export async function resetAllData() {
@@ -622,21 +650,17 @@ export async function resetAllData() {
 }
 
 export async function getGameCountBySeason(seasonId) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/games?season_id=eq.${seasonId}&select=id`, {
+  const res = await authFetch(`${SUPABASE_URL}/rest/v1/games?season_id=eq.${seasonId}&select=id`, {
     headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
       'Prefer': 'count=exact',
       'Range-Unit': 'items',
       'Range': '0-0',
     },
   });
-  const range = res.headers.get('content-range');
-  // format: "0-0/5" or "*/0"
-  if (range) {
-    const total = range.split('/')[1];
-    return parseInt(total, 10) || 0;
-  }
+  if (!res.ok) throw await apiError(res);
+  // Content-Range: "0-0/5" или "*/0"
+  const total = Number(res.headers.get('content-range')?.split('/')[1]);
+  if (Number.isFinite(total)) return total;
   const data = await res.json();
   return data.length;
 }

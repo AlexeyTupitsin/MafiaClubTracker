@@ -1,14 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabaseProxyPath = import.meta.env.VITE_SUPABASE_PROXY_URL;
+const supabaseProxy = import.meta.env.VITE_SUPABASE_PROXY_URL;
 
-const clientUrl = supabaseProxyPath
-  ? `${window.location.origin}${supabaseProxyPath}`
-  : supabaseUrl;
+// Адрес Supabase для всех запросов — auth, REST, storage. Прокси задаётся
+// путём на своём домене (/supabase-proxy, см. vercel.json) или полным URL.
+export const SUPABASE_URL = !supabaseProxy
+  ? import.meta.env.VITE_SUPABASE_URL
+  : /^https?:\/\//.test(supabaseProxy) ? supabaseProxy : `${window.location.origin}${supabaseProxy}`;
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(clientUrl, supabaseAnonKey);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Store current access token for REST queries (updated by useAuth)
 let currentAccessToken = null;
@@ -18,7 +19,7 @@ export function setAccessToken(token) {
 }
 
 export function getAccessToken() {
-  return currentAccessToken || supabaseAnonKey;
+  return currentAccessToken || SUPABASE_ANON_KEY;
 }
 
 export function hasUserSession() {
