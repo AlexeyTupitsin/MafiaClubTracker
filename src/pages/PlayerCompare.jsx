@@ -1,9 +1,13 @@
 import { useState, useMemo } from "react";
 import { ArrowLeft, ArrowRightLeft, TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { EmptyState, PlayerSelect } from "../components/ui";
 import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate } from "../lib/metrics";
 import { ROLE_NAMES } from "../lib/constants";
+import { RoleWinrateChart } from "../components/RoleWinrateChart";
+
+// Цвета игроков на графике сравнения
+const COLOR_A = "#10b981";
+const COLOR_B = "#f59e0b";
 
 export function PlayerCompare({ players, allGames, games, seasons, currentSeasonId, preselectedId, goBack }) {
   const [playerAId, setPlayerAId] = useState(preselectedId || "");
@@ -37,9 +41,11 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
       const a = roleStatsA.find((r) => r.role === role) || { winrate: 0 };
       const b = roleStatsB.find((r) => r.role === role) || { winrate: 0 };
       return {
-        name: ROLE_NAMES[role],
-        [playerA?.nickname || "A"]: Math.round(a.winrate),
-        [playerB?.nickname || "B"]: Math.round(b.winrate),
+        label: ROLE_NAMES[role],
+        bars: [
+          { name: playerA?.nickname || "A", value: Math.round(a.winrate), color: COLOR_A },
+          { name: playerB?.nickname || "B", value: Math.round(b.winrate), color: COLOR_B },
+        ],
       };
     });
   }, [roleStatsA, roleStatsB, bothSelected, playerA, playerB]);
@@ -187,18 +193,14 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
           {roleChartData.length > 0 && (
             <div className="glass-card rounded-2xl p-4">
               <h3 className="font-semibold mb-3">Winrate по ролям</h3>
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={roleChartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(16,185,129,0.1)" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#a1a1aa' }} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#a1a1aa' }} unit="%" />
-                    <Tooltip contentStyle={{ backgroundColor: '#0f1729', border: '1px solid rgba(16,185,129,0.15)', borderRadius: '8px', color: '#fafafa' }} />
-                    <Bar dataKey={playerA?.nickname || "A"} fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey={playerB?.nickname || "B"} fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <RoleWinrateChart
+                height={200}
+                groups={roleChartData}
+                legend={[
+                  { label: playerA?.nickname || "A", color: COLOR_A },
+                  { label: playerB?.nickname || "B", color: COLOR_B },
+                ]}
+              />
             </div>
           )}
 

@@ -133,12 +133,15 @@ Error Boundary закрывает остальное: ошибки рендер�
 
 ## 🟡 Технический долг и производительность
 
+> ✅ Пункты 14, 23, 24 сделаны в ветке `perf/bundle`: JS при открытии сайта зрителем ~131 → ~87 КБ gzip,
+> страница игрока ~115 → ~7 КБ gzip, шрифты со своего домена.
+>
 > ✅ Пункты 15, 16, 20, 21 сделаны в ветке `refactor/data-loading`. Для п.21 на боевой базе нужно выполнить
 > `supabase/migrations/007_game_lineup_check.sql`.
 
 | # | Что | Где | Сложность |
 |---|-----|-----|-----------|
-| 14 | **supabase-js (46 КБ gzip) грузится всем, хотя нужен только для входа админа.** ~30 зрителей никогда не входят в систему. Загружать клиент лениво, если в localStorage нет сессии (`sb-*-auth-token`), или заменить тремя fetch-запросами к GoTrue (`/auth/v1/token`). | `supabase.js`, `useAuth.jsx` | M |
+| 14 ✅ | **supabase-js (46 КБ gzip) грузится всем, хотя нужен только для входа админа.** ~30 зрителей никогда не входят в систему. Загружать клиент лениво, если в localStorage нет сессии (`sb-*-auth-token`), или заменить тремя fetch-запросами к GoTrue (`/auth/v1/token`). | `supabase.js`, `useAuth.jsx` | M |
 | 15 ✅ | **Игры сезона запрашиваются дважды.** `games` — подмножество `allGames`; `getGamesBySeason` можно заменить на `allGames.filter(g => g.seasonId === id)` в `useMemo`. Уйдут запросы, `loadedSeasonRef`, эффект смены сезона и рассинхронизация двух копий. То же для `tournaments`/`allTournaments`. | `App.jsx` | M |
 | 16 ✅ | **После сохранения игры 5 полных загрузок.** `recalcElo` (getAllGames + getPlayers последовательно) → `getGame` → `refreshGames` → `refreshAllGames`. Можно: `Promise.all` в `recalcElo`, возвращать из него уже загруженные игры, убрать `getGame`. | `queries.js`, `GameForm.jsx` | S |
 | 17 | **Пересчёт ELO шлёт в RPC всю историю** (10 строк на игру). Пока объём небольшой, это нормально. Позже можно пересчитывать только с даты изменённой игры или перенести прогон в SQL-функцию. | `queries.js:328` | L |
@@ -147,8 +150,8 @@ Error Boundary закрывает остальное: ошибки рендер�
 | 20 ✅ | **Дублирование:** `calcDashboardStats` дублирует `calcSeasonStats`. *(Исправлено в анализе: `getGameCountBySeason` не мёртвый код, его вызывает `SeasonsSection.jsx`; в `fix/reliability` он переведён на `authFetch`.)* | `metrics.js:113` | S |
 | 21 ✅ | **Состав игры проверяется только на клиенте.** `save_game` примет игру из 7 игроков или с двумя шерифами. Добавить проверку в RPC: 10 мест, 1 шериф, 1 дон, 2 мафии, результаты согласованы с `winner`. | `init.sql` `save_game` | S |
 | 22 | **`is_admin()` — `security definer` без `set search_path`.** Предупреждение линтера Supabase (`function_search_path_mutable`). | `init.sql:104` | S |
-| 23 | **Google Fonts с внешнего CDN.** Блокирует рендер, и его тоже может резать провайдер (прокси для Supabase уже понадобился). Самохостинг через `@fontsource/inter` и `@fontsource/jetbrains-mono`. | `index.html` | S |
-| 24 | **Recharts (107 КБ gzip) ради спарклайна и пары графиков.** Спарклайн ELO легко нарисовать чистым SVG; тогда профиль игрока не тянет 107 КБ. | `EloSparkline.jsx` | M |
+| 23 ✅ | **Google Fonts с внешнего CDN.** Блокирует рендер, и его тоже может резать провайдер (прокси для Supabase уже понадобился). Самохостинг через `@fontsource/inter` и `@fontsource/jetbrains-mono`. | `index.html` | S |
+| 24 ✅ | **Recharts (107 КБ gzip) ради двух простых графиков.** *(Исправлено в анализе: спарклайн ELO уже был на SVG; recharts нужен был графикам «Winrate по ролям» в профиле и сравнении.)* Заменены своим `RoleWinrateChart`, recharts удалён из зависимостей. | `PlayerProfile.jsx`, `PlayerCompare.jsx` | M |
 | 25 | **Доступность:** 96 `<button>`, `aria-label` есть только в 5 файлах. У кнопок-иконок (назад, удалить, закрыть) нет подписи для скринридеров. | `src/**/*.jsx` | S |
 | 26 | **Захардкоженные цвета** (`bg-[#0a0908]`, `indigo-500/…`) мешают сделать светлую тему (план `docs/superpowers/plans/2026-03-19-theme-switching.md`). Вынести в CSS-переменные `@theme`. | повсюду | M |
 | 27 | **`queries.js` не покрыт тестами.** Как минимум: маппинг `toFrontend*`/`toDb*` и проверка «экспорт → импорт → те же данные» (с моком fetch). | `queries.js` | M |

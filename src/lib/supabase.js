@@ -1,5 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
 const supabaseProxy = import.meta.env.VITE_SUPABASE_PROXY_URL;
 
 // Адрес Supabase для всех запросов — auth, REST, storage. Прокси задаётся
@@ -9,7 +7,35 @@ export const SUPABASE_URL = !supabaseProxy
   : /^https?:\/\//.test(supabaseProxy) ? supabaseProxy : `${window.location.origin}${supabaseProxy}`;
 export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// supabase-js нужен только для входа (данные идут через REST в queries.js),
+// а зрители не входят. Поэтому клиент (~46 КБ gzip) грузится лениво: при
+// сохранённой сессии или когда пользователь начинает вход.
+let clientPromise = null;
+
+export function getSupabase() {
+  if (!clientPromise) {
+    clientPromise = import('@supabase/supabase-js')
+      .then(({ createClient }) => createClient(SUPABASE_URL, SUPABASE_ANON_KEY))
+      .catch((err) => {
+        clientPromise = null; // дать повторить, например после обрыва сети
+        throw err;
+      });
+  }
+  return clientPromise;
+}
+
+// Есть ли сохранённая сессия supabase-js (ключ sb-<проект>-auth-token).
+// Нет — значит зритель: клиент можно не загружать.
+export function hasStoredSession() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      if (/^sb-.+-auth-token$/.test(localStorage.key(i))) return true;
+    }
+  } catch {
+    // localStorage недоступен — supabase-js сессию тоже не сохранил бы
+  }
+  return false;
+}
 
 // Store current access token for REST queries (updated by useAuth)
 let currentAccessToken = null;
@@ -56,7 +82,8 @@ let refreshPromise = null;
 export function refreshAccessToken() {
   if (!refreshPromise) {
     const timeout = new Promise((resolve) => setTimeout(() => resolve(null), REFRESH_TIMEOUT_MS));
-    const refresh = supabase.auth.refreshSession()
+    const refresh = getSupabase()
+      .then((supabase) => supabase.auth.refreshSession())
       .then(({ data, error }) => {
         if (error || !data?.session) return null;
         setAccessToken(data.session.access_token);

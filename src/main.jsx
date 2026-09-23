@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { AuthProvider } from './hooks/useAuth';
 import App from './App';
+import './fonts.css';
 import './index.css';
 
 // После деплоя старые файлы страниц удаляются: открытая вкладка при переходе
