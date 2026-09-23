@@ -1,18 +1,25 @@
-// REST-слой: пагинация больших выборок и импорт. fetch подменяется,
-// сервер PostgREST имитируется по заголовкам Range.
+// REST-слой: запросы, пагинация, запись игр, импорт/экспорт, ELO. fetch
+// подменяется, сервер PostgREST имитируется по URL, методу и заголовкам.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { makeGame, makePlayers } from '../test/fixtures';
+
+// Сессия управляется из тестов: токен, вошёл ли пользователь, чем ответит обновление токена
+const auth = vi.hoisted(() => ({ token: 'token', session: false, refresh: null }));
 
 vi.mock('./supabase', () => ({
   SUPABASE_URL: 'https://db.test',
   SUPABASE_ANON_KEY: 'anon',
-  getAccessToken: () => 'token',
-  hasUserSession: () => false,
+  getAccessToken: () => auth.token,
+  hasUserSession: () => auth.session,
   isAccessTokenExpiring: () => false,
-  refreshAccessToken: async () => null,
+  refreshAccessToken: () => auth.refresh(),
 }));
 
-const { getAllGames, getPlayers, createGame, deleteGame, importData, recalcElo } = await import('./queries');
+const {
+  getAllGames, getPlayers, getSeasons, updatePlayer, createGame, deleteGame,
+  importData, exportAllData, recalcElo, getGameCountBySeason,
+} = await import('./queries');
+const { validateImportData } = await import('./importValidation');
 const { replayElo } = await import('./elo');
 
 function gameRow(i) {
@@ -37,6 +44,7 @@ let fetchMock;
 beforeEach(() => {
   fetchMock = vi.fn();
   vi.stubGlobal('fetch', fetchMock);
+  Object.assign(auth, { token: 'token', session: false, refresh: vi.fn(async () => null) });
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -263,5 +271,141 @@ describe('recalcElo — пишет только изменившееся', () =>
     const ids = applied().p_game_players.map((r) => r.id);
     expect(ids.filter((id) => id.startsWith('g1-'))).toHaveLength(10);
     expect(ids.filter((id) => id.startsWith('g2-'))).toHaveLength(10);
+  });
+});
+
+describe('истёкший токен (401)', () => {
+  const players = [{ id: 'p1', nickname: 'A', elo: 1000, elo_games: 0 }];
+  const bearer = (i) => fetchMock.mock.calls[i][1].headers['Authorization'];
+
+  it('админ: токен обновляется, запрос повторяется с новым', async () => {
+    auth.session = true;
+    auth.token = 'old';
+    auth.refresh.mockImplementation(async () => { auth.token = 'new'; return 'new'; });
+    fetchMock.mockResolvedValueOnce(json({ message: 'JWT expired' }, 401)).mockResolvedValueOnce(json(players));
+
+    expect(await getPlayers()).toHaveLength(1);
+    expect(auth.refresh).toHaveBeenCalledTimes(1);
+    expect([bearer(0), bearer(1)]).toEqual(['Bearer old', 'Bearer new']);
+  });
+
+  it('обновить не удалось — «войдите заново»', async () => {
+    auth.session = true;
+    fetchMock.mockResolvedValue(json({ message: 'JWT expired' }, 401));
+    await expect(getPlayers()).rejects.toThrow('Сессия истекла — войдите заново');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('зритель без сессии — токен не обновляется, ошибка сервера как есть', async () => {
+    fetchMock.mockResolvedValue(json({ message: 'Invalid API key' }, 401));
+    await expect(getPlayers()).rejects.toMatchObject({ message: 'Invalid API key', status: 401 });
+    expect(auth.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe('строки БД → объекты приложения', () => {
+  it('игра: numeric приходят строками, пустые поля — null', async () => {
+    fetchMock.mockImplementation(async (url, init) => pageResponse([{
+      id: 'g1', season_id: 's1', tournament_id: null, game_number: 3, date: '2026-01-01T19:00:00Z',
+      winner: 'red', notes: null, first_killed: 'p2', best_move_seat_1: 4, created_at: '2026-01-01T20:00:00Z',
+      game_players: [{
+        id: 'gp1', player_id: 'p1', seat: 1, role: 'sheriff', result: 'win',
+        base_score: '1', bonus_score: '0.5', bonus_comment: null, total_score: '1.5',
+        elo_before: '1000', elo_expected: '0.5', elo_k: 40, elo_delta: '-2.5', elo_after: '997.5',
+      }],
+    }], init, 1000));
+
+    const [game] = await getAllGames();
+    expect(game).toMatchObject({
+      id: 'g1', seasonId: 's1', tournamentId: null, gameNumber: 3, winner: 'red',
+      firstKilled: 'p2', bestMoveSeat1: 4, bestMoveSeat2: null, bestMoveSeat3: null,
+    });
+    expect(game.players[0]).toEqual({
+      id: 'gp1', playerId: 'p1', seat: 1, role: 'sheriff', result: 'win',
+      baseScore: 1, bonusScore: 0.5, bonusComment: null, totalScore: 1.5,
+      eloBefore: 1000, eloExpected: 0.5, eloK: 40, eloDelta: -2.5, eloAfter: 997.5,
+    });
+  });
+
+  it('сезон и игрок: значения по умолчанию для пустых колонок', async () => {
+    fetchMock.mockResolvedValueOnce(json([{ id: 's1', name: 'С', start_date: '2026-01-01', end_date: null, is_active: true }]));
+    expect((await getSeasons())[0]).toMatchObject({
+      trackFirstKill: false, trackBestMove: false, ratingThresholdType: 'none', ratingThresholdValue: 0,
+    });
+
+    fetchMock.mockResolvedValueOnce(json([{ id: 'p1', nickname: 'A', elo: null, elo_games: null, avatar_url: null }]));
+    expect((await getPlayers())[0]).toMatchObject({ elo: 1000, eloGames: 0, avatarUrl: null });
+  });
+
+  it('аватар пишется в БД путём внутри бакета', async () => {
+    fetchMock.mockResolvedValue(json([{ id: 'p1', nickname: 'A', avatar_url: 'p1/1.jpg' }]));
+    const player = await updatePlayer('p1', { avatarUrl: 'https://db.test/storage/v1/object/public/avatars/p1/1.jpg' });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain('players?id=eq.p1');
+    expect(init.method).toBe('PATCH');
+    expect(JSON.parse(init.body)).toEqual({ avatar_url: 'p1/1.jpg' });
+    expect(player.avatarUrl).toBe('https://db.test/storage/v1/object/public/avatars/p1/1.jpg');
+  });
+});
+
+describe('экспорт → импорт', () => {
+  it('файл экспорта проходит проверку импорта и уходит в import_data без изменений', async () => {
+    const game = makeGame({ id: 'g1', seasonId: 's1', tournamentId: 't1' });
+    fetchMock.mockImplementation(async (url, init) => {
+      if (url.includes('rpc/import_data')) return json(null, 204);
+      if (url.includes('rest/v1/seasons')) return json([{ id: 's1', name: 'Сезон', start_date: '2026-01-01', end_date: null, is_active: true }]);
+      if (url.includes('rest/v1/players')) return json(makePlayers().map((p) => ({ id: p.id, nickname: p.nickname, elo: 1000, elo_games: 0 })));
+      if (url.includes('rest/v1/tournaments')) return json([{ id: 't1', season_id: 's1', name: 'Кубок', date: '2026-02-01' }]);
+      if (url.includes('rest/v1/games')) {
+        return pageResponse([{
+          id: game.id, season_id: 's1', tournament_id: 't1', game_number: 1, date: game.date, winner: game.winner,
+          game_players: game.players.map((gp) => ({
+            id: gp.id, player_id: gp.playerId, seat: gp.seat, role: gp.role, result: gp.result,
+            base_score: gp.baseScore, bonus_score: gp.bonusScore, total_score: gp.totalScore,
+          })),
+        }], init, 1000);
+      }
+      if (url.includes('rpc/apply_elo')) return json(null, 204);
+      throw new Error(`unexpected ${url}`);
+    });
+
+    const exported = await exportAllData();
+    expect(exported).toMatchObject({ version: 2, games: { s1: [{ id: 'g1', tournamentId: 't1' }] } });
+    expect(validateImportData(exported)).toEqual([]);
+
+    await importData(exported);
+    expect(JSON.parse(calls('rpc/import_data')[0][1].body).p_data).toEqual(JSON.parse(JSON.stringify(exported)));
+  });
+});
+
+describe('сохранение игры без RPC (миграция 003 не применена)', () => {
+  it('запись в две таблицы; новой игре — заранее выданный id', async () => {
+    fetchMock.mockImplementation(async (url, init) => {
+      if (url.includes('rpc/save_game')) return json({ code: 'PGRST202', message: 'Could not find the function' }, 404);
+      if (url.includes('rest/v1/games') && init.method === 'POST') return json([{ id: 'new-uuid' }], 201);
+      if (url.includes('rest/v1/game_players') && init.method === 'POST') return json([], 201);
+      if (url.includes('rest/v1/games')) return pageResponse([], init, 1000);
+      if (url.includes('rest/v1/players')) return json([]);
+      throw new Error(`unexpected ${init.method} ${url}`);
+    });
+
+    const { id } = await createGame({ ...makeGame({ id: undefined }), newId: 'new-uuid', seasonId: 's1', gameNumber: 5 });
+    expect(id).toBe('new-uuid');
+
+    const gameBody = JSON.parse(fetchMock.mock.calls.find(([u, i]) => u.includes('rest/v1/games') && i.method === 'POST')[1].body);
+    expect(gameBody).toMatchObject({ id: 'new-uuid', season_id: 's1', game_number: 5 });
+    const rows = JSON.parse(calls('rest/v1/game_players')[0][1].body);
+    expect(rows).toHaveLength(10);
+    expect(rows.every((r) => r.game_id === 'new-uuid')).toBe(true);
+  });
+});
+
+describe('getGameCountBySeason', () => {
+  it('число игр из Content-Range', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('[{"id":"g1"}]', { status: 206, headers: { 'content-range': '0-0/7' } }));
+    expect(await getGameCountBySeason('s1')).toBe(7);
+    fetchMock.mockResolvedValueOnce(new Response('[]', { status: 200, headers: { 'content-range': '*/0' } }));
+    expect(await getGameCountBySeason('s1')).toBe(0);
   });
 });
