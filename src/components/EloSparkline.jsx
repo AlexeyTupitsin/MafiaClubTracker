@@ -40,7 +40,7 @@ export function EloSparkline({ history, width = 260, height = 56 }) {
 
   const last = points[points.length - 1];
   const growing = values[values.length - 1] >= values[0];
-  const color = growing ? "#34d399" : "#f87171";
+  const color = growing ? "var(--color-emerald-400)" : "var(--color-red-400)";
 
   const ticks = [];
   history.forEach((h, i) => {
@@ -84,13 +84,13 @@ export function EloSparkline({ history, width = 260, height = 56 }) {
           role="img"
           aria-label={`Динамика ELO: с ${formatElo(values[0])} до ${formatElo(values[values.length - 1])}`}
         >
-          <polygon points={area} fill={color} opacity="0.12" />
-          <polyline points={line} fill="none" stroke={color} strokeWidth="1.5"
+          <polygon points={area} style={{ fill: color }} opacity="0.12" />
+          <polyline points={line} fill="none" style={{ stroke: color }} strokeWidth="1.5"
             strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-          {active == null && <circle cx={last[0]} cy={last[1]} r="2.5" fill={color} />}
+          {active == null && <circle cx={last[0]} cy={last[1]} r="2.5" style={{ fill: color }} />}
           {active != null && (
             <line x1={active.x} x2={active.x} y1="0" y2={height}
-              stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+              className="stroke-slate-400" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
           )}
         </svg>
 

@@ -126,7 +126,7 @@ export function PlayerSelect({ value, onChange, players, disabledIds = [], place
 
       {isOpen && (
         <ul ref={listRef}
-          className="absolute z-50 left-0 right-0 mt-1 bg-[#120f0a]/95 backdrop-blur-xl border border-indigo-500/15 rounded-xl shadow-2xl shadow-indigo-500/5 max-h-60 overflow-y-auto">
+          className="absolute z-50 left-0 right-0 mt-1 bg-surface-raised/95 backdrop-blur-xl border border-indigo-500/15 rounded-xl shadow-2xl shadow-indigo-500/5 max-h-60 overflow-y-auto">
           {filtered.length === 0 ? (
             <li className="px-3 py-2 text-sm text-slate-500">Ничего не найдено</li>
           ) : (
