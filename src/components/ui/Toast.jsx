@@ -18,7 +18,7 @@ export function Toast({ message, type = "success", onClose }) {
 
   return (
     <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 animate-toast-enter">
-      <div className="flex items-center gap-3 bg-[#120f0a]/90 backdrop-blur-xl border border-indigo-500/15 text-slate-100 pl-1 pr-4 py-2.5 rounded-xl shadow-lg shadow-indigo-500/5 text-sm">
+      <div className="flex items-center gap-3 bg-surface-raised/90 backdrop-blur-xl border border-indigo-500/15 text-slate-100 pl-1 pr-4 py-2.5 rounded-xl shadow-lg shadow-indigo-500/5 text-sm">
         <div className={`w-1 h-8 rounded-full bg-gradient-to-b ${variant.accentClass}`} />
         <Icon size={16} className={`${variant.iconClass} shrink-0`} />
         {message}

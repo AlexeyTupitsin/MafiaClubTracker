@@ -237,7 +237,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0908]">
+      <div className="min-h-screen bg-surface">
         <div className="md:ml-[220px] max-w-6xl mx-auto px-4 py-6 pt-16 md:pt-6">
           <SkeletonBlocks />
           {loadError && (
@@ -437,7 +437,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0908] pb-16 md:pb-0">
+    <div className="min-h-screen bg-surface pb-16 md:pb-0">
       <Sidebar
         currentPage={currentPage}
         navigate={navigate}

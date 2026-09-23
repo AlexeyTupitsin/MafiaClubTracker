@@ -75,7 +75,7 @@ export function Sidebar({ currentPage, navigate, seasons, currentSeasonId, setCu
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-[220px] bg-[#0a0908]/95 backdrop-blur-xl border-r border-indigo-500/10 z-40">
+      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-[220px] bg-surface/95 backdrop-blur-xl border-r border-indigo-500/10 z-40">
         {/* Logo */}
         <div className="p-5 pb-3">
           <div className="flex items-center gap-3">
@@ -152,7 +152,7 @@ export function Sidebar({ currentPage, navigate, seasons, currentSeasonId, setCu
       </aside>
 
       {/* Mobile Header */}
-      <header className="md:hidden fixed top-0 left-0 right-0 bg-[#0a0908]/90 backdrop-blur-xl border-b border-indigo-500/10 z-40">
+      <header className="md:hidden fixed top-0 left-0 right-0 bg-surface/90 backdrop-blur-xl border-b border-indigo-500/10 z-40">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">
             <img src="/logo.jpg" alt={CLUB_NAME} className="w-8 h-8 rounded-lg object-cover shadow-md shadow-black/40" />
@@ -191,7 +191,7 @@ export function Sidebar({ currentPage, navigate, seasons, currentSeasonId, setCu
 
       {/* Mobile menu panel */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed top-[52px] left-0 right-0 z-40 bg-[#0a0908]/98 backdrop-blur-xl border-b border-indigo-500/10 shadow-xl">
+        <div className="md:hidden fixed top-[52px] left-0 right-0 z-40 bg-surface/98 backdrop-blur-xl border-b border-indigo-500/10 shadow-xl">
           <nav className="px-3 py-3 space-y-0.5">
             {NAV_SECTIONS.map((section, sIdx) => (
               <div key={sIdx} className={sIdx > 0 ? "mt-3" : ""}>
@@ -232,7 +232,7 @@ export function Sidebar({ currentPage, navigate, seasons, currentSeasonId, setCu
       )}
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0a0908]/90 backdrop-blur-xl border-t border-indigo-500/10 z-40 pb-[env(safe-area-inset-bottom)]" role="tablist" aria-label="Навигация">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface/90 backdrop-blur-xl border-t border-indigo-500/10 z-40 pb-[env(safe-area-inset-bottom)]" role="tablist" aria-label="Навигация">
         <div className="flex justify-around">
           {MOBILE_TABS.map((tab) => {
             const Icon = tab.icon;

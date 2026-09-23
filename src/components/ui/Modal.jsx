@@ -41,7 +41,7 @@ export function Modal({ title, children, onClose, footer }) {
       aria-modal="true"
       aria-labelledby="modal-title"
     >
-      <div ref={modalRef} className="bg-[#120f0a]/95 backdrop-blur-xl border border-indigo-500/15 rounded-2xl shadow-2xl shadow-indigo-500/5 animate-modal-enter w-full max-w-md max-h-[90vh] flex flex-col">
+      <div ref={modalRef} className="bg-surface-raised/95 backdrop-blur-xl border border-indigo-500/15 rounded-2xl shadow-2xl shadow-indigo-500/5 animate-modal-enter w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-indigo-500/10 shrink-0">
           <h3 id="modal-title" className="text-lg font-semibold text-indigo-50">{title}</h3>
           <button onClick={onClose} className="p-1.5 hover:bg-indigo-500/10 text-slate-400 hover:text-slate-200 rounded-lg transition-colors cursor-pointer" aria-label="Закрыть">

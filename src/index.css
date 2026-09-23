@@ -1,38 +1,33 @@
 @import "tailwindcss";
 
-/* === Design Tokens — Dark Premium Indigo + Warm Dark (Mafia) === */
+/* === Цвета ===
+   Все цвета интерфейса — через переменные. Классы Tailwind (text-slate-400,
+   bg-indigo-500/5…) компилируются в var(--color-slate-400) и т. п., поэтому
+   светлой теме достаточно переопределить переменные под [data-theme="light"]:
+   поверхности, текст и нейтральную шкалу slate — разметку трогать не придётся.
+   Hex в классах (bg-[#…]) и стилях не использовать: только эти токены или
+   палитру Tailwind. Исключение — картинки для шаринга (Canvas не понимает
+   CSS-переменные): ROLE_COLORS и цвета в src/lib/shareImage. */
+@theme {
+  --color-surface: #0a0908;         /* фон страницы — bg-surface */
+  --color-surface-raised: #120f0a;  /* модалки, выпадающие списки, тосты — bg-surface-raised */
+}
+
 :root {
-  --color-bg-primary: #0a0908;
-  --color-bg-secondary: rgba(99, 102, 241, 0.04);
-  --color-bg-tertiary: rgba(10, 9, 8, 0.95);
-  --color-bg-elevated: rgba(99, 102, 241, 0.07);
-
   --color-text-primary: #faf8f5;
-  --color-text-secondary: #a8a3a0;
-  --color-text-muted: #5c5855;
-
-  --color-accent-primary: #6366f1;
-  --color-accent-secondary: #4f46e5;
-  --color-accent-hover: #818cf8;
-  --color-success: #10b981;
-  --color-danger: #ef4444;
-
-  --color-border: rgba(99, 102, 241, 0.10);
-  --color-border-hover: rgba(99, 102, 241, 0.22);
-  --color-border-focus: #6366f1;
+  --color-accent-primary: var(--color-indigo-500);
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  --glow-sm: 0 0 15px rgba(99, 102, 241, 0.10);
-  --glow-md: 0 0 25px rgba(99, 102, 241, 0.16);
-  --glow-lg: 0 0 40px rgba(99, 102, 241, 0.22);
+  --glow-sm: 0 0 15px color-mix(in oklab, var(--color-indigo-500) 10%, transparent);
+  --glow-md: 0 0 25px color-mix(in oklab, var(--color-indigo-500) 16%, transparent);
 }
 
 /* === Global Styles === */
 body {
   font-family: var(--font-sans);
-  background-color: var(--color-bg-primary);
+  background-color: var(--color-surface);
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -40,16 +35,16 @@ body {
 
 /* === Selection === */
 ::selection {
-  background-color: rgba(99, 102, 241, 0.25);
-  color: #faf8f5;
+  background-color: color-mix(in oklab, var(--color-indigo-500) 25%, transparent);
+  color: var(--color-text-primary);
 }
 
 /* === Scrollbar === */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.18); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.3); }
-* { scrollbar-width: thin; scrollbar-color: rgba(99, 102, 241, 0.18) transparent; }
+::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--color-indigo-500) 18%, transparent); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in oklab, var(--color-indigo-500) 30%, transparent); }
+* { scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--color-indigo-500) 18%, transparent) transparent; }
 
 /* === Animations === */
 @keyframes fadeIn {
@@ -93,34 +88,34 @@ body {
 
 /* === Glass card base === */
 .glass-card {
-  background: rgba(99, 102, 241, 0.03);
+  background: color-mix(in oklab, var(--color-indigo-500) 3%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(99, 102, 241, 0.10);
+  border: 1px solid color-mix(in oklab, var(--color-indigo-500) 10%, transparent);
   border-radius: 16px;
   transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out, background-color 0.2s ease-out;
 }
 .glass-card:hover {
-  border-color: rgba(99, 102, 241, 0.22);
+  border-color: color-mix(in oklab, var(--color-indigo-500) 22%, transparent);
   box-shadow: var(--glow-sm);
 }
 .glass-card-interactive { cursor: pointer; }
 .glass-card-interactive:hover {
-  background: rgba(99, 102, 241, 0.06);
-  border-color: rgba(99, 102, 241, 0.28);
+  background: color-mix(in oklab, var(--color-indigo-500) 6%, transparent);
+  border-color: color-mix(in oklab, var(--color-indigo-500) 28%, transparent);
   box-shadow: var(--glow-md);
 }
 
 /* === Gradient text === */
 .gradient-text {
-  background: linear-gradient(135deg, #818cf8, #6366f1);
+  background: linear-gradient(135deg, var(--color-indigo-400), var(--color-indigo-500));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .gradient-text-shimmer {
-  background: linear-gradient(90deg, #818cf8, #6366f1, #818cf8);
+  background: linear-gradient(90deg, var(--color-indigo-400), var(--color-indigo-500), var(--color-indigo-400));
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -130,7 +125,7 @@ body {
 
 /* === Gradient button === */
 .btn-gradient {
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  background: linear-gradient(135deg, var(--color-indigo-500), var(--color-indigo-600));
   color: white;
   border: none;
   border-radius: 12px;
@@ -138,7 +133,7 @@ body {
   transition: box-shadow 0.2s ease-out, transform 0.2s ease-out;
 }
 .btn-gradient:hover {
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 0 20px color-mix(in oklab, var(--color-indigo-500) 30%, transparent);
   transform: translateY(-1px);
 }
 .btn-gradient:active { transform: translateY(0); }
@@ -146,14 +141,14 @@ body {
 /* === Ghost button === */
 .btn-ghost {
   background: transparent;
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  color: #818cf8;
+  border: 1px solid color-mix(in oklab, var(--color-indigo-500) 20%, transparent);
+  color: var(--color-indigo-400);
   border-radius: 12px;
   transition: background-color 0.2s ease-out, border-color 0.2s ease-out;
 }
 .btn-ghost:hover {
-  background: rgba(99, 102, 241, 0.1);
-  border-color: rgba(99, 102, 241, 0.4);
+  background: color-mix(in oklab, var(--color-indigo-500) 10%, transparent);
+  border-color: color-mix(in oklab, var(--color-indigo-500) 40%, transparent);
 }
 
 /* === Mono digits for data tables === */
@@ -164,8 +159,8 @@ body {
 
 /* === Dark form controls === */
 select option {
-  background-color: #120f0a;
-  color: #faf8f5;
+  background-color: var(--color-surface-raised);
+  color: var(--color-text-primary);
 }
 
 /* === Focus visible outlines === */

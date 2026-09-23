@@ -6,8 +6,8 @@ import { ROLE_NAMES } from "../lib/constants";
 import { RoleWinrateChart } from "../components/RoleWinrateChart";
 
 // Цвета игроков на графике сравнения
-const COLOR_A = "#10b981";
-const COLOR_B = "#f59e0b";
+const COLOR_A = "var(--color-emerald-500)";
+const COLOR_B = "var(--color-amber-500)";
 
 export function PlayerCompare({ players, allGames, games, seasons, currentSeasonId, preselectedId, goBack }) {
   const [playerAId, setPlayerAId] = useState(preselectedId || "");
