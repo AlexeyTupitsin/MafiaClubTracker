@@ -1,5 +1,6 @@
 import { getAccessToken, hasUserSession, isAccessTokenExpiring, refreshAccessToken } from './supabase';
 import { replayElo, ELO_START } from './elo';
+import { validateImportData, formatImportErrors } from './importValidation';
 
 // ============================================================
 // REST helper: direct fetch to bypass supabase-js hanging issue
@@ -71,6 +72,37 @@ async function rest(path, options = {}) {
 
   const data = JSON.parse(text);
   return single ? data[0] : data;
+}
+
+const PAGE_SIZE = 1000;
+
+/**
+ * GET всех строк постранично. PostgREST отдаёт за запрос не больше max-rows
+ * строк (в Supabase по умолчанию 1000), а остальные молча отбрасывает.
+ * Порядок в path должен быть однозначным, иначе строки на границе страниц
+ * могут повториться или потеряться.
+ */
+async function restAll(path) {
+  const rows = [];
+  for (;;) {
+    const from = rows.length;
+    const res = await authFetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      headers: {
+        'Prefer': 'count=exact',
+        'Range-Unit': 'items',
+        'Range': `${from}-${from + PAGE_SIZE - 1}`,
+      },
+    });
+    if (!res.ok) throw await apiError(res);
+
+    const page = await res.json();
+    rows.push(...page);
+
+    // Content-Range: "0-999/2500"; сервер может отдать меньше PAGE_SIZE строк
+    // за раз, поэтому ориентируемся на общее число, а не на размер страницы
+    const total = Number(res.headers.get('content-range')?.split('/')[1]);
+    if (page.length === 0 || !Number.isFinite(total) || rows.length >= total) return rows;
+  }
 }
 
 // ============================================================
@@ -407,12 +439,14 @@ async function applyEloLegacy(games, players, gamePlayerRows, playerRows) {
 // ============================================================
 
 export async function getGamesBySeason(seasonId) {
-  const data = await rest(`games?select=*,game_players(*)&season_id=eq.${seasonId}&order=game_number`);
+  const data = await restAll(`games?select=*,game_players(*)&season_id=eq.${seasonId}&order=game_number`);
   return data.map(toFrontendGame);
 }
 
+// Без пагинации после 1000-й игры пропадали бы самые старые — и пересчёт ELO
+// прогонял бы неполную историю
 export async function getAllGames() {
-  const data = await rest('games?select=*,game_players(*)&order=date.desc');
+  const data = await restAll('games?select=*,game_players(*)&order=date.desc,id.desc');
   return data.map(toFrontendGame);
 }
 
@@ -513,16 +547,9 @@ export async function deleteGame(gameId) {
 // ============================================================
 
 export async function exportAllData() {
-  const seasons = await getSeasons();
-  const players = await getPlayers();
-  const allGames = await getAllGames();
-
-  // Load tournaments for all seasons
-  const allTournaments = [];
-  for (const s of seasons) {
-    const t = await getTournamentsBySeason(s.id);
-    allTournaments.push(...t);
-  }
+  const [seasons, players, allGames, allTournaments] = await Promise.all([
+    getSeasons(), getPlayers(), getAllGames(), getAllTournaments(),
+  ]);
 
   const gamesBySeason = {};
   for (const s of seasons) {
@@ -539,111 +566,37 @@ export async function exportAllData() {
   };
 }
 
+/**
+ * Заменяет все данные содержимым файла экспорта. Удаление и вставка идут
+ * одной транзакцией (RPC import_data): при ошибке база остаётся как была.
+ *
+ * ELO пересчитывается после импорта отдельным запросом. Если пересчёт не
+ * удался, данные уже импортированы — ошибка возвращается в eloError,
+ * а не бросается.
+ */
 export async function importData(data) {
-  // Clear existing data (order matters for foreign keys)
-  await rest('game_players?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
-  await rest('games?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
-  await rest('tournaments?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
-  await rest('players?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
-  await rest('seasons?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' });
+  const errors = validateImportData(data);
+  if (errors.length > 0) throw new Error(`Файл не прошёл проверку: ${formatImportErrors(errors)}`);
 
-  // ID maps: old ID → new UUID (DB generates UUIDs)
-  const seasonIdMap = {};
-  const playerIdMap = {};
-  const tournamentIdMap = {};
-
-  // Insert seasons (let DB generate UUIDs)
-  for (const s of (data.seasons || [])) {
-    const row = await rest('seasons', {
+  try {
+    await rest('rpc/import_data', {
       method: 'POST',
-      body: {
-        name: s.name,
-        start_date: s.startDate,
-        end_date: s.endDate || null,
-        is_active: s.isActive,
-        track_first_kill: s.trackFirstKill ?? false,
-        track_best_move: s.trackBestMove ?? false,
-        rating_threshold_type: s.ratingThresholdType || 'none',
-        rating_threshold_value: s.ratingThresholdValue || 0,
-      },
-      single: true,
+      body: { p_data: data },
+      headers: { 'Prefer': 'return=minimal' },
     });
-    seasonIdMap[s.id] = row.id;
+  } catch (err) {
+    // Старый неатомарный импорт мог оставить базу полупустой — не откатываемся на него
+    if (isMissingRpc(err)) throw new Error('Импорт недоступен: примените миграцию 005_import_data.sql в Supabase', { cause: err });
+    throw err;
   }
 
-  // Insert players (let DB generate UUIDs)
-  for (const p of (data.players || [])) {
-    const row = await rest('players', {
-      method: 'POST',
-      body: {
-        nickname: p.nickname,
-        real_name: p.realName || null,
-        is_active: p.isActive !== false,
-        avatar_url: p.avatarUrl || null,
-      },
-      single: true,
-    });
-    playerIdMap[p.id] = row.id;
+  try {
+    await recalcElo();
+    return { eloError: null };
+  } catch (err) {
+    console.error('ELO recalc after import failed:', err);
+    return { eloError: err };
   }
-
-  // Insert tournaments (map old IDs to new UUIDs)
-  for (const t of (data.tournaments || [])) {
-    const newSeasonId = seasonIdMap[t.seasonId];
-    if (!newSeasonId) continue;
-    const row = await rest('tournaments', {
-      method: 'POST',
-      body: {
-        season_id: newSeasonId,
-        name: t.name,
-        date: t.date,
-        notes: t.notes || null,
-      },
-      single: true,
-    });
-    tournamentIdMap[t.id] = row.id;
-  }
-
-  // Insert games + game_players (map old IDs to new UUIDs)
-  for (const [oldSeasonId, seasonGames] of Object.entries(data.games || {})) {
-    const newSeasonId = seasonIdMap[oldSeasonId];
-    if (!newSeasonId) continue;
-
-    for (const game of seasonGames) {
-      const gameRow = await rest('games', {
-        method: 'POST',
-        body: {
-          season_id: newSeasonId,
-          tournament_id: game.tournamentId ? (tournamentIdMap[game.tournamentId] || null) : null,
-          game_number: game.gameNumber,
-          date: game.date,
-          winner: game.winner,
-          notes: game.notes || null,
-          first_killed: game.firstKilled ? (playerIdMap[game.firstKilled] || null) : null,
-          best_move_seat_1: game.bestMoveSeat1 ?? null,
-          best_move_seat_2: game.bestMoveSeat2 ?? null,
-          best_move_seat_3: game.bestMoveSeat3 ?? null,
-        },
-        single: true,
-      });
-
-      if (game.players?.length > 0) {
-        const gpRows = game.players.map((p) => ({
-          game_id: gameRow.id,
-          player_id: playerIdMap[p.playerId] || p.playerId,
-          seat: p.seat,
-          role: p.role,
-          result: p.result,
-          base_score: p.baseScore,
-          bonus_score: p.bonusScore,
-          bonus_comment: p.bonusComment || null,
-          total_score: p.totalScore,
-        }));
-        await rest('game_players', { method: 'POST', body: gpRows });
-      }
-    }
-  }
-
-  await recalcElo();
 }
 
 export async function resetAllData() {

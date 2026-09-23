@@ -2,18 +2,20 @@ import { useState } from "react";
 import { CheckCircle, Download, Loader, RefreshCw, Upload, X } from "lucide-react";
 import { ConfirmDialog } from "../../components/ui";
 import { exportAllData, importData, recalcElo } from "../../lib/queries";
+import { validateImportData, formatImportErrors } from "../../lib/importValidation";
 
 const actionButton = "flex items-center gap-2 bg-slate-800/30 hover:bg-indigo-500/5 text-slate-300 px-4 py-2 rounded-lg text-sm";
 const linkButton = "flex items-center gap-1 text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer font-medium";
 
-function downloadJson(text) {
+function downloadJson(text, name = "mafia-club-export") {
   const blob = new Blob([text], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `mafia-club-export-${new Date().toISOString().split("T")[0]}.json`;
+  a.download = `${name}-${new Date().toISOString().split("T")[0]}.json`;
   a.click();
-  URL.revokeObjectURL(url);
+  // Сразу после click() некоторые браузеры ещё не начали скачивание
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // Данные: экспорт, импорт, пересчёт ELO.
@@ -72,11 +74,12 @@ export function DataSection({ showToast, onError, refreshData, refreshGames, ref
       let message;
       try {
         const data = JSON.parse(ev.target.result);
-        if (data.seasons && data.players && data.games) {
+        const errors = validateImportData(data);
+        if (errors.length === 0) {
           setPendingImport(data);
           return;
         }
-        message = "Некорректный формат файла: отсутствуют seasons, players или games";
+        message = `Файл не прошёл проверку: ${formatImportErrors(errors)}`;
       } catch {
         message = "Ошибка чтения файла: некорректный JSON";
       }
@@ -89,11 +92,28 @@ export function DataSection({ showToast, onError, refreshData, refreshGames, ref
 
   // Окно подтверждения остаётся открытым, пока идёт импорт
   const handleImportConfirm = async () => {
+    onError("");
     try {
-      await importData(pendingImport);
+      // Импорт заменяет всё — сначала сохраняем текущие данные файлом.
+      // Не удалось сохранить копию — не импортируем.
+      let backup;
+      try {
+        backup = await exportAllData();
+      } catch (err) {
+        throw new Error(`не удалось сохранить резервную копию (${err.message}), импорт отменён`, { cause: err });
+      }
+      downloadJson(JSON.stringify(backup, null, 2), "mafia-club-backup-before-import");
+
+      const { eloError } = await importData(pendingImport);
       setPendingImport(null);
       await refreshData();
-      showToast("Данные импортированы");
+      if (eloError) {
+        const message = `Данные импортированы, но ELO не пересчитан: ${eloError.message}. Нажмите «Пересчитать ELO».`;
+        onError(message);
+        showToast(message, "warning");
+      } else {
+        showToast("Данные импортированы");
+      }
     } catch (err) {
       console.error("Import error:", err);
       setPendingImport(null);
@@ -150,7 +170,7 @@ export function DataSection({ showToast, onError, refreshData, refreshGames, ref
 
       {pendingImport && (
         <ConfirmDialog title="Импортировать данные?"
-          message={`Импорт перезапишет ВСЕ текущие данные. В файле: ${pendingImport.seasons?.length || 0} сезонов, ${pendingImport.players?.length || 0} игроков. Продолжить?`}
+          message={`Импорт перезапишет ВСЕ текущие данные. В файле: ${pendingImport.seasons.length} сезонов, ${pendingImport.players.length} игроков, ${Object.values(pendingImport.games).flat().length} игр. Перед импортом текущие данные скачаются файлом-копией. Продолжить?`}
           onConfirm={handleImportConfirm}
           onCancel={() => setPendingImport(null)} confirmText="Импортировать" danger />
       )}
