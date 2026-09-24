@@ -264,6 +264,7 @@ export default function App() {
       seasons={seasons}
       currentSeasonId={currentSeasonId}
       allGames={allGames}
+      tournaments={tournaments}
       showToast={showToast}
     />
   );
