@@ -2,14 +2,13 @@
 import { ROLE_COLORS } from '../constants';
 import {
   WIDTH, PAD, COLORS, font, drawText, drawFittedText, drawAvatar, drawMedal,
-  drawDivider, createCard, drawFooter, loadImage, formatNumber, pluralRu,
+  drawDivider, createCard, drawFooter, loadImage, formatNumber, formatSigned, pluralRu,
 } from './canvas';
 
 const GAMES = ['игра', 'игры', 'игр'];
 const EVENINGS = ['вечер', 'вечера', 'вечеров'];
 const PLAYERS = ['игрок', 'игрока', 'игроков'];
 
-const signed = (v) => `${v > 0 ? '+' : ''}${formatNumber(v)}`;
 const percent = (v) => `${Math.round(v)}%`;
 
 // Цветные части строки, по центру холста
@@ -56,7 +55,7 @@ function drawPlace(ctx, entry, place, cx, top, size, image) {
   drawFittedText(ctx, entry.nickname, cx, nickY, {
     weight: 700, size: place === 1 ? 38 : 32, maxWidth: colWidth, align: 'center',
   });
-  drawText(ctx, `ср. ${formatNumber(entry.avgScore)} · доп. ${signed(entry.avgBonus)}`, cx, nickY + 38, {
+  drawText(ctx, `ср. ${formatNumber(entry.avgScore)} · доп. ${formatSigned(entry.avgBonus)}`, cx, nickY + 38, {
     font: font(500, 23, true), color: COLORS.textSecondary, align: 'center', maxWidth: colWidth,
   });
   drawText(ctx, `${entry.totalGames} ${pluralRu(entry.totalGames, GAMES)} · ${percent(entry.winrate)}`, cx, nickY + 70, {
@@ -102,7 +101,7 @@ async function drawNominations(ctx, top, nominations) {
     }
     drawAvatar(ctx, { image: images[i], nickname: leader.nickname, x: 400, y: cy - 30, size: 60 });
     drawFittedText(ctx, leader.nickname, 480, cy, { weight: 600, size: 30, maxWidth: 290 });
-    drawText(ctx, `${signed(leader.avgBonus)} · ${leader.games} ${pluralRu(leader.games, GAMES)}`, WIDTH - PAD, cy, {
+    drawText(ctx, `${formatSigned(leader.avgBonus)} · ${leader.games} ${pluralRu(leader.games, GAMES)}`, WIDTH - PAD, cy, {
       font: font(500, 26, true), color: COLORS.textSecondary, align: 'right',
     });
   });

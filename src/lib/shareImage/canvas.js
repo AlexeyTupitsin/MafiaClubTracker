@@ -368,3 +368,9 @@ export function pluralRu(n, [one, few, many]) {
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
   return many;
 }
+
+// Со знаком: «+0.41» / «−0.12» / «0.00». Знак по округлённому значению — 0.004 не «+0.00»
+export function formatSigned(value, digits = 2) {
+  const text = formatNumber(value, digits);
+  return Number(Number(value).toFixed(digits)) > 0 ? `+${text}` : text;
+}

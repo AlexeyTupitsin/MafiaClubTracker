@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { routeToHash, hashToRoute } from './router';
 import { readDataCache, writeDataCache, pickDefaultSeasonId, seasonSlice } from './dataCache';
 import { compareGamesDesc } from './utils';
-import { fitText, formatNumber, formatDelta, pluralRu } from './shareImage/canvas';
+import { fitText, formatNumber, formatDelta, formatSigned, pluralRu } from './shareImage/canvas';
 
 describe('router', () => {
   const id = '3f2a0c1e-1111-2222-3333-444455556666';
@@ -155,5 +155,16 @@ describe('pluralRu', () => {
     const forms = ['игра', 'игры', 'игр'];
     expect([1, 2, 5, 11, 21, 22, 112].map((n) => pluralRu(n, forms)))
       .toEqual(['игра', 'игры', 'игр', 'игр', 'игра', 'игры', 'игр']);
+  });
+});
+
+describe('formatSigned', () => {
+  it('знак по округлённому значению: «+» только если видно ненулевое', () => {
+    expect(formatSigned(0.41)).toBe('+0.41');
+    expect(formatSigned(-0.12)).toBe('−0.12');
+    expect(formatSigned(0)).toBe('0.00');
+    expect(formatSigned(0.004)).toBe('0.00');
+    expect(formatSigned(0.1 + 0.2 - 0.3)).toBe('0.00');
+    expect(formatSigned(-0.004)).toBe('0.00');
   });
 });
