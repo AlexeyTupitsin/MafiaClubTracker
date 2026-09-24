@@ -1,6 +1,6 @@
 // Итоги сезона для картинки в чат: цифры, пьедестал, номинации по ролям.
 // Считается теми же функциями, что дашборд и «Рейтинг», — цифры совпадают.
-import { calcSeasonStats, calcPlayerStats, calcExtendedNominations, calcThreshold } from "./metrics";
+import { calcSeasonStats, calcPlayerStats, calcExtendedNominations, calcThreshold, compareByAvgScore } from "./metrics";
 import { NOMINATION_CONFIG } from "./constants";
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -10,17 +10,6 @@ const fullDate = (d) => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFul
 // У завершённого дат нет: startDate/endDate в базе — дни открытия и закрытия
 // сезона в приложении, а не игр (у «Февраля» это 11.03–11.03).
 const seasonPeriod = (season, today) => (season.isActive ? `промежуточные · на ${fullDate(today)}` : null);
-
-// По убыванию; «равны» с допуском — иначе 0.1 + 0.2 ≠ 0.3 сломает правило ничьей
-const desc = (a, b) => (Math.abs(b - a) < 1e-9 ? 0 : b - a);
-
-// Средний балл ↓, доп. балл ↓, игры ↓, ник
-function comparePodium(a, b) {
-  return desc(a.avgScore, b.avgScore)
-    || desc(a.avgBonus, b.avgBonus)
-    || (b.totalGames - a.totalGames)
-    || a.nickname.localeCompare(b.nickname, "ru");
-}
 
 export function buildSeasonSummary({ season, games, players, tournaments = [], today = new Date() }) {
   const threshold = calcThreshold(season, games.length);
@@ -35,7 +24,7 @@ export function buildSeasonSummary({ season, games, players, tournaments = [], t
     .filter((s) => s.totalGames >= threshold);
   const eligibleIds = new Set(eligible.map((s) => s.playerId));
 
-  const podium = eligible.sort(comparePodium).slice(0, 3).map((s) => ({
+  const podium = eligible.sort(compareByAvgScore).slice(0, 3).map((s) => ({
     playerId: s.playerId,
     nickname: s.nickname,
     avatarUrl: byId.get(s.playerId)?.avatarUrl ?? null,

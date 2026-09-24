@@ -21,6 +21,18 @@ export function calcPlayerStats(playerId, games) {
   };
 }
 
+// По убыванию; «равны» с допуском — иначе 0.1 + 0.2 ≠ 0.3 сломает правило ничьей
+const desc = (a, b) => (Math.abs(b - a) < 1e-9 ? 0 : b - a);
+
+// Порядок рейтинга: средний балл ↓, доп. балл ↓, игры ↓, ник.
+// Нужны поля avgScore, avgBonus, totalGames, nickname (как у calcPlayerStats + ник)
+export function compareByAvgScore(a, b) {
+  return desc(a.avgScore, b.avgScore)
+    || desc(a.avgBonus, b.avgBonus)
+    || (b.totalGames - a.totalGames)
+    || a.nickname.localeCompare(b.nickname, "ru");
+}
+
 export function calcSeasonStats(games) {
   const total = games.length;
   const redWins = games.filter((g) => g.winner === "red").length;
