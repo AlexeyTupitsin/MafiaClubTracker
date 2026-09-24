@@ -430,6 +430,8 @@ export default function App() {
             refreshSeasons={refreshSeasons}
             refreshPlayers={refreshPlayers}
             refreshAllGames={refreshAllGames}
+            allGames={allGames}
+            players={players}
           />
         );
       default:

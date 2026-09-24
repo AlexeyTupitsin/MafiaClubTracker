@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { CheckCircle, Download, Loader, RefreshCw, Upload, X } from "lucide-react";
+import { CheckCircle, Download, FileSpreadsheet, Loader, RefreshCw, Upload, X } from "lucide-react";
 import { ConfirmDialog } from "../../components/ui";
 import { exportAllData, importData, recalcElo } from "../../lib/queries";
 import { validateImportData, formatImportErrors } from "../../lib/importValidation";
+import { buildRatingRows, ratingToCsv } from "../../lib/ratingCsv";
+import { downloadFile } from "../../lib/shareImage/share";
 
 const actionButton = "flex items-center gap-2 bg-slate-800/30 hover:bg-indigo-500/5 text-slate-300 px-4 py-2 rounded-lg text-sm";
 const linkButton = "flex items-center gap-1 text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer font-medium";
@@ -18,9 +20,19 @@ function downloadJson(text, name = "mafia-club-export") {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Данные: экспорт, импорт, пересчёт ELO.
+// «2026-09-24» — местная дата, не UTC
+function localDate(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// Данные: экспорт, импорт, пересчёт ELO, рейтинг в CSV.
 // onError — текст для общей плашки ошибки страницы («» — скрыть).
-export function DataSection({ showToast, onError, refreshData, refreshAllGames, refreshPlayers }) {
+export function DataSection({
+  showToast, onError, refreshData, refreshAllGames, refreshPlayers,
+  seasons, currentSeasonId, allGames, players,
+}) {
+  const [ratingSeasonId, setRatingSeasonId] = useState(currentSeasonId ?? "all");
   const [exportText, setExportText] = useState(null);
   const [copied, setCopied] = useState(false);
   const [pendingImport, setPendingImport] = useState(null);
@@ -29,6 +41,14 @@ export function DataSection({ showToast, onError, refreshData, refreshAllGames, 
   const fail = (title, err) => {
     onError(err.message || title);
     showToast(`${title}: ${err.message || "неизвестная ошибка"}`, "error");
+  };
+
+  const handleRatingCsv = () => {
+    const season = seasons.find((s) => s.id === ratingSeasonId) ?? null;
+    const games = season ? allGames.filter((g) => g.seasonId === season.id) : allGames;
+    const csv = ratingToCsv(buildRatingRows({ games, players, seasons, season }));
+    const period = (season?.name ?? "все сезоны").replace(/[\\/:*?"<>|]/g, "").trim().replace(/\s+/g, "-");
+    downloadFile(new Blob([csv], { type: "text/csv;charset=utf-8" }), `iron-maf-rating-${period}-${localDate()}.csv`);
   };
 
   const handleRecalcElo = async () => {
@@ -141,6 +161,27 @@ export function DataSection({ showToast, onError, refreshData, refreshAllGames, 
       <p className="text-xs text-slate-500 mt-2">
         ELO пересчитывается автоматически при добавлении и изменении игр.
         Кнопка нужна для первичного расчёта по уже внесённым играм.
+      </p>
+
+      <div className="flex flex-wrap items-center gap-3 mt-4">
+        <select
+          value={ratingSeasonId}
+          onChange={(e) => setRatingSeasonId(e.target.value)}
+          aria-label="Период рейтинга"
+          className="px-3 py-2 rounded-lg text-sm bg-indigo-500/5 border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
+        >
+          <option value="all">Все сезоны</option>
+          {seasons.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+        <button onClick={handleRatingCsv} className={actionButton}>
+          <FileSpreadsheet size={16} /> Рейтинг в CSV
+        </button>
+      </div>
+      <p className="text-xs text-slate-500 mt-2">
+        Все, кто играл за период: прошедшие порог сезона — с местами, остальные ниже.
+        Открывается в Excel и Google Таблицах.
       </p>
 
       {exportText && (
