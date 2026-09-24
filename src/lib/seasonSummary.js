@@ -4,30 +4,12 @@ import { calcSeasonStats, calcPlayerStats, calcExtendedNominations, calcThreshol
 import { NOMINATION_CONFIG } from "./constants";
 
 const pad = (n) => String(n).padStart(2, "0");
-const dayMonth = (d) => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}`;
-const fullDate = (d) => `${dayMonth(d)}.${d.getFullYear()}`;
+const fullDate = (d) => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
 
-// «2026-08-01» — дата без времени: разбираем как местную, без сдвига часового пояса
-function toDate(value) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(value);
-}
-
-/** «01.08–31.08.2026»; через Новый год — обе даты полностью. */
-export function formatSeasonPeriod(start, end) {
-  const from = start.getFullYear() === end.getFullYear() ? dayMonth(start) : fullDate(start);
-  return `${from}–${fullDate(end)}`;
-}
-
-function seasonPeriod(season, games, today) {
-  if (season.isActive) return `промежуточные · на ${fullDate(today)}`;
-  let end = season.endDate ? toDate(season.endDate) : null;
-  if (!end) {
-    const last = Math.max(...games.map((g) => new Date(g.date).getTime()));
-    end = Number.isFinite(last) ? new Date(last) : toDate(season.startDate);
-  }
-  return formatSeasonPeriod(toDate(season.startDate), end);
-}
+// Подзаголовок только у активного сезона — чтобы в чате не приняли за финал.
+// У завершённого дат нет: startDate/endDate в базе — дни открытия и закрытия
+// сезона в приложении, а не игр (у «Февраля» это 11.03–11.03).
+const seasonPeriod = (season, today) => (season.isActive ? `промежуточные · на ${fullDate(today)}` : null);
 
 // По убыванию; «равны» с допуском — иначе 0.1 + 0.2 ≠ 0.3 сломает правило ничьей
 const desc = (a, b) => (Math.abs(b - a) < 1e-9 ? 0 : b - a);
@@ -81,7 +63,7 @@ export function buildSeasonSummary({ season, games, players, tournaments = [], t
 
   return {
     seasonName: season.name,
-    period: seasonPeriod(season, games, today),
+    period: seasonPeriod(season, today),
     isInterim: Boolean(season.isActive),
     threshold,
     stats: {

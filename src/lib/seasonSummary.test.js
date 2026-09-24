@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSeasonSummary, formatSeasonPeriod } from './seasonSummary';
+import { buildSeasonSummary } from './seasonSummary';
 import { makeGame, makePlayers, PLAYER_IDS } from '../test/fixtures';
 
 const season = (extra = {}) => ({
@@ -124,15 +124,16 @@ describe('buildSeasonSummary — номинации', () => {
 });
 
 describe('период', () => {
-  it('завершённый сезон, без endDate, промежуточный, через Новый год', () => {
-    const games = [g('g1', 'red', { date: '2026-08-20T19:00:00Z' })];
-    const players = makePlayers();
-    expect(buildSeasonSummary({ season: season(), games, players }).period).toBe('01.08–31.08.2026');
-    expect(buildSeasonSummary({ season: season({ endDate: null }), games, players }).period).toBe('01.08–20.08.2026');
+  const games = [g('g1', 'red', { date: '2026-08-20T19:00:00Z' })];
+  const players = makePlayers();
 
+  it('активный сезон — «промежуточные · на <дата формирования>»', () => {
     const active = buildSeasonSummary({ season: season({ isActive: true }), games, players, today: new Date(2026, 8, 23) });
     expect(active).toMatchObject({ isInterim: true, period: 'промежуточные · на 23.09.2026' });
+  });
 
-    expect(formatSeasonPeriod(new Date(2025, 11, 1), new Date(2026, 1, 28))).toBe('01.12.2025–28.02.2026');
+  it('завершённый сезон — без периода: даты сезона в базе — дни открытия и закрытия, не игр', () => {
+    expect(buildSeasonSummary({ season: season(), games, players })).toMatchObject({ isInterim: false, period: null });
+    expect(buildSeasonSummary({ season: season({ endDate: null }), games, players }).period).toBe(null);
   });
 });
