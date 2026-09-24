@@ -359,3 +359,12 @@ export function formatDelta(value) {
   if (n === 0) return '0';
   return n > 0 ? `+${n}` : `−${Math.abs(n)}`;
 }
+
+// Склонение после числа: pluralRu(5, ['игра', 'игры', 'игр']) → «игр»
+export function pluralRu(n, [one, few, many]) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}

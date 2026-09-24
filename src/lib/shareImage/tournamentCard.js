@@ -1,7 +1,7 @@
 import { NOMINATION_CONFIG, ROLE_COLORS } from '../constants';
 import {
   COLORS, PAD, WIDTH, createCard, drawFittedText, drawFooter, drawTable, drawText,
-  font, formatNumber, loadPodiumAvatars,
+  font, formatNumber, loadPodiumAvatars, pluralRu,
 } from './canvas';
 
 const COLUMNS = [
@@ -17,18 +17,10 @@ const NOMINATION_LABELS = Object.fromEntries(NOMINATION_CONFIG.map((n) => [n.rol
 const TILE_HEIGHT = 50;
 const TILE_GAP = 10;
 
-function pluralGames(n) {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return 'игра';
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'игры';
-  return 'игр';
-}
-
 // «8 игр · Красные 5 · Чёрные 3» — счёт командами разными цветами
 function drawScoreLine(ctx, y, { totalGames, redWins, blackWins, draws }) {
   const parts = [
-    [`${totalGames} ${pluralGames(totalGames)}`, COLORS.text],
+    [`${totalGames} ${pluralRu(totalGames, ['игра', 'игры', 'игр'])}`, COLORS.text],
     [`Красные ${redWins}`, COLORS.red],
     [`Чёрные ${blackWins}`, COLORS.black],
   ];
