@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Shield, Sword, ChevronUp, ChevronDown, Users } from "lucide-react";
+import { Plus, Shield, Sword, ChevronUp, ChevronDown, Users, Trophy } from "lucide-react";
 import { StatCard, EmptyState } from "../components/ui";
 import { calcSeasonStats, calcExtendedNominations, calcPlayerStats, calcKillRate, calcThreshold } from "../lib/metrics";
 import { NOMINATION_CONFIG, MEDAL_ICON } from "../lib/constants";
@@ -9,6 +9,8 @@ import { useAuth } from "../hooks/useAuth";
 import { PlayerHeroCard } from "../components/PlayerHeroCard";
 import { ShareImageButton } from "../components/share/ShareImageButton";
 import { renderRatingCard } from "../lib/shareImage/ratingCard";
+import { renderSeasonCard } from "../lib/shareImage/seasonCard";
+import { buildSeasonSummary } from "../lib/seasonSummary";
 
 // Подписи колонок таблицы — для строки «Сортировка: …» на картинке
 const SORT_LABELS = {
@@ -21,7 +23,7 @@ const SORT_LABELS = {
   avgBonus: "Ср. доп.",
 };
 
-export function Dashboard({ games, players, navigate, currentSeason, seasons, showToast }) {
+export function Dashboard({ games, players, navigate, currentSeason, seasons, showToast, tournaments = [] }) {
   const { isAdmin } = useAuth();
   const hasPlayers = players.length > 0;
   const [showAll, setShowAll] = useState(false);
@@ -165,9 +167,25 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, sh
     );
   }
 
+  const renderSeasonImage = () => renderSeasonCard(
+    buildSeasonSummary({ season: currentSeason, games, players, tournaments })
+  );
+
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold gradient-text">Дашборд</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-xl font-bold gradient-text">Дашборд</h2>
+        {currentSeason && games.length > 0 && (
+          <ShareImageButton
+            render={renderSeasonImage}
+            fileName={`iron-maf-season-${new Date().toISOString().slice(0, 10)}.png`}
+            title={`Итоги сезона «${currentSeason.name}»`}
+            label="Итоги сезона"
+            icon={Trophy}
+            showToast={showToast}
+          />
+        )}
+      </div>
 
       {!hasGames ? (
         <EmptyState

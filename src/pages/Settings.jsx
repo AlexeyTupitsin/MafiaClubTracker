@@ -7,6 +7,7 @@ export function SettingsPage({
   seasons, currentSeasonId, setCurrentSeasonId,
   showToast, refreshData,
   refreshSeasons, refreshPlayers, refreshAllGames,
+  allGames, players,
 }) {
   // Общая плашка ошибки для всех разделов
   const [error, setError] = useState("");
@@ -39,6 +40,10 @@ export function SettingsPage({
         refreshData={refreshData}
         refreshAllGames={refreshAllGames}
         refreshPlayers={refreshPlayers}
+        seasons={seasons}
+        currentSeasonId={currentSeasonId}
+        allGames={allGames}
+        players={players}
       />
     </div>
   );

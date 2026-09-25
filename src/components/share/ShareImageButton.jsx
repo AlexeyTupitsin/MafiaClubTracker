@@ -7,7 +7,7 @@ import { canShareFile, canvasToBlob, downloadFile, shareFile } from "../../lib/s
  * Кнопка «Картинка»: рисует PNG через render(), показывает превью
  * и отдаёт файл через системное меню «Поделиться» или скачиванием.
  */
-export function ShareImageButton({ render, fileName, title, showToast, className = "" }) {
+export function ShareImageButton({ render, fileName, title, showToast, className = "", label, icon: Icon = Share2 }) {
   const [busy, setBusy] = useState(false);
   const [image, setImage] = useState(null); // { file, url }
 
@@ -52,11 +52,12 @@ export function ShareImageButton({ render, fileName, title, showToast, className
       <button
         onClick={handleOpen}
         disabled={busy}
-        title="Картинка для отправки"
-        aria-label="Картинка для отправки"
-        className={`btn-ghost flex items-center justify-center p-2 cursor-pointer disabled:opacity-60 disabled:cursor-wait ${className}`}
+        title={label ?? "Картинка для отправки"}
+        aria-label={label ?? "Картинка для отправки"}
+        className={`btn-ghost flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-wait ${label ? "px-3 py-2 text-sm" : "p-2"} ${className}`}
       >
-        {busy ? <Loader size={16} className="animate-spin" /> : <Share2 size={16} />}
+        {busy ? <Loader size={16} className="animate-spin" /> : <Icon size={16} />}
+        {label && <span>{label}</span>}
       </button>
 
       {image && (
