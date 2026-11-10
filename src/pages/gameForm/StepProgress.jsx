@@ -1,39 +1,39 @@
-import { Fragment } from "react";
 import { Check } from "lucide-react";
+import { STEPS } from "./gameFormLogic";
 
-const STEPS = [
-  { n: 1, label: "Игроки" },
-  { n: 2, label: "Роли" },
-  { n: 3, label: "Баллы" },
-];
 
-export const STEP_COUNT = 3;
-
-// Индикатор шагов; вернуться можно только на пройденный шаг
-export function StepProgress({ step, onStepClick }) {
+// Индикатор шагов. canOpen(n) — можно ли открыть шаг (пройденный или все до него заполнены)
+export function StepProgress({ step, onStepClick, canOpen }) {
   return (
-    <div className="flex items-center gap-1 mb-6">
-      {STEPS.map(({ n, label }, i) => (
-        <Fragment key={n}>
-          <button
-            onClick={() => { if (n < step) onStepClick(n); }}
-            disabled={n > step}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              step === n
-                ? "btn-gradient cursor-pointer"
-                : step > n
-                ? "bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 cursor-pointer"
-                : "bg-slate-800/30 text-slate-500"
-            }`}
-          >
-            {step > n ? <Check size={14} /> : <span>{n}</span>}
-            <span className="hidden sm:inline ml-1">{label}</span>
-          </button>
-          {i < STEP_COUNT - 1 && (
-            <div className={`flex-1 h-0.5 mx-1 ${step > n ? "bg-indigo-600" : "bg-slate-700"}`} />
-          )}
-        </Fragment>
-      ))}
-    </div>
+    <nav aria-label="Шаги формы" className="mb-5">
+      <ol className="grid grid-cols-3 gap-1.5">
+        {STEPS.map(({ n, label }) => {
+          const current = step === n;
+          const done = step > n;
+          const open = !current && canOpen(n);
+          return (
+            <li key={n}>
+              <button
+                type="button"
+                onClick={() => open && onStepClick(n)}
+                disabled={!current && !open}
+                aria-current={current ? "step" : undefined}
+                className="group w-full text-left pt-2.5 pb-1 cursor-pointer disabled:cursor-not-allowed disabled:opacity-100"
+              >
+                <span className={`block h-1 rounded-full mb-2 transition-colors ${
+                  current || done ? "bg-accent-400" : "bg-elev-3"
+                }`} />
+                <span className={`flex items-center gap-1.5 text-[13px] font-medium ${
+                  current ? "text-stone-50" : done ? "text-accent-300 group-hover:text-accent-200" : open ? "text-stone-400 group-hover:text-stone-200" : "text-stone-500"
+                }`}>
+                  {done ? <Check size={14} aria-hidden="true" /> : <span className="font-data">{n}</span>}
+                  {label}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }

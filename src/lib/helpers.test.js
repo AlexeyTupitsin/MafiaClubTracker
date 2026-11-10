@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { routeToHash, hashToRoute } from './router';
 import { readDataCache, writeDataCache, pickDefaultSeasonId, seasonSlice } from './dataCache';
-import { compareGamesDesc } from './utils';
+import { compareGamesDesc, localIsoDate } from './utils';
 import { fitText, formatNumber, formatDelta } from './shareImage/canvas';
 
 describe('router', () => {
@@ -147,5 +147,16 @@ describe('форматирование на картинках', () => {
   it('fitText обрезает с многоточием по ширине и убирает пробел перед ним', () => {
     expect(fitText(ctx, 'Очень длинный ник', 80)).toBe('Очень д…');
     expect(fitText(ctx, 'Очень длинный ник', 70)).toBe('Очень…');
+  });
+});
+
+describe('localIsoDate', () => {
+  it('берёт местную дату, а не UTC', () => {
+    // 00:30 по местному времени — по UTC в восточных поясах ещё вчера
+    expect(localIsoDate(0, new Date(2026, 10, 10, 0, 30))).toBe('2026-11-10');
+  });
+  it('сдвигает на дни через границу месяца и года', () => {
+    expect(localIsoDate(-1, new Date(2026, 2, 1, 12))).toBe('2026-02-28');
+    expect(localIsoDate(1, new Date(2026, 11, 31, 23))).toBe('2027-01-01');
   });
 });

@@ -1,120 +1,142 @@
-import { Scale, Shield, Sword } from "lucide-react";
-import { Badge } from "../../components/ui";
-import { ROLE_NAMES, ROLE_OPTIONS, ROLE_REQUIRED, ROLE_BADGE_VARIANT } from "../../lib/constants";
-import { SEAT_COUNT, countRoles, fillRandomRoles } from "./gameFormLogic";
+import { Check, Eraser, Scale, Shield, Shuffle, Sword, Users } from "lucide-react";
+import { Button, Segmented } from "../../components/ui";
+import { ROLE_OPTIONS, ROLE_REQUIRED } from "../../lib/constants";
+import { SEAT_COUNT, countRoles, fillRandomRoles, missingRoles } from "./gameFormLogic";
 import { SeatNumber } from "./SeatsStep";
 
-const WINNERS = [
+// Выбранная роль окрашивается цветом команды: красные — красный и жёлтый, чёрные — графит
+const ROLE_ACTIVE = {
+  citizen: "!bg-red-500/15 !text-red-300 ring-1 ring-inset ring-red-500/40 !shadow-none",
+  sheriff: "!bg-yellow-400/12 !text-yellow-200 ring-1 ring-inset ring-yellow-400/40 !shadow-none",
+  mafia: "!bg-stone-700/70 !text-stone-100 ring-1 ring-inset ring-stone-400/40 !shadow-none",
+  don: "!bg-stone-950 !text-stone-50 ring-1 ring-inset ring-stone-300/60 !shadow-none",
+};
+
+const WINNER_OPTIONS = [
   {
     value: "red", label: "Красные", icon: Shield,
-    active: "border-red-500 bg-red-500/10 text-red-400 shadow-sm",
-    idle: "hover:border-red-500/30 hover:bg-red-500/5",
-  },
-  {
-    value: "draw", label: "Ничья", icon: Scale,
-    active: "border-amber-500 bg-amber-500/10 text-amber-400 shadow-sm",
-    idle: "hover:border-amber-500/30 hover:bg-amber-500/5",
+    className: "!min-h-[52px] !text-[15px] !font-semibold",
+    activeClassName: "!bg-red-500/15 !text-red-300 ring-1 ring-inset ring-red-500/45 !shadow-none",
   },
   {
     value: "black", label: "Чёрные", icon: Sword,
-    active: "border-slate-500 bg-slate-700 text-slate-200 shadow-sm",
-    idle: "hover:border-slate-500 hover:bg-indigo-500/5",
+    className: "!min-h-[52px] !text-[15px] !font-semibold",
+    activeClassName: "!bg-stone-950 !text-stone-50 ring-1 ring-inset ring-stone-300/50 !shadow-none",
+  },
+  {
+    value: "draw", label: "Ничья", icon: Scale,
+    className: "!min-h-[52px] !text-[15px] !font-semibold",
   },
 ];
 
-const secondaryButton = "px-3 py-1.5 bg-slate-800/30 hover:bg-indigo-500/5 text-slate-300 rounded-lg text-sm transition-colors";
+const ROLE_PLURAL = { citizen: "Мирные", sheriff: "Шериф", mafia: "Мафия", don: "Дон" };
 
 function RoleCounters({ roles }) {
   const counts = countRoles(roles);
   return (
-    <div className="flex flex-wrap gap-2 mb-4">
-      {ROLE_OPTIONS.map(({ value, label }) => {
+    <ul className="flex flex-wrap gap-2" aria-label="Роздано ролей">
+      {ROLE_OPTIONS.map(({ value }) => {
         const count = counts[value];
         const required = ROLE_REQUIRED[value];
         const ok = count === required;
         const over = count > required;
         return (
-          <div key={value}
-            className={`px-3 py-1 rounded-full text-sm font-medium border ${
+          <li key={value}
+            className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[13px] font-medium border ${
               over
-                ? "bg-red-500/10 border-red-500/30 text-red-400"
+                ? "bg-red-500/10 border-red-500/35 text-red-300"
                 : ok
-                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
-                : "bg-slate-800/30 border-indigo-500/15 text-slate-400"
+                ? "bg-accent-400/8 border-accent-400/30 text-accent-200"
+                : "bg-elev-2 border-line text-stone-400"
             }`}
           >
-            {label}: {count}/{required} {ok ? "✓" : over ? "✗" : ""}
-          </div>
+            {ok && <Check size={13} aria-hidden="true" />}
+            {ROLE_PLURAL[value]}
+            <span className="font-data">{count}/{required}</span>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }
 
-function WinnerPicker({ winner, onChange }) {
+// Шаг 2: роли и победитель. showErrors — после попытки пройти дальше пустое отмечается.
+export function RolesStep({ seats, roles, onRoleChange, onRolesChange, winner, onWinnerChange, getPlayerName, showErrors }) {
+  const counts = countRoles(roles);
+  const missing = missingRoles(roles);
+  const emptyCount = roles.filter((r) => !r).length;
+  const onlyCitizensLeft = emptyCount > 0 && missing.citizen === emptyCount
+    && missing.sheriff + missing.mafia + missing.don === 0;
+
   return (
-    <div>
-      <h4 className="font-medium mb-2">Победитель</h4>
-      <div className="grid grid-cols-3 gap-3">
-        {WINNERS.map(({ value, label, icon: Icon, active, idle }) => (
-          <button
-            key={value}
-            onClick={() => onChange(value)}
-            className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 text-sm font-semibold transition-all ${
-              winner === value ? active : `border-indigo-500/15 text-slate-500 ${idle}`
-            }`}
-          >
-            <Icon size={20} />
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Шаг 2: роли и победитель
-export function RolesStep({ seats, roles, onRoleChange, onRolesChange, winner, onWinnerChange, getPlayerName }) {
-  return (
-    <div className="glass-card rounded-2xl p-4">
-      <RoleCounters roles={roles} />
-
-      <div className="flex gap-2 mb-4">
-        <button type="button" onClick={() => onRolesChange(fillRandomRoles(roles))} className={secondaryButton}>
-          Заполнить случайно
-        </button>
-        <button type="button" onClick={() => onRolesChange(Array(SEAT_COUNT).fill(""))} className={secondaryButton}>
-          Очистить роли
-        </button>
-      </div>
-
-      <div className="space-y-2 mb-6">
-        {seats.map((seat, idx) => (
-          <div key={idx} className="flex items-center gap-3">
-            <SeatNumber seat={seat.seat} />
-            <span className="w-24 text-sm font-medium truncate">{getPlayerName(seat.playerId)}</span>
-            <select
-              value={roles[idx]}
-              onChange={(e) => onRoleChange(idx, e.target.value)}
-              className={`flex-1 bg-indigo-500/5 border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50 ${
-                !roles[idx] ? "text-slate-500" : ""
-              }`}
-            >
-              <option value="">Роль...</option>
-              {ROLE_OPTIONS.map((r) => (
-                <option key={r.value} value={r.value}>{r.label}</option>
-              ))}
-            </select>
-            {roles[idx] && (
-              <Badge variant={ROLE_BADGE_VARIANT[roles[idx]]}>
-                {ROLE_NAMES[roles[idx]]}
-              </Badge>
+    <div className="space-y-5">
+      <section className="card p-4 sm:p-5" aria-labelledby="roles-title">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+          <div>
+            <h3 id="roles-title" className="font-semibold text-stone-50">Роли</h3>
+            <p className="text-[13px] text-stone-500 mt-0.5">6 мирных, шериф, 2 мафии и дон</p>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {onlyCitizensLeft ? (
+              <Button size="sm" icon={Users} onClick={() => onRolesChange(fillRandomRoles(roles))}>
+                Остальные — мирные
+              </Button>
+            ) : emptyCount > 0 ? (
+              <Button variant="ghost" size="sm" icon={Shuffle} onClick={() => onRolesChange(fillRandomRoles(roles))}>
+                Раздать случайно
+              </Button>
+            ) : null}
+            {emptyCount < SEAT_COUNT && (
+              <Button variant="ghost" size="sm" icon={Eraser} onClick={() => onRolesChange(Array(SEAT_COUNT).fill(""))}>
+                Очистить
+              </Button>
             )}
           </div>
-        ))}
-      </div>
+        </div>
 
-      <WinnerPicker winner={winner} onChange={onWinnerChange} />
+        <RoleCounters roles={roles} />
+
+        <ol className="mt-4 divide-y divide-line">
+          {seats.map((seat, idx) => {
+            const name = getPlayerName(seat.playerId);
+            const options = ROLE_OPTIONS.map((r) => ({
+              value: r.value,
+              label: r.label,
+              activeClassName: ROLE_ACTIVE[r.value],
+              // Роль уже роздана полностью — вариант приглушён, но выбрать можно
+              className: roles[idx] !== r.value && counts[r.value] >= ROLE_REQUIRED[r.value] ? "opacity-40" : "",
+            }));
+            return (
+              <li key={idx} className="py-2.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-3 sm:w-48 min-w-0">
+                  <SeatNumber seat={seat.seat} />
+                  <span className="text-sm font-medium text-stone-100 truncate">{name}</span>
+                </div>
+                <Segmented
+                  label={`Роль: место ${seat.seat}, ${name}`}
+                  value={roles[idx]}
+                  onChange={(role) => onRoleChange(idx, roles[idx] === role ? "" : role)}
+                  options={options}
+                  invalid={showErrors && !roles[idx]}
+                  className="flex-1 sm:max-w-md"
+                  size="sm"
+                />
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+
+      <section className="card p-4 sm:p-5" aria-labelledby="winner-title">
+        <h3 id="winner-title" className="font-semibold text-stone-50 mb-3">Кто победил</h3>
+        <Segmented
+          label="Победитель"
+          value={winner}
+          onChange={onWinnerChange}
+          options={WINNER_OPTIONS}
+          invalid={showErrors && !winner}
+        />
+      </section>
     </div>
   );
 }

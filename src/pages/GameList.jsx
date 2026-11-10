@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Sword, Circle } from "lucide-react";
-import { Badge, EmptyState } from "../components/ui";
+import { Plus, Sword } from "lucide-react";
+import { Badge, Button, EmptyState, Select } from "../components/ui";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { useAuth } from "../hooks/useAuth";
 import { TEAM_NAMES } from "../lib/constants";
@@ -78,116 +78,87 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold gradient-text">Игры</h2>
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
+        <div>
+          {miniStats ? (
+            <p className="eyebrow">
+              {miniStats.total} игр · <span className="text-red-400">красные {miniStats.redPct}%</span> · <span className="text-stone-200">чёрные {miniStats.blackPct}%</span>
+              {miniStats.draws > 0 && <> · <span className="text-amber-400">ничьих {miniStats.draws}</span></>}
+            </p>
+          ) : <p className="eyebrow">Протоколы</p>}
+          <h2 className="page-title mt-1.5">Игры</h2>
+        </div>
         {canAdd && (
           <AdminOnly>
-            <button onClick={() => navigate("gameForm")}
-              className="flex items-center gap-2 btn-gradient text-white px-4 py-2 rounded-lg text-sm cursor-pointer">
-              <Plus size={16} /> Добавить игру
-            </button>
+            <Button icon={Plus} onClick={() => navigate("gameForm")} className="w-full sm:w-auto">
+              Записать игру
+            </Button>
           </AdminOnly>
         )}
       </div>
 
-      {/* Mini-stats bar */}
-      {miniStats && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          <div className="glass-card rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-sm text-slate-300">
-            <Sword size={14} className="text-indigo-400" />
-            <span className="font-medium">{miniStats.total}</span> игр
-          </div>
-          <div className="glass-card rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-sm">
-            <Circle size={10} fill="currentColor" className="text-red-400" />
-            <span className="text-red-400 font-medium">Красные {miniStats.redPct}%</span>
-          </div>
-          <div className="glass-card rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-sm">
-            <Circle size={10} fill="currentColor" className="text-slate-300" />
-            <span className="text-slate-300 font-medium">Чёрные {miniStats.blackPct}%</span>
-          </div>
-          {miniStats.draws > 0 && (
-            <div className="glass-card rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-sm">
-              <Circle size={10} fill="currentColor" className="text-amber-400" />
-              <span className="text-amber-400 font-medium">Ничья {miniStats.draws}</span>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-4 items-center">
         {/* Season filter */}
-        <select
+        <Select
           value={seasonFilter}
-          onChange={(e) => setSeasonFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer"
-        >
+          onChange={(e) => setSeasonFilter(e.target.value)} aria-label="Сезон" wrapperClassName="w-full sm:w-fit" className="sm:!w-auto sm:min-w-[9rem]">
           <option value="all">Все сезоны</option>
           {seasons.map((s) => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
-        </select>
+        </Select>
 
         {/* Winner filter */}
-        {[
-          { value: "all", label: "Все" },
-          { value: "red", label: "Красные" },
-          { value: "draw", label: "Ничья" },
-          { value: "black", label: "Чёрные" },
-        ].map((f) => (
-          <button key={f.value} onClick={() => setWinnerFilter(f.value)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-              winnerFilter === f.value
-                ? f.value === "red"
-                  ? "bg-red-500/10 text-red-400"
-                  : f.value === "draw"
-                  ? "bg-amber-500/10 text-amber-400"
-                  : f.value === "black"
-                  ? "bg-slate-600/30 text-slate-200"
-                  : "bg-indigo-500/10 text-indigo-400"
-                : "bg-slate-800/30 text-slate-400 hover:bg-slate-700/30"
-            }`}>
-            {f.label}
-          </button>
-        ))}
+        <div className="flex gap-0.5 bg-elev-2 border border-line-strong rounded-[10px] p-0.5" role="group" aria-label="Победитель">
+          {[
+            { value: "all", label: "Все", dot: null },
+            { value: "red", label: "Красные", dot: "bg-red-500" },
+            { value: "black", label: "Чёрные", dot: "bg-stone-400" },
+            { value: "draw", label: "Ничья", dot: "bg-amber-400" },
+          ].map((f) => (
+            <button key={f.value} onClick={() => setWinnerFilter(f.value)} aria-pressed={winnerFilter === f.value}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium cursor-pointer ${
+                winnerFilter === f.value ? "bg-elev-3 text-stone-50 shadow-sm shadow-black/40" : "text-stone-400 hover:text-stone-100"
+              }`}>
+              {f.dot && <span className={`w-2 h-2 rounded-full ${f.dot}`} aria-hidden="true" />}
+              {f.label}
+            </button>
+          ))}
+        </div>
 
         {/* Player filter */}
-        <select
+        <Select
           value={playerFilter}
-          onChange={(e) => setPlayerFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer"
-        >
+          onChange={(e) => setPlayerFilter(e.target.value)} aria-label="Игрок" wrapperClassName="w-full sm:w-fit" className="sm:!w-auto sm:min-w-[9rem]">
           <option value="all">Все игроки</option>
           {players.map((p) => (
             <option key={p.id} value={p.id}>{p.nickname}</option>
           ))}
-        </select>
+        </Select>
 
         {/* Tournament filter */}
         {(tournaments || []).length > 0 && (
-          <select
+          <Select
             value={tournamentFilter}
-            onChange={(e) => setTournamentFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer"
-          >
+            onChange={(e) => setTournamentFilter(e.target.value)} aria-label="Турнир" wrapperClassName="w-full sm:w-fit" className="sm:!w-auto sm:min-w-[9rem]">
             <option value="all">Все турниры</option>
             <option value="__none__">Без турнира</option>
             {(tournaments || []).map((t) => (
               <option key={t.id} value={t.id}>{t.name} ({t.date})</option>
             ))}
-          </select>
+          </Select>
         )}
 
         {/* Sort order */}
-        <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}
-          className="bg-indigo-500/5 border border-indigo-500/15 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500/50 outline-none cursor-pointer">
+        <Select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} aria-label="Порядок" wrapperClassName="w-full sm:w-fit" className="sm:!w-auto sm:min-w-[9rem]">
           <option value="date-desc">По дате ↓</option>
           <option value="date-asc">По дате ↑</option>
           <option value="number">По номеру</option>
-        </select>
+        </Select>
 
         {filtered.length !== sourceGames.length && (
-          <span className="text-sm text-slate-400 ml-1">
+          <span className="text-sm text-stone-400 ml-1">
             {filtered.length} из {sourceGames.length}
           </span>
         )}
@@ -201,23 +172,22 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
             ? (canAdd ? "Добавьте первую игру!" : "Пока нет игр")
             : "Нет игр по выбранным фильтрам"}
           action={isAdmin && canAdd && sourceGames.length === 0 ? (
-            <button onClick={() => navigate("gameForm")}
-              className="flex items-center gap-2 btn-gradient text-white px-4 py-2 rounded-lg text-sm transition-colors cursor-pointer">
-              <Plus size={16} /> Новая игра
-            </button>
+            <Button icon={Plus} onClick={() => navigate("gameForm")}>
+              Записать первую игру
+            </Button>
           ) : null}
         />
       ) : (
-        <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
-                  <th className="text-left px-4 py-3 text-sm font-medium text-slate-400">Игра</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-slate-400">Победитель</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-slate-400">MVP</th>
+                <tr className="border-b border-line">
+                  <th className="text-left px-4 py-3 text-sm font-medium text-stone-500">Игра</th>
+                  <th className="hidden sm:table-cell text-left px-4 py-3 text-sm font-medium text-stone-500">Победитель</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-stone-500">MVP</th>
                   {seasonFilter === "all" && (
-                    <th className="text-left px-4 py-3 text-sm font-medium text-slate-400">Сезон</th>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-stone-500">Сезон</th>
                   )}
                 </tr>
               </thead>
@@ -227,34 +197,42 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
                   const mvpPlayer = mvp ? players.find((pl) => pl.id === mvp.playerId) : null;
                   return (
                     <tr key={game.id}
-                      className={`border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5 cursor-pointer transition-colors border-l-4 ${
-                        game.winner === "red" ? "border-l-red-500" : game.winner === "draw" ? "border-l-amber-400" : "border-l-slate-500"
+                      className={`border-b border-line last:border-b-0 hover:bg-elev-2 cursor-pointer transition-colors border-l-[3px] ${
+                        game.winner === "red" ? "border-l-red-500" : game.winner === "draw" ? "border-l-amber-400" : "border-l-stone-600"
                       }`}
                       onClick={() => navigate("gameDetail", game.id)}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-slate-200 text-sm">{formatDate(game.date)}</span>
-                          <span className="text-xs text-slate-500 font-data">#{game.gameNumber}</span>
+                          <span className="text-stone-100 text-sm font-medium font-data">{formatDate(game.date)}</span>
+                          <span className="text-xs text-stone-500 font-data">#{game.gameNumber}</span>
                         </div>
-                        {getTournamentName(game.tournamentId) && (
-                          <div className="text-xs text-indigo-400 mt-0.5">{getTournamentName(game.tournamentId)}</div>
-                        )}
+                        <div className="flex items-center gap-1.5 text-xs text-stone-500 mt-0.5 min-w-0">
+                          <span className={`sm:hidden font-medium ${game.winner === "red" ? "text-red-400" : game.winner === "draw" ? "text-amber-400" : "text-stone-300"}`}>
+                            {TEAM_NAMES[game.winner]}
+                          </span>
+                          {getTournamentName(game.tournamentId) && (
+                            <>
+                              <span className="sm:hidden" aria-hidden="true">·</span>
+                              <span className="truncate max-w-[220px]">{getTournamentName(game.tournamentId)}</span>
+                            </>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="hidden sm:table-cell px-4 py-3">
                         <Badge variant={game.winner === "red" ? "red" : game.winner === "draw" ? "yellow" : "black"}>
                           {TEAM_NAMES[game.winner]}
                         </Badge>
                       </td>
                       <td className="px-4 py-3">
                         {mvpPlayer && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm text-indigo-400">{mvpPlayer.nickname}</span>
-                            <span className="text-xs text-slate-500 font-data">{mvp.totalScore % 1 === 0 ? mvp.totalScore : mvp.totalScore.toFixed(1)}</span>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-sm text-stone-100 truncate max-w-[120px] sm:max-w-none">{mvpPlayer.nickname}</span>
+                            <span className="text-xs text-stone-500 font-data">{mvp.totalScore % 1 === 0 ? mvp.totalScore : mvp.totalScore.toFixed(1)}</span>
                           </div>
                         )}
                       </td>
                       {seasonFilter === "all" && (
-                        <td className="px-4 py-3 text-slate-500 text-xs">{getSeasonName(game.seasonId)}</td>
+                        <td className="px-4 py-3 text-stone-500 text-xs">{getSeasonName(game.seasonId)}</td>
                       )}
                     </tr>
                   );
@@ -267,14 +245,13 @@ export function GameList({ games, players, navigate, currentSeason, seasons, cur
 
       {filtered.length > 0 && (
         <div className="mt-3 flex items-center justify-between">
-          <span className="text-sm text-slate-400">
+          <span className="text-sm text-stone-400">
             Показано {Math.min(visibleCount, filtered.length)} из {filtered.length}
           </span>
           {visibleCount < filtered.length && (
-            <button onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
-              className="px-4 py-2 text-sm text-indigo-400 hover:text-indigo-300 font-medium hover:bg-indigo-500/10 rounded-lg transition-colors cursor-pointer">
+            <Button variant="secondary" onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}>
               Показать ещё {Math.min(PAGE_SIZE, filtered.length - visibleCount)}
-            </button>
+            </Button>
           )}
         </div>
       )}

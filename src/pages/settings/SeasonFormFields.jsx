@@ -1,91 +1,88 @@
+import { Field, Input, Segmented, Switch } from "../../components/ui";
 import { withThresholdType, withTrackFirstKill } from "./seasonFormLogic";
 
-export const seasonInputClass = "w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none";
-const checkboxClass = "rounded border-indigo-500/15 text-emerald-600 focus:ring-indigo-500/50";
+const THRESHOLD_OPTIONS = [
+  { value: "none", label: "Без порога" },
+  { value: "absolute", label: "Игр" },
+  { value: "percent", label: "% от игр" },
+];
 
 /**
- * Общие поля окон «Новый сезон» и «Редактировать сезон»: название, флаги, порог.
- * children — дополнительные поля между названием и флагами (дата начала у нового сезона).
+ * Общие поля окон «Новый сезон» и «Редактировать сезон»: название, что отмечать, порог.
+ * children — поля между названием и флагами (дата начала у нового сезона).
+ * errors — { name?, thresholdValue? } из validateSeasonForm, показываются под полями.
  */
-export function SeasonFormFields({ form, onChange, idPrefix, namePlaceholder, children }) {
+export function SeasonFormFields({ form, onChange, errors = {}, namePlaceholder, children }) {
   const set = (patch) => onChange({ ...form, ...patch });
   const { thresholdType } = form;
 
   return (
-    <>
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1">
-          Название <span className="text-red-400">*</span>
-        </label>
-        <input type="text" value={form.name}
+    <div className="space-y-5">
+      <Field label="Название" error={errors.name}>
+        <Input type="text" value={form.name} maxLength={60}
           onChange={(e) => set({ name: e.target.value })}
-          className={seasonInputClass}
           placeholder={namePlaceholder} autoFocus />
-      </div>
+      </Field>
+
       {children}
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id={`${idPrefix}TrackFirstKill`}
-          checked={form.trackFirstKill}
-          onChange={(e) => onChange(withTrackFirstKill(form, e.target.checked))}
-          className={checkboxClass}
-        />
-        <label htmlFor={`${idPrefix}TrackFirstKill`} className="text-sm text-slate-200">
-          Отслеживать первоубиенного (ПУ)
-        </label>
-      </div>
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id={`${idPrefix}TrackBestMove`}
-          checked={form.trackBestMove}
-          disabled={!form.trackFirstKill}
-          onChange={(e) => set({ trackBestMove: e.target.checked })}
-          className={`${checkboxClass} disabled:opacity-40 disabled:cursor-not-allowed`}
-        />
-        <label htmlFor={`${idPrefix}TrackBestMove`} className={`text-sm ${form.trackFirstKill ? "text-slate-200" : "text-slate-500"}`}>
-          Отслеживать лучший ход
-        </label>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1">Порог рейтинга</label>
-        <select
-          value={thresholdType}
-          onChange={(e) => onChange(withThresholdType(form, e.target.value))}
-          className={seasonInputClass}
-        >
-          <option value="none">Без порога</option>
-          <option value="absolute">Минимум игр</option>
-          <option value="percent">Процент от игр сезона</option>
-        </select>
-      </div>
-      {thresholdType !== "none" && (
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">
-            {thresholdType === "absolute" ? "Минимальное количество игр" : "Процент от общего числа игр"}
-          </label>
-          <div className="relative">
-            <input
-              type="number"
-              value={form.thresholdValue}
-              onChange={(e) => set({ thresholdValue: e.target.value })}
-              min={1}
-              max={thresholdType === "percent" ? 100 : undefined}
-              placeholder={thresholdType === "absolute" ? "5" : "50"}
-              className={seasonInputClass}
+
+      <fieldset>
+        <legend className="field-label">Что отмечать в играх</legend>
+        <div className="rounded-xl border border-line divide-y divide-line px-3">
+          <div className="py-2.5">
+            <Switch
+              checked={form.trackFirstKill}
+              onChange={(checked) => onChange(withTrackFirstKill(form, checked))}
+              label="Первоубиенный (ПУ)"
+              description="Кого убили первой ночью"
             />
-            {thresholdType === "percent" && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">%</span>
-            )}
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            {thresholdType === "absolute"
-              ? "Игроки с меньшим числом игр не попадут в рейтинг"
-              : "Например, 50% при 20 играх = минимум 10 игр для рейтинга"}
-          </p>
+          <div className="py-2.5">
+            <Switch
+              checked={form.trackBestMove}
+              disabled={!form.trackFirstKill}
+              onChange={(checked) => set({ trackBestMove: checked })}
+              label="Лучший ход"
+              description={form.trackFirstKill ? "Три места, которые назвал ПУ" : "Нужен первоубиенный"}
+            />
+          </div>
         </div>
-      )}
-    </>
+      </fieldset>
+
+      <fieldset>
+        <legend className="field-label">Порог для рейтинга</legend>
+        <Segmented
+          label="Порог для рейтинга"
+          value={thresholdType}
+          onChange={(type) => onChange(withThresholdType(form, type))}
+          options={THRESHOLD_OPTIONS}
+        />
+        {thresholdType !== "none" ? (
+          <Field
+            className="mt-3"
+            label={thresholdType === "absolute" ? "Минимум игр" : "Минимум, % от игр сезона"}
+            error={errors.thresholdValue}
+            hint={thresholdType === "absolute"
+              ? "Кто сыграл меньше, в рейтинг не попадёт"
+              : "50% при 20 играх сезона — нужно сыграть 10"}
+          >
+            <div className="relative w-36">
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={form.thresholdValue}
+                onChange={(e) => set({ thresholdValue: e.target.value.replace(/\D/g, "") })}
+                className={thresholdType === "percent" ? "pr-8" : ""}
+              />
+              {thresholdType === "percent" && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 text-sm pointer-events-none">%</span>
+              )}
+            </div>
+          </Field>
+        ) : (
+          <p className="field-hint">В рейтинге все, кто сыграл хотя бы одну игру</p>
+        )}
+      </fieldset>
+    </div>
   );
 }

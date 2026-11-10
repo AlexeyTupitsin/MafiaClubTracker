@@ -1,8 +1,16 @@
 // Чистая логика формы игры — без React, покрыта тестами.
 import { ROLE_REQUIRED } from "../../lib/constants";
-import { getTeam } from "../../lib/utils";
+import { getTeam, localIsoDate } from "../../lib/utils";
 
 export const SEAT_COUNT = 10;
+
+// Шаги формы игры
+export const STEPS = [
+  { n: 1, label: "Рассадка" },
+  { n: 2, label: "Роли" },
+  { n: 3, label: "Баллы" },
+];
+export const STEP_COUNT = STEPS.length;
 export const BONUS_MIN = -5;
 export const BONUS_MAX = 5;
 
@@ -16,7 +24,19 @@ const PARTIAL_BONUS = new Set(["", "-", ".", "-.", ","]);
 export const emptySeats = () =>
   Array.from({ length: SEAT_COUNT }, (_, i) => ({ seat: i + 1, playerId: "" }));
 
-export const today = () => new Date().toISOString().split("T")[0];
+// Перетаскивание на шаге рассадки: игроки на местах from и to меняются местами,
+// а их роли, доп. баллы и комментарии переезжают вместе с ними (важно при правке игры)
+export function swapSeats({ seats, roles, bonusScores, bonusComments }, from, to) {
+  const swap = (list) => list.map((item, i) => (i === from ? list[to] : i === to ? list[from] : item));
+  return {
+    seats: seats.map((s, i) => ({ ...s, playerId: seats[i === from ? to : i === to ? from : i].playerId })),
+    roles: swap(roles),
+    bonusScores: swap(bonusScores),
+    bonusComments: swap(bonusComments),
+  };
+}
+
+export const today = () => localIsoDate();
 
 // Строка из поля → число; незаконченный или битый ввод считается нулём
 export function parseBonus(value) {
@@ -82,6 +102,14 @@ export function rolesAreValid(roles) {
   const counts = countRoles(roles);
   return roles.every(Boolean)
     && Object.entries(ROLE_REQUIRED).every(([role, required]) => counts[role] === required);
+}
+
+// Сколько каждой роли ещё не роздано: { citizen: 2, sheriff: 0, ... } (не меньше 0)
+export function missingRoles(roles) {
+  const counts = countRoles(roles);
+  return Object.fromEntries(
+    Object.entries(ROLE_REQUIRED).map(([role, required]) => [role, Math.max(0, required - counts[role])])
+  );
 }
 
 // Дозаполняет пустые места недостающими ролями в случайном порядке.

@@ -18,26 +18,26 @@ export function InteractionSection({ pairs, history, navigate }) {
   return (
     <Section title="Взаимодействие" defaultOpen={true}>
       {pairs.length > 0 && (
-        <div className="glass-card rounded-2xl p-4 mb-4">
+        <div className="card rounded-2xl p-4 mb-4">
           <h3 className="font-semibold mb-3">Статистика по парам</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-indigo-500/10">
-                  <th className="text-left px-2 py-1.5 font-medium text-slate-400">Партнёр</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-slate-400">Игр</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-slate-400 whitespace-nowrap">Оба красн.</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-slate-400 whitespace-nowrap">Оба чёрн.</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-slate-400 whitespace-nowrap">Я кр. / Он чёр.</th>
-                  <th className="text-center px-2 py-1.5 font-medium text-slate-400 whitespace-nowrap">Я чёр. / Он кр.</th>
+                <tr className="border-b border-line">
+                  <th className="text-left px-2 py-1.5 font-medium text-stone-400">Партнёр</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-stone-400">Игр</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-stone-400 whitespace-nowrap">Оба красн.</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-stone-400 whitespace-nowrap">Оба чёрн.</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-stone-400 whitespace-nowrap">Я кр. / Он чёр.</th>
+                  <th className="text-center px-2 py-1.5 font-medium text-stone-400 whitespace-nowrap">Я чёр. / Он кр.</th>
                 </tr>
               </thead>
               <tbody>
                 {pairs.slice(0, pairsLimit).map((p) => (
-                  <tr key={p.id} className="border-b border-indigo-500/10 last:border-b-0">
+                  <tr key={p.id} className="border-b border-line last:border-b-0">
                     <td className="px-2 py-1.5">
                       <button onClick={() => navigate("playerProfile", p.id)}
-                        className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{p.nickname}</button>
+                        className="text-stone-100 hover:text-accent-300 cursor-pointer">{p.nickname}</button>
                     </td>
                     <td className="px-2 py-1.5 text-center font-medium">{p.totalGames}</td>
                     <td className="px-2 py-1.5 text-center text-xs">
@@ -59,34 +59,34 @@ export function InteractionSection({ pairs, history, navigate }) {
           </div>
           {pairs.length > pairsLimit && (
             <button onClick={() => setPairsLimit((n) => n + PAGE)}
-              className="mt-3 text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer">
+              className="mt-3 text-sm text-accent-400 hover:text-accent-300 cursor-pointer">
               Показать ещё
             </button>
           )}
         </div>
       )}
 
-      <div className="glass-card rounded-2xl p-4">
+      <div className="card rounded-2xl p-4">
         <h3 className="font-semibold mb-3">История игр</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-indigo-500/10">
-                <th className="text-left px-2 py-1.5 font-medium text-slate-400">Дата</th>
-                <th className="text-left px-2 py-1.5 font-medium text-slate-400">Роль</th>
-                <th className="text-left px-2 py-1.5 font-medium text-slate-400">Результат</th>
-                <th className="text-center px-2 py-1.5 font-medium text-slate-400">База</th>
-                <th className="text-center px-2 py-1.5 font-medium text-slate-400">Бонус</th>
-                <th className="text-center px-2 py-1.5 font-medium text-slate-400">Итого</th>
-                <th className="text-center px-2 py-1.5 font-medium text-slate-400">ELO</th>
+              <tr className="border-b border-line">
+                <th className="text-left px-2 py-1.5 font-medium text-stone-400">Дата</th>
+                <th className="text-left px-2 py-1.5 font-medium text-stone-400">Роль</th>
+                <th className="text-left px-2 py-1.5 font-medium text-stone-400">Результат</th>
+                <th className="text-center px-2 py-1.5 font-medium text-stone-400">База</th>
+                <th className="text-center px-2 py-1.5 font-medium text-stone-400">Бонус</th>
+                <th className="text-center px-2 py-1.5 font-medium text-stone-400">Итого</th>
+                <th className="text-center px-2 py-1.5 font-medium text-stone-400">ELO</th>
               </tr>
             </thead>
             <tbody>
               {history.slice(0, gamesLimit).map((h) => (
-                <tr key={h.game.id} className="border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5">
-                  <td className="px-2 py-1.5 text-slate-400">
+                <tr key={h.game.id} className="border-b border-line last:border-b-0 hover:bg-white/[0.04]">
+                  <td className="px-2 py-1.5 text-stone-400">
                     <button onClick={() => navigate("gameDetail", h.game.id)}
-                      className="text-indigo-400 hover:text-indigo-300 cursor-pointer">
+                      className="text-stone-100 hover:text-accent-300 cursor-pointer">
                       {formatDate(h.game.date)}
                     </button>
                   </td>
@@ -121,7 +121,7 @@ export function InteractionSection({ pairs, history, navigate }) {
         </div>
         {history.length > gamesLimit && (
           <button onClick={() => setGamesLimit((n) => n + PAGE)}
-            className="mt-3 text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer">
+            className="mt-3 text-sm text-accent-400 hover:text-accent-300 cursor-pointer">
             Показать ещё
           </button>
         )}

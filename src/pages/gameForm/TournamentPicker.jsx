@@ -1,60 +1,67 @@
+import { Field, Input, Select, DateInput } from "../../components/ui";
+
 const NEW_TOURNAMENT = "__new__";
 
-const inputClass = "bg-indigo-500/5 border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50";
-
-// Выбор турнира для игры или создание нового прямо из формы
+// Вечер игры: турнир (или новый прямо отсюда) и дата.
+// Новый турнир получает дату игры; выбор турнира подставляет его дату в игру.
 export function TournamentPicker({
   tournaments, tournamentId, onTournamentChange,
-  newMode, onNewModeChange, newName, onNewNameChange, newDate, onNewDateChange,
+  newMode, onNewModeChange, newName, onNewNameChange, nameError,
+  gameDate, onGameDateChange,
 }) {
+  const list = tournaments || [];
+
   return (
-    <div className="glass-card rounded-2xl p-4 mb-4">
-      <label className="block text-sm font-medium text-slate-300 mb-2">Турнир (игровой вечер)</label>
+    <div className="card p-4 sm:p-5 mb-5 grid gap-4 sm:grid-cols-2">
       {!newMode ? (
-        <select
-          value={tournamentId}
-          onChange={(e) => {
-            if (e.target.value === NEW_TOURNAMENT) {
-              onNewModeChange(true);
-              onTournamentChange("");
-            } else {
-              onTournamentChange(e.target.value);
-            }
-          }}
-          className={`w-full ${inputClass}`}
-        >
-          <option value="">Без турнира</option>
-          {(tournaments || []).map((t) => (
-            <option key={t.id} value={t.id}>{t.name} ({t.date})</option>
-          ))}
-          <option value={NEW_TOURNAMENT}>+ Новый турнир</option>
-        </select>
+        <Field label="Турнир" optional>
+          <Select
+            value={tournamentId}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === NEW_TOURNAMENT) {
+                onNewModeChange(true);
+                onTournamentChange("");
+                return;
+              }
+              onTournamentChange(value);
+              const t = list.find((x) => x.id === value);
+              if (t?.date) onGameDateChange(t.date);
+            }}
+          >
+            <option value="">Без турнира</option>
+            {list.map((t) => (
+              <option key={t.id} value={t.id}>{t.name} · {t.date.split("-").reverse().join(".")}</option>
+            ))}
+            <option value={NEW_TOURNAMENT}>+ Новый турнир…</option>
+          </Select>
+        </Field>
       ) : (
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <input
+        <div>
+          <Field label="Новый турнир" error={nameError}
+            hint={nameError ? null : "Создастся вместе с игрой, с её датой"}>
+            <Input
               type="text"
               value={newName}
               onChange={(e) => onNewNameChange(e.target.value)}
-              className={`flex-1 ${inputClass}`}
-              placeholder="Название турнира"
+              placeholder="Кубок клуба, март"
+              maxLength={80}
               autoFocus
             />
-            <input
-              type="date"
-              value={newDate}
-              onChange={(e) => onNewDateChange(e.target.value)}
-              className={inputClass}
-            />
-          </div>
+          </Field>
           <button
+            type="button"
             onClick={() => { onNewModeChange(false); onNewNameChange(""); }}
-            className="text-sm text-slate-400 hover:text-slate-200"
+            className="mt-1.5 text-[13px] text-stone-400 hover:text-stone-200 underline-offset-4 hover:underline cursor-pointer"
           >
-            Отмена — выбрать существующий
+            Выбрать из списка
           </button>
         </div>
       )}
+
+      <Field label="Дата игры">
+        <DateInput value={gameDate} onChange={onGameDateChange} />
+      </Field>
     </div>
   );
 }

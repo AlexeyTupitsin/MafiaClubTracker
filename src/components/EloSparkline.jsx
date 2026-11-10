@@ -90,22 +90,22 @@ export function EloSparkline({ history, width = 260, height = 56 }) {
           {active == null && <circle cx={last[0]} cy={last[1]} r="2.5" style={{ fill: color }} />}
           {active != null && (
             <line x1={active.x} x2={active.x} y1="0" y2={height}
-              className="stroke-slate-400" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+              className="stroke-stone-400" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
           )}
         </svg>
 
         {active != null && (
           <>
             <span
-              className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-slate-900"
+              className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-stone-900"
               style={{ left: `${active.ratio * 100}%`, top: `${active.yRatio * 100}%`, backgroundColor: color }}
             />
             <div
-              className="pointer-events-none absolute bottom-full mb-1 z-10 whitespace-nowrap rounded-md border border-indigo-500/20
-                bg-slate-900/95 px-2 py-1 text-xs text-slate-300 shadow-lg"
+              className="pointer-events-none absolute bottom-full mb-1 z-10 whitespace-nowrap rounded-md border border-line-strong
+                bg-stone-900/95 px-2 py-1 text-xs text-stone-300 shadow-lg"
               style={{ left: `${active.ratio * 100}%`, transform: `translateX(${labelShift}%)` }}
             >
-              <span className="font-semibold text-slate-100">{formatElo(active.value)}</span>
+              <span className="font-semibold text-stone-100">{formatElo(active.value)}</span>
               {active.game ? (
                 <>
                   {active.game.delta != null && (
@@ -114,20 +114,20 @@ export function EloSparkline({ history, width = 260, height = 56 }) {
                       {Math.abs(active.game.delta).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}
                     </span>
                   )}
-                  <span className="ml-1.5 text-slate-500">
+                  <span className="ml-1.5 text-stone-500">
                     {formatDate(active.game.date)}
                     {active.game.gameNumber != null && ` · игра №${active.game.gameNumber}`}
                   </span>
                 </>
               ) : (
-                <span className="ml-1.5 text-slate-500">старт</span>
+                <span className="ml-1.5 text-stone-500">старт</span>
               )}
             </div>
           </>
         )}
       </div>
 
-      <div className="relative mt-1 h-4 text-[10px] text-slate-500">
+      <div className="relative mt-1 h-4 text-[10px] text-stone-500">
         {ticks.map((tick) => (
           <span
             key={tick.label}

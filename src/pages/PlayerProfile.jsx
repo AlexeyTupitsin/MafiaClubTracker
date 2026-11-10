@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { ArrowLeft, User, Sword } from "lucide-react";
-import { EmptyState } from "../components/ui";
+import { Button, EmptyState } from "../components/ui";
 import { calcPlayerStats, calcRoleStats, calcFormTrend, calcKillRate, calcRoleKillRate, calcBestMoveStats } from "../lib/metrics";
 import { playerEloHistory } from "../lib/elo";
 import {
@@ -24,10 +24,9 @@ export function PlayerProfile(props) {
         icon={User}
         title="Игрок не найден"
         action={
-          <button onClick={() => goBack()}
-            className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 cursor-pointer text-sm">
-            <ArrowLeft size={16} /> Назад
-          </button>
+          <Button variant="secondary" icon={ArrowLeft} onClick={() => goBack()}>
+            Назад
+          </Button>
         }
       />
     );

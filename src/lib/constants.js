@@ -40,15 +40,15 @@ export const ROLE_OPTIONS = [
 export const ROLE_BADGE_VARIANT = {
   citizen: "red",
   sheriff: "yellow",
-  mafia: "default",
-  don: "purple",
+  mafia: "black",
+  don: "don",
 };
 
 export const ROLE_COLORS = {
   citizen: "#ef4444",
-  sheriff: "#eab308",
-  mafia: "#6b7280",
-  don: "#8b5cf6",
+  sheriff: "#facc15",
+  mafia: "#78716c",
+  don: "#e7e5e4",
 };
 
 export const TABS = [
@@ -67,4 +67,12 @@ export const ELO_CONFIG = {
   kNormal: 20,          // k для всех остальных
   newPlayerGames: 30,
   meanBonus: 0.17,      // обычный доп. балл за игру (среднее по истории клуба), вычитается из S_A
+};
+
+// Tailwind-классы значка роли: красная команда — красный/жёлтый, чёрная — графит/белый
+export const ROLE_TONE = {
+  citizen: "text-red-400 bg-red-500/10 ring-red-500/25",
+  sheriff: "text-yellow-300 bg-yellow-400/10 ring-yellow-400/25",
+  mafia: "text-stone-300 bg-stone-700/40 ring-stone-500/30",
+  don: "text-stone-50 bg-stone-950 ring-stone-300/50",
 };

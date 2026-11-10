@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } fro
 import { WifiOff } from "lucide-react";
 
 import { getSeasons, getPlayers, getAllGames, getAllTournaments } from "./lib/queries";
-import { Toast, EmptyState } from "./components/ui";
+import { Toast, EmptyState, Button } from "./components/ui";
 import { Sidebar } from "./components/layout/Sidebar";
 import { useAuth } from "./hooks/useAuth";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -36,21 +36,21 @@ function SkeletonBlocks() {
       {/* Skeleton stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[1, 2, 3].map(i => (
-          <div key={i} className="glass-card p-4 animate-pulse">
-            <div className="h-4 bg-indigo-500/10 rounded w-20 mb-3" />
-            <div className="h-8 bg-indigo-500/10 rounded w-16" />
+          <div key={i} className="card p-4 animate-pulse">
+            <div className="h-4 bg-elev-3 rounded w-20 mb-3" />
+            <div className="h-8 bg-elev-3 rounded w-16" />
           </div>
         ))}
       </div>
       {/* Skeleton table */}
-      <div className="glass-card p-4">
+      <div className="card p-4">
         {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} className="flex gap-4 py-3 border-b border-indigo-500/5 last:border-0 animate-pulse">
-            <div className="h-4 bg-indigo-500/10 rounded w-8" />
-            <div className="h-4 bg-indigo-500/10 rounded w-24" />
-            <div className="h-4 bg-indigo-500/10 rounded w-12" />
-            <div className="h-4 bg-indigo-500/10 rounded w-12" />
-            <div className="h-4 bg-indigo-500/10 rounded w-16" />
+          <div key={i} className="flex gap-4 py-3 border-b border-line last:border-0 animate-pulse">
+            <div className="h-4 bg-elev-3 rounded w-8" />
+            <div className="h-4 bg-elev-3 rounded w-24" />
+            <div className="h-4 bg-elev-3 rounded w-12" />
+            <div className="h-4 bg-elev-3 rounded w-12" />
+            <div className="h-4 bg-elev-3 rounded w-16" />
           </div>
         ))}
       </div>
@@ -238,19 +238,18 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-surface">
-        <div className="md:ml-[220px] max-w-6xl mx-auto px-4 py-6 pt-16 md:pt-6">
+        <div className="md:pl-[220px]"><div className="max-w-6xl mx-auto px-4 md:px-8 pt-20 pb-24 md:py-10">
           <SkeletonBlocks />
           {loadError && (
             <div className="mt-4 max-w-md mx-auto bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-400 text-sm">
               <p className="font-medium mb-1">Ошибка загрузки данных:</p>
               <p className="font-mono text-xs">{loadError}</p>
-              <button onClick={() => window.location.reload()}
-                className="btn-ghost mt-3 px-4 py-2 text-sm cursor-pointer">
+              <Button variant="secondary" className="mt-3" onClick={() => window.location.reload()}>
                 Повторить
-              </button>
+              </Button>
             </div>
           )}
-        </div>
+        </div></div>
       </div>
     );
   }
@@ -277,10 +276,9 @@ export default function App() {
           title="Нет связи с сервером"
           description="Эта страница открывается только со свежими данными. Проверьте интернет и обновите страницу."
           action={
-            <button onClick={() => window.location.reload()}
-              className="btn-ghost px-4 py-2 text-sm cursor-pointer">
-              Обновить
-            </button>
+            <Button variant="secondary" onClick={() => window.location.reload()}>
+              Обновить страницу
+            </Button>
           }
         />
       );
@@ -437,7 +435,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-surface pb-16 md:pb-0">
+    <div className="min-h-screen bg-surface">
       <Sidebar
         currentPage={currentPage}
         navigate={navigate}
@@ -446,12 +444,14 @@ export default function App() {
         setCurrentSeasonId={selectSeason}
       />
 
-      <main className="md:ml-[220px] max-w-6xl mx-auto px-4 py-6 pt-16 md:pt-6 animate-page-enter" key={currentPage + (selectedId || "")}>
-        <ErrorBoundary>
-          <Suspense fallback={<SkeletonBlocks />}>
-            {renderPage()}
-          </Suspense>
-        </ErrorBoundary>
+      <main className="md:pl-[220px]">
+        <div className="max-w-6xl mx-auto px-4 md:px-8 pt-20 pb-28 md:py-10 animate-page-enter" key={currentPage + (selectedId || "")}>
+          <ErrorBoundary>
+            <Suspense fallback={<SkeletonBlocks />}>
+              {renderPage()}
+            </Suspense>
+          </ErrorBoundary>
+        </div>
       </main>
 
       {toast && (

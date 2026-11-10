@@ -1,8 +1,11 @@
 import { useState, useMemo } from "react";
-import { Trophy, ChevronUp, ChevronDown } from "lucide-react";
-import { EmptyState } from "../components/ui";
+import { Trophy } from "lucide-react";
+import { EmptyState, Select } from "../components/ui";
 import { calcPlayerStats, calcExtendedNominations, calcKillRate, calcThreshold } from "../lib/metrics";
-import { NOMINATION_CONFIG, MEDAL_ICON, ROLE_NAMES } from "../lib/constants";
+import { NOMINATION_CONFIG, ROLE_NAMES } from "../lib/constants";
+import { RatingTable } from "../components/RatingTable";
+import { NominationList } from "../components/NominationList";
+import { signedClass, winrateClass } from "../lib/utils";
 import { ShareImageButton } from "../components/share/ShareImageButton";
 import { renderRatingCard } from "../lib/shareImage/ratingCard";
 
@@ -52,6 +55,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
         return [{
           id: pid,
           nickname: player?.nickname || "?",
+          avatarUrl: player?.avatarUrl,
           totalGames: roleEntries.length,
           wins,
           draws: roleEntries.filter((p) => p.result === "draw").length,
@@ -73,6 +77,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
       return [{
         id: pid,
         nickname: player?.nickname || "?",
+        avatarUrl: player?.avatarUrl,
         ...stats,
         elo: player?.elo ?? null,
         eloDelta: Math.round(sumEloDelta(entries)),
@@ -143,24 +148,29 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     }
   };
 
-  const SortIcon = ({ col }) => {
-    if (sortCol !== col) return null;
-    return sortDir === "asc"
-      ? <ChevronUp size={14} className="inline ml-0.5" />
-      : <ChevronDown size={14} className="inline ml-0.5" />;
-  };
-
+  const fmtSigned = (v) => `${v > 0 ? "+" : ""}${v.toFixed(2)}`;
   const columns = [
-    { key: "rank", label: "#", sortable: false },
     { key: "nickname", label: "Ник", sortable: true },
     { key: "totalGames", label: "Игры", sortable: true },
     { key: "wins", label: "Победы", sortable: true },
-    { key: "winrate", label: "WR%", sortable: true, title: "Процент побед" },
-    { key: "totalScore", label: "Баллы", sortable: true },
-    { key: "avgScore", label: "Ср. балл", sortable: true, title: "Средний балл за игру" },
-    { key: "avgBonus", label: "Ср. доп.", sortable: true, title: "Средний дополнительный балл" },
-    { key: "elo", label: "ELO", sortable: true, title: "Рейтинг ELO. Сквозной по всем сезонам — фильтр периода на него не влияет. Изменение рядом показано за выбранный период" },
-    ...(roleFilter === "all" ? [{ key: "killRate", label: "ПУ%", sortable: false, title: "Процент первых убийств" }] : []),
+    { key: "winrate", label: "WR", sortable: true, title: "Процент побед",
+      render: (r) => <span className={winrateClass(r.winrate)}>{r.winrate.toFixed(0)}%</span> },
+    { key: "totalScore", label: "Баллы", sortable: true,
+      render: (r) => (r.totalScore % 1 === 0 ? r.totalScore : r.totalScore.toFixed(1)) },
+    { key: "avgScore", label: "Ср. балл", sortable: true, title: "Средний балл за игру", render: (r) => r.avgScore.toFixed(2) },
+    { key: "avgBonus", label: "Ср. доп.", sortable: true, title: "Средний дополнительный балл",
+      render: (r) => <span className={signedClass(r.avgBonus)}>{fmtSigned(r.avgBonus)}</span> },
+    { key: "elo", label: "ELO", sortable: true, title: "Рейтинг ELO. Сквозной по всем сезонам — фильтр периода на него не влияет. Изменение рядом показано за выбранный период",
+      render: (r) => r.elo == null ? <span className="text-stone-600">—</span> : (
+        <span className="inline-flex items-baseline gap-1.5">
+          <span>{Math.round(r.elo)}</span>
+          <span className={`text-xs w-9 text-left ${r.eloDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
+            {r.eloDelta !== 0 && `${r.eloDelta > 0 ? "+" : "−"}${Math.abs(r.eloDelta)}`}
+          </span>
+        </span>
+      ) },
+    ...(roleFilter === "all" ? [{ key: "killRate", label: "ПУ", sortable: false, title: "Процент первых убийств",
+      render: (r) => (r.killRate ? `${r.killRate.killRate.toFixed(0)}%` : <span className="text-stone-600">—</span>) }] : []),
   ];
 
   const renderShareImage = () => {
@@ -178,17 +188,18 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
     });
   };
 
-  const medalColors = ["text-yellow-400", "text-slate-400", "text-amber-600"];
-  const renderRank = (idx) => (
-    <span className="inline-flex justify-center w-full">
-      {idx < 3 ? <MEDAL_ICON size={16} className={medalColors[idx]} /> : idx + 1}
-    </span>
-  );
+  const segBtn = (active) =>
+    `h-8 px-3 rounded-md text-sm font-medium whitespace-nowrap cursor-pointer ${
+      active ? "bg-elev-3 text-stone-50 shadow-sm shadow-black/40" : "text-stone-400 hover:text-stone-100"
+    }`;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold gradient-text">Рейтинг</h2>
+    <div className="space-y-5">
+      <header className="flex items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">{selectedSeason?.name ?? "Все сезоны"}</p>
+          <h2 className="page-title mt-1.5">Рейтинг</h2>
+        </div>
         {sorted.length > 0 && (
           <ShareImageButton
             render={renderShareImage}
@@ -197,68 +208,42 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
             showToast={showToast}
           />
         )}
-      </div>
+      </header>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <select
-          value={seasonFilter}
-          onChange={(e) => setSeasonFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
-        >
+      <div className="flex flex-wrap gap-2">
+        <Select value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)} aria-label="Период" wrapperClassName="w-full sm:w-fit" className="sm:!w-auto sm:min-w-[9rem]">
           <option value="all">Все сезоны</option>
           {seasons.map((s) => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
-        </select>
-
-        {/* Min games filter */}
-        <div className="relative">
-          <input
-            type="number"
-            min={1}
-            value={minGamesInput}
-            onChange={(e) => setMinGamesInput(e.target.value)}
-            placeholder="Игр ≥"
-            className="w-24 px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder-slate-500"
-          />
-        </div>
-
-        {/* Role filter */}
-        <div className="flex gap-1 bg-indigo-500/5 border border-indigo-500/15 rounded-lg p-1">
-          <button
-            onClick={() => setRoleFilter("all")}
-            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${roleFilter === "all" ? "bg-indigo-500/20 text-indigo-300" : "text-slate-400 hover:text-slate-300"}`}
-          >
-            Все роли
-          </button>
+        </Select>
+        <input
+          type="number" inputMode="numeric" min={1}
+          value={minGamesInput}
+          onChange={(e) => setMinGamesInput(e.target.value)}
+          placeholder="Игр от…"
+          aria-label="Минимум игр"
+          className="input !w-28"
+        />
+        <div className="flex gap-0.5 bg-elev-2 border border-line-strong rounded-[10px] p-0.5 overflow-x-auto max-w-full" role="group" aria-label="Роль">
+          <button onClick={() => setRoleFilter("all")} aria-pressed={roleFilter === "all"} className={segBtn(roleFilter === "all")}>Все роли</button>
           {Object.entries(ROLE_NAMES).map(([role, name]) => (
-            <button
-              key={role}
-              onClick={() => setRoleFilter(role)}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${roleFilter === role ? "bg-indigo-500/20 text-indigo-300" : "text-slate-400 hover:text-slate-300"}`}
-            >
-              {name}
-            </button>
+            <button key={role} onClick={() => setRoleFilter(role)} aria-pressed={roleFilter === role} className={segBtn(roleFilter === role)}>{name}</button>
           ))}
         </div>
       </div>
 
-      {/* Threshold info */}
       {ratingCalc.minGames > 0 && ratingCalc.totalGamesInPeriod > 0 && (
-        <div className="flex items-center justify-between mb-4 bg-indigo-500/5 border border-indigo-500/10 rounded-lg px-3 py-2">
-          <span className="text-sm text-slate-400">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <span className="text-stone-400">
             {selectedSeason?.ratingThresholdType === 'percent'
               ? `Порог: ${ratingCalc.minGames} из ${ratingCalc.totalGamesInPeriod} игр (${selectedSeason.ratingThresholdValue}%)`
               : `Порог: минимум ${ratingCalc.minGames} игр`}
             {!showAll && belowThreshold.length > 0 && (
-              <span className="text-slate-500"> · {belowThreshold.length} игрок{belowThreshold.length > 4 ? "ов" : belowThreshold.length > 1 ? "а" : ""} не прошли порог</span>
+              <span className="text-stone-500"> · {belowThreshold.length} игрок{belowThreshold.length > 4 ? "ов" : belowThreshold.length > 1 ? "а" : ""} ниже порога</span>
             )}
           </span>
-          <button
-            onClick={() => setShowAll(!showAll)}
-            className="text-sm text-indigo-400 hover:text-indigo-300 font-medium whitespace-nowrap ml-2"
-          >
+          <button onClick={() => setShowAll(!showAll)} className="h-9 px-3 -mr-3 rounded-lg text-accent-300 hover:bg-elev-2 font-medium whitespace-nowrap cursor-pointer">
             {showAll ? "Только прошедшие порог" : "Показать всех"}
           </button>
         </div>
@@ -271,150 +256,21 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
           description="Добавьте игры, чтобы увидеть рейтинг игроков"
         />
       ) : (
-        <div className="glass-card rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
-                  {columns.map((col) => (
-                    <th key={col.key}
-                      className={`px-3 py-2.5 font-medium text-slate-400 whitespace-nowrap ${
-                        col.key === "nickname" ? "text-left" : "text-center"
-                      } ${col.sortable ? "cursor-pointer hover:text-slate-300 select-none" : ""}`}
-                      onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                      title={col.title}>
-                      {col.label}
-                      {col.sortable && <SortIcon col={col.key} />}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((row, idx) => (
-                  <tr key={row.id}
-                    className={`border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5 transition-colors ${
-                      idx % 2 === 1 ? "bg-indigo-500/5" : ""
-                    }`}>
-                    <td className="px-3 py-2.5 text-center font-medium">{renderRank(idx)}</td>
-                    <td className="px-3 py-2.5 text-left font-medium">
-                      <button onClick={() => navigate("playerProfile", row.id)}
-                        className="text-indigo-400 hover:text-indigo-300 cursor-pointer hover:underline">
-                        {row.nickname}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2.5 text-center">{row.totalGames}</td>
-                    <td className="px-3 py-2.5 text-center">{row.wins}</td>
-                    <td className="px-3 py-2.5 text-center">
-                      <span className={
-                        row.winrate > 60 ? "text-emerald-400 font-medium" :
-                        row.winrate < 40 ? "text-red-400" : ""
-                      }>
-                        {row.winrate.toFixed(0)}%
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-center font-semibold">
-                      {row.totalScore % 1 === 0 ? row.totalScore : row.totalScore.toFixed(1)}
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      {row.avgScore.toFixed(2)}
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <span className={
-                        row.avgBonus > 0 ? "text-emerald-400" :
-                        row.avgBonus < 0 ? "text-red-400" : ""
-                      }>
-                        {row.avgBonus.toFixed(2)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                      {row.elo == null ? (
-                        <span className="text-slate-600">—</span>
-                      ) : (
-                        <span className="inline-flex items-baseline gap-1.5">
-                          <span className="font-semibold text-slate-200">{Math.round(row.elo)}</span>
-                          {row.eloDelta !== 0 && (
-                            <span className={`text-xs ${row.eloDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                              {row.eloDelta > 0 ? "+" : ""}{row.eloDelta}
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 text-center text-xs">
-                      {row.killRate ? (
-                        <span className={
-                          row.killRate.killRate > 25 ? "text-red-400" :
-                          row.killRate.killRate < 10 ? "text-emerald-400" : ""
-                        }>
-                          {row.killRate.killRate.toFixed(1)}%
-                        </span>
-                      ) : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="card overflow-hidden">
+          <RatingTable rows={sorted} columns={columns} sortCol={sortCol} sortDir={sortDir} onSort={handleSort} navigate={navigate} />
         </div>
       )}
 
-      {/* Nominations */}
       {activeGames.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-3">Номинации</h3>
+        <section className="pt-4" aria-labelledby="lb-nom-title">
+          <h3 id="lb-nom-title" className="font-display text-base font-bold text-stone-50 mb-3">Номинации</h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {NOMINATION_CONFIG.map(({ role, icon: Icon, label }) => {
-              const top = filteredNominations[role] || [];
-              return (
-                <div key={role} className="glass-card rounded-2xl p-4">
-                  <div className="font-semibold mb-2 flex items-center gap-1.5"><Icon size={16} /> {label}</div>
-                  {top.length === 0 ? (
-                    <p className="text-sm text-slate-500">Нет данных</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="border-b border-indigo-500/10">
-                            <th className="text-left py-1 font-medium text-slate-400">#</th>
-                            <th className="text-left py-1 font-medium text-slate-400">Ник</th>
-                            <th className="text-center py-1 font-medium text-slate-400">Игр</th>
-                            <th className="text-center py-1 font-medium text-slate-400">Побед</th>
-                            <th className="text-center py-1 font-medium text-slate-400">WR%</th>
-                            <th className="text-center py-1 font-medium text-slate-400">Ср. балл</th>
-                            <th className="text-center py-1 font-medium text-slate-400">Ср. доп.</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {top.map((p, i) => (
-                            <tr key={p.playerId} className="border-b border-indigo-500/10 last:border-b-0">
-                              <td className="py-1 font-medium">{i + 1}</td>
-                              <td className="py-1">
-                                <button onClick={() => navigate("playerProfile", p.playerId)}
-                                  className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{p.nickname}</button>
-                              </td>
-                              <td className="py-1 text-center">{p.games}</td>
-                              <td className="py-1 text-center">{p.wins}</td>
-                              <td className="py-1 text-center">{p.winrate.toFixed(0)}%</td>
-                              <td className="py-1 text-center">{p.avgScore.toFixed(2)}</td>
-                              <td className="py-1 text-center">
-                                <span className={
-                                  p.avgBonus > 0 ? "text-emerald-400" :
-                                  p.avgBonus < 0 ? "text-red-400" : ""
-                                }>
-                                  {p.avgBonus > 0 ? "+" : ""}{p.avgBonus.toFixed(2)}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {NOMINATION_CONFIG.map(({ role, icon, label }) => (
+              <NominationList key={role} role={role} icon={icon} label={label}
+                top={filteredNominations[role] || []} navigate={navigate} />
+            ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

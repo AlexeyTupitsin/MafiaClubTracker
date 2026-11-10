@@ -8,18 +8,24 @@ export function SettingsPage({
   showToast, refreshData,
   refreshSeasons, refreshPlayers, refreshAllGames,
 }) {
-  // Общая плашка ошибки для всех разделов
+  // Ошибка действий над сезонами (завершить, удалить) — над списком сезонов.
+  // Ошибки раздела «Данные» показываются в его строках.
   const [error, setError] = useState("");
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold gradient-text">Настройки</h2>
+    <div className="space-y-6 max-w-3xl">
+      <header>
+        <p className="eyebrow">Для ведущих</p>
+        <h2 className="page-title mt-1.5">Настройки</h2>
+      </header>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2 text-red-400 text-sm">
-          <AlertTriangle size={16} /> {error}
-          <button aria-label="Скрыть ошибку" onClick={() => setError("")} className="ml-auto p-0.5 hover:bg-red-500/20 rounded">
-            <X size={14} />
+        <div role="alert" className="rounded-xl border border-red-500/25 bg-red-500/10 p-3 flex items-start gap-2.5 text-sm text-red-300">
+          <AlertTriangle size={16} className="shrink-0 mt-0.5" aria-hidden="true" />
+          <p className="flex-1">{error}</p>
+          <button type="button" aria-label="Скрыть ошибку" onClick={() => setError("")}
+            className="btn-ghost btn-icon !w-8 !h-8 -m-1 text-red-300 cursor-pointer">
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
       )}
@@ -35,7 +41,6 @@ export function SettingsPage({
 
       <DataSection
         showToast={showToast}
-        onError={setError}
         refreshData={refreshData}
         refreshAllGames={refreshAllGames}
         refreshPlayers={refreshPlayers}

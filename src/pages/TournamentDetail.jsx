@@ -1,9 +1,12 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, Pencil, Trash2, Award, Sword } from "lucide-react";
-import { StatCard, Badge, ConfirmDialog, EmptyState } from "../components/ui";
+import { ArrowLeft, Pencil, Trash2, Award, Sword, Crown } from "lucide-react";
+import { BackButton, Button, ConfirmDialog, EmptyState, PlayerAvatar } from "../components/ui";
+import { RatingTable } from "../components/RatingTable";
+import { TeamBalance } from "../components/TeamBalance";
+import { NominationList } from "../components/NominationList";
 import { calcPlayerStats, calcKillRate } from "../lib/metrics";
-import { NOMINATION_CONFIG, TEAM_NAMES, MEDAL_ICON } from "../lib/constants";
-import { formatDate, compareGamesDesc } from "../lib/utils";
+import { NOMINATION_CONFIG, TEAM_NAMES } from "../lib/constants";
+import { formatDate, compareGamesDesc, signedClass, winrateClass } from "../lib/utils";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { deleteTournament } from "../lib/queries";
 import { ShareImageButton } from "../components/share/ShareImageButton";
@@ -17,10 +20,9 @@ export function TournamentDetail(props) {
     return (
       <EmptyState icon={Award} title="Турнир не найден"
         action={
-          <button onClick={() => goBack()}
-            className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm">
-            <ArrowLeft size={16} /> Назад
-          </button>
+          <Button variant="secondary" icon={ArrowLeft} onClick={() => goBack()}>
+            Назад
+          </Button>
         }
       />
     );
@@ -111,200 +113,114 @@ function TournamentDetailContent({
     }
   };
 
-  const medalColors = ["text-yellow-400", "text-slate-400", "text-amber-600"];
-  const renderRank = (idx) => (
-    <span className="inline-flex justify-center w-full">
-      {idx < 3 ? <MEDAL_ICON size={16} className={medalColors[idx]} /> : idx + 1}
-    </span>
-  );
+  const fmtSigned = (v) => `${v > 0 ? "+" : ""}${v.toFixed(2)}`;
+  const columns = [
+    { key: "totalGames", label: "Игры" },
+    { key: "wins", label: "Побед" },
+    { key: "winrate", label: "WR", render: (r) => <span className={winrateClass(r.winrate)}>{r.winrate.toFixed(0)}%</span> },
+    { key: "totalScore", label: "Баллы", render: (r) => (r.totalScore % 1 === 0 ? r.totalScore : r.totalScore.toFixed(1)) },
+    { key: "avgScore", label: "Ср. балл", render: (r) => r.avgScore.toFixed(2) },
+    { key: "avgBonus", label: "Ср. доп.", render: (r) => <span className={signedClass(r.avgBonus)}>{fmtSigned(r.avgBonus)}</span> },
+  ];
+  const leader = ratingData[0];
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <button aria-label="Назад" onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
-          <ArrowLeft size={20} />
-        </button>
-        <div className="min-w-0">
-          <h2 className="text-xl font-bold gradient-text">{tournament.name}</h2>
-          <p className="text-sm text-slate-400">{formatDate(tournament.date)}</p>
+      <header className="flex items-start gap-3">
+        <BackButton onClick={() => goBack()} className="mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <p className="eyebrow">Турнир · {formatDate(tournament.date)}</p>
+          <h2 className="page-title mt-1.5 break-words">{tournament.name}</h2>
         </div>
         {totalGames > 0 && (
           <ShareImageButton
-            className="ml-auto shrink-0"
+            className="shrink-0"
             render={renderShareImage}
             fileName={`iron-maf-tournament-${String(tournament.date).slice(0, 10)}.png`}
             title={`Итоги: ${tournament.name}`}
             showToast={showToast}
           />
         )}
-      </div>
+      </header>
 
       {tournament.notes && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-sm text-amber-300">
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-200">
           {tournament.notes}
         </div>
       )}
 
-      {/* Stats */}
       {totalGames > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          <StatCard label="Всего игр" value={totalGames} icon={Sword} />
-          <div className="glass-card rounded-2xl p-4">
-            <span className="text-sm text-slate-400">Красные</span>
-            <div className="text-2xl font-bold text-red-400">
-              {redWins} <span className="text-base font-normal text-red-400/70">
-                ({totalGames > 0 ? ((redWins / totalGames) * 100).toFixed(0) : 0}%)
-              </span>
-            </div>
-          </div>
-          <div className="glass-card rounded-2xl p-4">
-            <span className="text-sm text-slate-400">Чёрные</span>
-            <div className="text-2xl font-bold text-slate-200">
-              {blackWins} <span className="text-base font-normal text-slate-500">
-                ({totalGames > 0 ? ((blackWins / totalGames) * 100).toFixed(0) : 0}%)
-              </span>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {leader && (
+            <button onClick={() => navigate("playerProfile", leader.id)}
+              className="card card-link relative overflow-hidden p-5 md:p-6 lg:col-span-2 text-left">
+              <div className="pointer-events-none absolute -top-28 -left-20 w-80 h-80 rounded-full bg-accent-400/10 blur-3xl" aria-hidden="true" />
+              <p className="eyebrow flex items-center gap-1.5 relative">
+                <Crown size={14} className="text-accent-400" aria-hidden="true" /> Победитель турнира
+              </p>
+              <div className="relative mt-4 flex items-center gap-4">
+                <span className="rounded-full ring-2 ring-accent-400 ring-offset-4 ring-offset-elev-1 shrink-0">
+                  <PlayerAvatar player={players.find((p) => p.id === leader.id)} size="md" clickable={false} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-display text-2xl md:text-3xl font-bold text-stone-50 truncate">{leader.nickname}</span>
+                  <span className="block text-sm text-stone-400 mt-1 font-data">
+                    ср. балл <span className="text-accent-300 font-semibold">{leader.avgScore.toFixed(2)}</span> · {leader.wins} из {leader.totalGames} побед
+                  </span>
+                </span>
+              </div>
+            </button>
+          )}
+          <TeamBalance label="Сыграно" totalGames={totalGames} redWins={redWins} blackWins={blackWins} draws={draws} />
         </div>
       )}
 
-      {/* Rating table */}
       {ratingData.length > 0 && (
-        <div className="glass-card rounded-2xl p-4">
-          <h3 className="font-semibold mb-3">Рейтинг турнира</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
-                  <th className="px-2 py-2 text-center font-medium text-slate-400">#</th>
-                  <th className="px-2 py-2 text-left font-medium text-slate-400">Ник</th>
-                  <th className="px-2 py-2 text-center font-medium text-slate-400">Игры</th>
-                  <th className="px-2 py-2 text-center font-medium text-slate-400">Побед</th>
-                  <th className="px-2 py-2 text-center font-medium text-slate-400">WR%</th>
-                  <th className="px-2 py-2 text-center font-medium text-slate-400">Баллы</th>
-                  <th className="px-2 py-2 text-center font-medium text-slate-400">Ср. балл</th>
-                  <th className="px-2 py-2 text-center font-medium text-slate-400">Ср. доп.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ratingData.map((row, idx) => (
-                  <tr key={row.id} className={`border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5 ${idx % 2 === 1 ? "bg-slate-800/30" : ""}`}>
-                    <td className="px-2 py-2 text-center font-medium">{renderRank(idx)}</td>
-                    <td className="px-2 py-2 font-medium">
-                      <button onClick={() => navigate("playerProfile", row.id)}
-                        className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{row.nickname}</button>
-                    </td>
-                    <td className="px-2 py-2 text-center">{row.totalGames}</td>
-                    <td className="px-2 py-2 text-center">{row.wins}</td>
-                    <td className="px-2 py-2 text-center">
-                      <span className={row.winrate > 60 ? "text-emerald-400 font-medium" : row.winrate < 40 ? "text-red-400" : ""}>
-                        {row.winrate.toFixed(0)}%
-                      </span>
-                    </td>
-                    <td className="px-2 py-2 text-center font-semibold">
-                      {row.totalScore % 1 === 0 ? row.totalScore : row.totalScore.toFixed(1)}
-                    </td>
-                    <td className="px-2 py-2 text-center">{row.avgScore.toFixed(2)}</td>
-                    <td className="px-2 py-2 text-center">
-                      <span className={row.avgBonus > 0 ? "text-emerald-400" : row.avgBonus < 0 ? "text-red-400" : ""}>
-                        {row.avgBonus.toFixed(2)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <section className="card overflow-hidden" aria-labelledby="t-rating-title">
+          <h3 id="t-rating-title" className="font-display text-base font-bold text-stone-50 px-4 md:px-5 pt-4 pb-2">Рейтинг турнира</h3>
+          <RatingTable rows={ratingData.map((r) => ({ ...r, avatarUrl: players.find((p) => p.id === r.id)?.avatarUrl }))}
+            columns={columns} sortCol="avgScore" sortDir="desc" onSort={() => {}} navigate={navigate} />
+        </section>
       )}
 
-      {/* Nominations */}
       {totalGames > 0 && (
-        <div>
-          <h3 className="font-semibold mb-3">Номинации турнира</h3>
-          <p className="text-xs text-slate-500 mb-3">
-            Минимум {minGames} {minGames === 1 ? "игра" : minGames < 5 ? "игры" : "игр"} для участия в номинации
-          </p>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {NOMINATION_CONFIG.map(({ role, icon: Icon, label }) => {
-              const top = nominations[role] || [];
-              if (top.length === 0) return null;
-              return (
-                <div key={role} className="glass-card rounded-2xl p-4">
-                  <div className="font-semibold mb-2 flex items-center gap-1.5"><Icon size={16} /> {label}</div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-indigo-500/10">
-                          <th className="text-left py-1 font-medium text-slate-400">#</th>
-                          <th className="text-left py-1 font-medium text-slate-400">Ник</th>
-                          <th className="text-center py-1 font-medium text-slate-400">Игр</th>
-                          <th className="text-center py-1 font-medium text-slate-400">Побед</th>
-                          <th className="text-center py-1 font-medium text-slate-400">WR%</th>
-                          <th className="text-center py-1 font-medium text-slate-400">Ср. балл</th>
-                          <th className="text-center py-1 font-medium text-slate-400">Ср. доп.</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {top.map((p, i) => (
-                          <tr key={p.playerId} className="border-b border-indigo-500/10 last:border-b-0">
-                            <td className="py-1">{i + 1}</td>
-                            <td className="py-1">
-                              <button onClick={() => navigate("playerProfile", p.playerId)}
-                                className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{p.nickname}</button>
-                            </td>
-                            <td className="py-1 text-center">{p.games}</td>
-                            <td className="py-1 text-center">{p.wins}</td>
-                            <td className="py-1 text-center">{p.winrate.toFixed(0)}%</td>
-                            <td className="py-1 text-center">{p.avgScore.toFixed(2)}</td>
-                            <td className="py-1 text-center">
-                              <span className={p.avgBonus > 0 ? "text-emerald-400" : p.avgBonus < 0 ? "text-red-400" : ""}>
-                                {p.avgBonus > 0 ? "+" : ""}{p.avgBonus.toFixed(2)}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              );
-            })}
+        <section aria-labelledby="t-nom-title">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+            <h3 id="t-nom-title" className="font-display text-base font-bold text-stone-50">Номинации</h3>
+            <p className="text-xs text-stone-500">
+              От {minGames} {minGames === 1 ? "игры" : "игр"} в роли
+            </p>
           </div>
-        </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {NOMINATION_CONFIG.map(({ role, icon, label }) => (
+              (nominations[role] || []).length > 0 && (
+                <NominationList key={role} role={role} icon={icon} label={label} top={nominations[role]} navigate={navigate} />
+              )
+            ))}
+          </div>
+        </section>
       )}
 
-      {/* Game list */}
       {tournamentGames.length > 0 && (
-        <div className="glass-card rounded-2xl p-4">
-          <h3 className="font-semibold mb-3">Игры турнира</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
-                  <th className="text-center px-2 py-2 font-medium text-slate-400">#</th>
-                  <th className="text-left px-2 py-2 font-medium text-slate-400">Дата</th>
-                  <th className="text-left px-2 py-2 font-medium text-slate-400">Победитель</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...tournamentGames].sort(compareGamesDesc).map((g) => (
-                  <tr key={g.id} className="border-b border-indigo-500/10 last:border-b-0 hover:bg-indigo-500/5 cursor-pointer"
-                    onClick={() => navigate("gameDetail", g.id)}>
-                    <td className="px-2 py-2 text-center font-medium">#{g.gameNumber}</td>
-                    <td className="px-2 py-2 text-slate-400">{formatDate(g.date)}</td>
-                    <td className="px-2 py-2">
-                      <Badge variant={g.winner === "red" ? "red" : g.winner === "draw" ? "yellow" : "black"}>
-                        {TEAM_NAMES[g.winner]}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <section className="card overflow-hidden" aria-labelledby="t-games-title">
+          <h3 id="t-games-title" className="font-display text-base font-bold text-stone-50 px-4 md:px-5 pt-4 pb-2">Игры турнира</h3>
+          <ul>
+            {[...tournamentGames].sort(compareGamesDesc).map((g) => (
+              <li key={g.id} className="border-t border-line">
+                <button onClick={() => navigate("gameDetail", g.id)}
+                  className="flex items-center gap-4 w-full h-12 px-4 md:px-5 text-sm text-left hover:bg-elev-2 cursor-pointer">
+                  <span className={`w-[3px] h-6 rounded-full ${g.winner === "red" ? "bg-red-500" : g.winner === "draw" ? "bg-amber-400" : "bg-stone-500"}`} aria-hidden="true" />
+                  <span className="font-data font-semibold text-stone-100 w-10">#{g.gameNumber}</span>
+                  <span className="text-stone-400 font-data">{formatDate(g.date)}</span>
+                  <span className={`ml-auto font-medium ${g.winner === "red" ? "text-red-400" : g.winner === "draw" ? "text-amber-400" : "text-stone-200"}`}>
+                    {TEAM_NAMES[g.winner]}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {totalGames === 0 && (
@@ -313,15 +229,13 @@ function TournamentDetailContent({
 
       {/* Actions */}
       <AdminOnly>
-        <div className="flex gap-2">
-          <button onClick={() => navigate("tournamentForm", tournament.id)}
-            className="flex items-center gap-1.5 px-4 py-2 btn-ghost cursor-pointer text-sm">
-            <Pencil size={14} /> Редактировать
-          </button>
-          <button onClick={() => setConfirmDelete(true)}
-            className="flex items-center gap-1.5 px-4 py-2 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 text-sm">
-            <Trash2 size={14} /> Удалить
-          </button>
+        <div className="flex flex-wrap gap-2 pt-4 border-t border-line">
+          <Button variant="secondary" icon={Pencil} onClick={() => navigate("tournamentForm", tournament.id)}>
+            Редактировать турнир
+          </Button>
+          <Button variant="danger-soft" icon={Trash2} onClick={() => setConfirmDelete(true)} className="ml-auto">
+            Удалить
+          </Button>
         </div>
       </AdminOnly>
 

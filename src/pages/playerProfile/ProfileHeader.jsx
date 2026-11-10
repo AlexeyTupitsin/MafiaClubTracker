@@ -1,19 +1,21 @@
-import { ArrowLeft } from "lucide-react";
-import { PlayerAvatar } from "../../components/ui";
+import { BackButton, PlayerAvatar, Select } from "../../components/ui";
 
 // Шапка профиля: назад, аватар, ник и подзаголовок
 export function ProfileHeader({ player, subtitle, onBack }) {
   return (
-    <div className="flex items-center gap-3">
-      <button aria-label="Назад" onClick={onBack} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
-        <ArrowLeft size={20} />
-      </button>
-      <PlayerAvatar player={player} size="lg" />
-      <div>
-        <h2 className="text-xl font-bold gradient-text">{player.nickname}</h2>
-        {subtitle && <p className="text-sm text-slate-400">{subtitle}</p>}
+    <header className="flex items-start gap-3">
+      <BackButton onClick={onBack} />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 min-w-0">
+        <span className="rounded-full ring-1 ring-line-strong ring-offset-4 ring-offset-surface w-fit">
+          <PlayerAvatar player={player} size="lg" />
+        </span>
+        <div className="min-w-0">
+          <p className="eyebrow">{player.isActive === false ? "Не в составе" : "Игрок клуба"}</p>
+          <h2 className="page-title mt-1.5 break-words">{player.nickname}</h2>
+          {subtitle && <p className="text-sm text-stone-400 mt-2">{subtitle}</p>}
+        </div>
       </div>
-    </div>
+    </header>
   );
 }
 
@@ -21,16 +23,15 @@ export function ProfileHeader({ player, subtitle, onBack }) {
 export function PeriodSelect({ value, onChange, seasons }) {
   return (
     <div className="flex flex-wrap gap-2 mb-4">
-      <select
+      <Select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
-      >
+        aria-label="Период статистики" wrapperClassName="w-full sm:w-fit" className="sm:!w-auto sm:min-w-[9rem]">
         <option value="all">Все сезоны</option>
         {seasons.map((s) => (
           <option key={s.id} value={s.id}>{s.name}</option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import {
 } from './supabase';
 import { replayElo, ELO_START } from './elo';
 import { validateImportData, formatImportErrors } from './importValidation';
+import { localIsoDate } from './utils';
 import { avatarPath, avatarPublicUrl, avatarDbValue } from './avatarUrl';
 
 // ============================================================
@@ -232,7 +233,7 @@ export async function createSeason(season) {
   // Deactivate current active season
   await rest('seasons?is_active=eq.true', {
     method: 'PATCH',
-    body: { is_active: false, end_date: new Date().toISOString().split('T')[0] },
+    body: { is_active: false, end_date: localIsoDate() },
   });
 
   const row = await rest('seasons', {
@@ -660,7 +661,7 @@ export async function resetAllData() {
     method: 'POST',
     body: {
       name: 'Сезон 1',
-      start_date: new Date().toISOString().split('T')[0],
+      start_date: localIsoDate(),
       end_date: null,
       is_active: true,
       rating_threshold_type: 'none',
