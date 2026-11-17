@@ -17,6 +17,8 @@
   --color-elev-3: #25221e;          /* активные сегменты, вложенные плашки */
   --color-line: rgb(255 244 228 / 0.07);         /* обычные рамки и разделители */
   --color-line-strong: rgb(255 244 228 / 0.13);  /* рамки полей, кнопок */
+  /* «Это я»: строка зрителя в таблицах. Непрозрачный — лежит под закреплёнными ячейками */
+  --color-me: color-mix(in oklab, var(--color-accent-400) 10%, var(--color-elev-1));
 
   /* Латунь */
   --color-accent-50: #fbf7ec;
@@ -68,6 +70,15 @@ body {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* Переход между страницами: вперёд — подъём снизу, «назад» — только проявление */
+@keyframes pageForward {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pageBack {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
@@ -82,6 +93,8 @@ body {
 }
 
 .animate-page-enter { animation: fadeIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+main > .animate-page-enter { animation: pageForward 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.animate-page-back { animation: pageBack 0.18s ease-out; }
 .animate-modal-enter { animation: zoomIn 0.18s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .animate-slide-up { animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .animate-toast-enter { animation: slideInBottom 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }

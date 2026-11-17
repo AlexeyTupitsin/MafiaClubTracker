@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Trophy } from "lucide-react";
 import { EmptyState, Select } from "../components/ui";
 import { calcPlayerStats, calcExtendedNominations, calcKillRate, calcThreshold } from "../lib/metrics";
@@ -8,13 +8,20 @@ import { NominationList } from "../components/NominationList";
 import { signedClass, winrateClass } from "../lib/utils";
 import { ShareImageButton } from "../components/share/ShareImageButton";
 import { renderRatingCard } from "../lib/shareImage/ratingCard";
+import { useHashParam, boolParam } from "../hooks/useHashParam";
 
 export function Leaderboard({ games, players, seasons, currentSeasonId, navigate, allGames, showToast }) {
-  const [seasonFilter, setSeasonFilter] = useState("all");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [minGamesInput, setMinGamesInput] = useState("");
-  const [sortCol, setSortCol] = useState("avgScore");
-  const [sortDir, setSortDir] = useState("desc");
+  // Фильтры и сортировка — в адресе: «назад» из профиля игрока их не сбрасывает.
+  // Период не задан — сезон из бокового меню; «all» — все сезоны.
+  const [seasonParam, setSeasonParam] = useHashParam("season", null);
+  const [roleFilter, setRoleFilter] = useHashParam("role", "all");
+  const [minGamesInput, setMinGamesInput] = useHashParam("min", "");
+  const [sortCol, setSortCol] = useHashParam("sort", "avgScore");
+  const [sortDir, setSortDir] = useHashParam("dir", "desc");
+  const [showAll, setShowAll] = useHashParam("below", false, boolParam);
+
+  const seasonFilter = seasonParam ?? currentSeasonId ?? "all";
+  const setSeasonFilter = (v) => setSeasonParam(v === currentSeasonId ? null : v);
 
   // Determine active game set
   const activeGames = useMemo(() => {
@@ -87,8 +94,6 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
 
     return { all, minGames, totalGamesInPeriod };
   }, [activeGames, players, selectedSeason, roleFilter, seasons]);
-
-  const [showAll, setShowAll] = useState(false);
 
   const minGamesFilter = parseInt(minGamesInput, 10) || 0;
 
@@ -257,7 +262,7 @@ export function Leaderboard({ games, players, seasons, currentSeasonId, navigate
         />
       ) : (
         <div className="card overflow-hidden">
-          <RatingTable rows={sorted} columns={columns} sortCol={sortCol} sortDir={sortDir} onSort={handleSort} navigate={navigate} />
+          <RatingTable rows={sorted} columns={columns} sortCol={sortCol} sortDir={sortDir} onSort={handleSort} navigate={navigate} stickyHeader />
         </div>
       )}
 

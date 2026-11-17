@@ -11,12 +11,62 @@ const PAGE = 10;
 // Взаимодействие: статистика по парам и история игр.
 // Счётчики «Показать ещё» живут здесь, вне сворачиваемой части — при
 // сворачивании секции не сбрасываются.
-export function InteractionSection({ pairs, history, navigate }) {
+// Один столбец карточки: лучшие партнёры или неудобные соперники
+function HighlightList({ title, hint, rows, tone, empty, navigate }) {
+  return (
+    <div>
+      <h4 className="text-sm font-semibold text-stone-200">{title}</h4>
+      <p className="text-xs text-stone-500 mb-2">{hint}</p>
+      {rows.length === 0 ? (
+        <p className="text-sm text-stone-500 py-2">{empty}</p>
+      ) : (
+        <ol className="space-y-1">
+          {rows.map((r, i) => (
+            <li key={r.id}>
+              <button
+                onClick={() => navigate("playerProfile", r.id)}
+                className="flex items-center gap-3 w-full min-h-10 px-2 -mx-2 rounded-lg hover:bg-elev-2 text-left cursor-pointer"
+              >
+                <span className="w-4 text-xs text-stone-500 font-data">{i + 1}</span>
+                <span className="flex-1 min-w-0 truncate text-stone-100">{r.nickname}</span>
+                <span className="text-xs text-stone-500 font-data whitespace-nowrap">{r.wins} из {r.games}</span>
+                <span className={`w-11 text-right text-sm font-semibold font-data ${tone}`}>{r.winrate.toFixed(0)}%</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+function PartnersCard({ highlights, navigate }) {
+  const { partners, rivals, minGames } = highlights;
+  const empty = `Нужно хотя бы ${minGames} общих игр`;
+  return (
+    <div className="card rounded-2xl p-4 mb-4 grid gap-5 sm:grid-cols-2">
+      <HighlightList
+        title="Лучшие партнёры"
+        hint="Чаще всего побеждает в одной команде с ними"
+        rows={partners} tone="text-emerald-400" empty={empty} navigate={navigate}
+      />
+      <HighlightList
+        title="Неудобные соперники"
+        hint="Реже всего побеждает, играя против них"
+        rows={rivals} tone="text-red-400" empty={empty} navigate={navigate}
+      />
+    </div>
+  );
+}
+
+export function InteractionSection({ pairs, highlights, history, navigate }) {
   const [pairsLimit, setPairsLimit] = useState(PAGE);
   const [gamesLimit, setGamesLimit] = useState(PAGE);
 
   return (
     <Section title="Взаимодействие" defaultOpen={true}>
+      {pairs.length > 0 && <PartnersCard highlights={highlights} navigate={navigate} />}
+
       {pairs.length > 0 && (
         <div className="card rounded-2xl p-4 mb-4">
           <h3 className="font-semibold mb-3">Статистика по парам</h3>

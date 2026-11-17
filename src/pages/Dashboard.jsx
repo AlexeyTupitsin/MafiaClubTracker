@@ -11,6 +11,8 @@ import { ShareImageButton } from "../components/share/ShareImageButton";
 import { RatingTable } from "../components/RatingTable";
 import { TeamBalance } from "../components/TeamBalance";
 import { renderRatingCard } from "../lib/shareImage/ratingCard";
+import { MySummary, MeHint } from "../components/MySummary";
+import { useMe } from "../hooks/useMe";
 
 // Подписи колонок таблицы — для строки «Сортировка: …» на картинке
 const SORT_LABELS = {
@@ -120,6 +122,8 @@ function NominationCard({ label, icon: Icon, tone, player, navigate, className =
 
 export function Dashboard({ games, players, navigate, currentSeason, seasons, showToast }) {
   const { isAdmin } = useAuth();
+  const [meId] = useMe();
+  const meKnown = Boolean(meId && players.some((p) => p.id === meId));
   const hasPlayers = players.length > 0;
   const [showAll, setShowAll] = useState(false);
   const [sortCol, setSortCol] = useState("avgScore");
@@ -275,6 +279,10 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, sh
         />
       ) : (
         <>
+          {meKnown
+            ? <MySummary meId={meId} players={players} games={games} season={currentSeason} navigate={navigate} />
+            : <MeHint navigate={navigate} />}
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {podium.length > 0 && <LeaderHero podium={podium} navigate={navigate} />}
             <TeamBalance totalGames={dashStats.totalGames} redWins={dashStats.redWins} blackWins={dashStats.blackWins} draws={dashStats.draws} />

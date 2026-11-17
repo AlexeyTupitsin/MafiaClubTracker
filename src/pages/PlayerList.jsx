@@ -1,5 +1,6 @@
 import { winrateClass } from "../lib/utils";
 import { useState, useMemo, useEffect, useRef } from "react";
+import { useHashParam } from "../hooks/useHashParam";
 import { Plus, Users, UserPlus, Pencil, X, Check, Camera } from "lucide-react";
 import { Modal, ConfirmDialog, EmptyState, Badge, PlayerAvatar, Field, Input, Button, FormStatus, useFocusFirstError } from "../components/ui";
 import { AdminOnly } from "../components/auth/AuthGuard";
@@ -17,7 +18,7 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
   const [attempt, setAttempt] = useState(0);
   useFocusFirstError(formBodyRef, attempt);
   const [confirmDeactivate, setConfirmDeactivate] = useState(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useHashParam("q", ""); // в адресе — «назад» из профиля не сбрасывает поиск
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarUploading, setAvatarUploading] = useState(false);

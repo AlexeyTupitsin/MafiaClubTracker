@@ -1,10 +1,13 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
+import { useHashParam } from "../hooks/useHashParam";
+import { placeHistory } from "../lib/standings";
+import { PlaceSection } from "./playerProfile/PlaceSection";
 import { ArrowLeft, User, Sword } from "lucide-react";
 import { Button, EmptyState } from "../components/ui";
 import { calcPlayerStats, calcRoleStats, calcFormTrend, calcKillRate, calcRoleKillRate, calcBestMoveStats } from "../lib/metrics";
 import { playerEloHistory } from "../lib/elo";
 import {
-  gamesForPeriod, recentTournamentStats, partnerStats, eloSummary as summarizeElo, playerGameHistory,
+  gamesForPeriod, recentTournamentStats, partnerStats, partnerHighlights, eloSummary as summarizeElo, playerGameHistory,
   fmtScore, fmtWr,
 } from "./playerProfile/profileLogic";
 import { ProfileHeader, PeriodSelect } from "./playerProfile/ProfileHeader";
@@ -34,8 +37,9 @@ export function PlayerProfile(props) {
   return <PlayerProfileContent {...props} />;
 }
 
-function PlayerProfileContent({ player, players, navigate, seasons, allGames, tournaments, goBack }) {
-  const [period, setPeriod] = useState("all");
+function PlayerProfileContent({ player, players, navigate, seasons, currentSeasonId, allGames, tournaments, goBack }) {
+  // Период — в адресе: «назад» из игры возвращает к той же статистике
+  const [period, setPeriod] = useHashParam("period", "all");
 
   const activeGames = useMemo(() => gamesForPeriod(period, allGames), [period, allGames]);
 
@@ -45,6 +49,7 @@ function PlayerProfileContent({ player, players, navigate, seasons, allGames, to
   const killRateData = useMemo(() => calcKillRate(player.id, activeGames, seasons), [player.id, activeGames, seasons]);
   const roleKillRates = useMemo(() => calcRoleKillRate(player.id, activeGames, seasons), [player.id, activeGames, seasons]);
   const pairs = useMemo(() => partnerStats(player.id, activeGames, players), [player.id, activeGames, players]);
+  const highlights = useMemo(() => partnerHighlights(pairs), [pairs]);
   const gameHistory = useMemo(() => playerGameHistory(player.id, activeGames), [player.id, activeGames]);
 
   // Не зависят от периода: ELO сквозной, лучший ход и турниры — по всем играм
@@ -55,6 +60,14 @@ function PlayerProfileContent({ player, players, navigate, seasons, allGames, to
   );
   const eloHistory = useMemo(() => playerEloHistory(player.id, allGames), [player.id, allGames]);
   const eloSummary = useMemo(() => summarizeElo(eloHistory), [eloHistory]);
+
+  // Место в рейтинге — внутри одного сезона: выбранного в периоде,
+  // а при «Все сезоны» — выбранного в боковом меню
+  const placeSeason = seasons.find((s) => s.id === (period === "all" ? currentSeasonId : period)) ?? null;
+  const placeHistoryRows = useMemo(
+    () => (placeSeason ? placeHistory(player.id, allGames.filter((g) => g.seasonId === placeSeason.id), placeSeason) : []),
+    [player.id, allGames, placeSeason]
+  );
 
   const showBestMove = bestMoveStats.total > 0 || seasons?.some((s) => s.trackBestMove);
   const periodSelect = <PeriodSelect value={period} onChange={setPeriod} seasons={seasons} />;
@@ -86,6 +99,8 @@ function PlayerProfileContent({ player, players, navigate, seasons, allGames, to
         tournamentStats={tournamentStats}
       />
 
+      {placeHistoryRows.length > 0 && <PlaceSection history={placeHistoryRows} season={placeSeason} />}
+
       {eloSummary && eloHistory.length > 1 && <EloSection history={eloHistory} summary={eloSummary} />}
 
       <PerformanceSection
@@ -97,7 +112,7 @@ function PlayerProfileContent({ player, players, navigate, seasons, allGames, to
 
       {showBestMove && <BestMoveSection stats={bestMoveStats} />}
 
-      <InteractionSection pairs={pairs} history={gameHistory} navigate={navigate} />
+      <InteractionSection pairs={pairs} highlights={highlights} history={gameHistory} navigate={navigate} />
     </div>
   );
 }

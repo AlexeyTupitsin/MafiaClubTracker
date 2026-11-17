@@ -51,6 +51,39 @@ export function partnerStats(playerId, games, players) {
     .sort((a, b) => b.totalGames - a.totalGames);
 }
 
+export const PARTNER_MIN_GAMES = 5;
+
+/**
+ * Лучшие партнёры и неудобные соперники — из partnerStats.
+ * partners — с кем в одной команде выигрывает чаще всего;
+ * rivals   — против кого выигрывает реже всего.
+ * Учитываются только пары с minGames общих игр в такой расстановке,
+ * иначе одна случайная игра даёт 100% или 0%. При равном проценте — больше игр.
+ */
+export function partnerHighlights(pairs, { minGames = PARTNER_MIN_GAMES, limit = 3 } = {}) {
+  const pick = (games, wins) => ({ games, wins, winrate: games > 0 ? (wins / games) * 100 : 0 });
+  const rows = pairs.map((p) => ({
+    id: p.id,
+    nickname: p.nickname,
+    together: pick(p.bothRed.games + p.bothBlack.games, p.bothRed.wins + p.bothBlack.wins),
+    against: pick(p.aRedBBlack.games + p.aBlackBRed.games, p.aRedBBlack.winsA + p.aBlackBRed.winsA),
+  }));
+
+  const partners = rows
+    .filter((r) => r.together.games >= minGames)
+    .sort((a, b) => b.together.winrate - a.together.winrate || b.together.games - a.together.games)
+    .slice(0, limit)
+    .map((r) => ({ id: r.id, nickname: r.nickname, ...r.together }));
+
+  const rivals = rows
+    .filter((r) => r.against.games >= minGames)
+    .sort((a, b) => a.against.winrate - b.against.winrate || b.against.games - a.against.games)
+    .slice(0, limit)
+    .map((r) => ({ id: r.id, nickname: r.nickname, ...r.against }));
+
+  return { partners, rivals, minGames };
+}
+
 /** Текущий ELO, изменение за последние recentCount игр и пик. null — истории нет. */
 export function eloSummary(history, recentCount = 10) {
   if (history.length === 0) return null;

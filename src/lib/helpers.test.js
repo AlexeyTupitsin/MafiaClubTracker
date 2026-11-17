@@ -1,6 +1,6 @@
 // Небольшие чистые модули: роутер, кэш данных, порядок игр, форматирование картинок.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { routeToHash, hashToRoute } from './router';
+import { routeToHash, hashToRoute, getHashParam, setHashParam, hashPath, hashQuery } from './router';
 import { readDataCache, writeDataCache, pickDefaultSeasonId, seasonSlice } from './dataCache';
 import { compareGamesDesc, localIsoDate } from './utils';
 import { fitText, formatNumber, formatDelta } from './shareImage/canvas';
@@ -22,6 +22,7 @@ describe('router', () => {
     ['tournamentForm', null, '#/tournaments/new'],
     ['tournamentForm', id, `#/tournaments/${id}/edit`],
     ['tournamentDetail', id, `#/tournaments/${id}`],
+    ['stats', null, '#/stats'],
     ['settings', null, '#/settings'],
   ];
 
@@ -158,5 +159,27 @@ describe('localIsoDate', () => {
   it('сдвигает на дни через границу месяца и года', () => {
     expect(localIsoDate(-1, new Date(2026, 2, 1, 12))).toBe('2026-02-28');
     expect(localIsoDate(1, new Date(2026, 11, 31, 23))).toBe('2027-01-01');
+  });
+});
+
+describe('router: параметры страницы', () => {
+  it('параметры после «?» не мешают распознать страницу', () => {
+    expect(hashToRoute('#/games?player=p1&winner=red')).toEqual({ page: 'games', id: null });
+    expect(hashToRoute('#/players/abc?period=s1')).toEqual({ page: 'playerProfile', id: 'abc' });
+  });
+
+  it('чтение, запись и удаление параметра', () => {
+    expect(getHashParam('#/games?player=p1', 'player')).toBe('p1');
+    expect(getHashParam('#/games', 'player')).toBe(null);
+    expect(setHashParam('#/games', 'winner', 'red')).toBe('#/games?winner=red');
+    expect(setHashParam('#/games?winner=red', 'player', 'p 1')).toBe('#/games?winner=red&player=p+1');
+    expect(setHashParam('#/games?winner=red', 'winner', null)).toBe('#/games');
+    expect(setHashParam('#/games?winner=red&q=1', 'winner', '')).toBe('#/games?q=1');
+  });
+
+  it('путь и строка параметров', () => {
+    expect(hashPath('#/games?x=1')).toBe('#/games');
+    expect(hashQuery('#/games?x=1')).toBe('?x=1');
+    expect(hashQuery('#/games')).toBe('');
   });
 });

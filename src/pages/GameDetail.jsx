@@ -8,9 +8,11 @@ import { EloCell } from "../components/EloCell";
 import { deleteGame } from "../lib/queries";
 import { ShareImageButton } from "../components/share/ShareImageButton";
 import { renderGameCard } from "../lib/shareImage/gameCard";
+import { useMe } from "../hooks/useMe";
 
 export function GameDetail({ game, players, navigate, showToast, refreshAfterGameWrite, tournaments, goBack }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [meId] = useMe();
 
   if (!game) {
     return (
@@ -143,21 +145,26 @@ export function GameDetail({ game, players, navigate, showToast, refreshAfterGam
                 const player = players.find((p) => p.id === gp.playerId);
                 const team = getTeam(gp.role);
                 const won = gp.result === "win";
+                // «Это я»: фон на всей строке, у закреплённых ячеек — непрозрачный
+                const isMe = gp.playerId === meId;
+                const stickyBg = isMe ? "bg-me" : "bg-elev-1";
                 return (
-                  <tr key={gp.seat} className={`border-b border-line last:border-b-0 ${won ? "" : "text-stone-400"}`}>
-                    <td className="sticky left-0 z-10 bg-elev-1 p-0 text-center">
+                  <tr key={gp.seat} aria-current={isMe ? "true" : undefined}
+                    className={`border-b border-line last:border-b-0 ${isMe ? "bg-me" : ""} ${won ? "" : "text-stone-400"}`}>
+                    <td className={`sticky left-0 z-10 ${stickyBg} p-0 text-center ${isMe ? "shadow-[inset_3px_0_0_var(--color-accent-400)]" : ""}`}>
                       <span className="relative flex items-center justify-center h-14 font-semibold text-stone-300">
                         <span className={`absolute left-0 inset-y-2 w-[3px] rounded-r-full ${team === "red" ? "bg-red-500" : "bg-stone-500"} ${won ? "" : "opacity-40"}`} aria-hidden="true" />
                         {gp.seat}
                       </span>
                     </td>
-                    <td className={`sticky left-12 z-10 bg-elev-1 px-3 ${STICKY_EDGE}`}>
+                    <td className={`sticky left-12 z-10 ${stickyBg} px-3 ${STICKY_EDGE}`}>
                       <div className="flex items-center gap-2.5 min-w-0">
                         <PlayerAvatar player={player} size="xs" />
                         <button onClick={() => navigate("playerProfile", gp.playerId)}
                           className="font-sans font-medium text-stone-100 hover:text-accent-300 truncate max-w-[110px] sm:max-w-[200px] cursor-pointer">
                           {player?.nickname || "?"}
                         </button>
+                        {isMe && <span className="shrink-0 text-[10px] font-sans font-semibold uppercase tracking-wider text-accent-300">вы</span>}
                         {game.firstKilled === gp.playerId && (
                           <span className="text-[11px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-300 font-sans font-semibold" title="Первоубиенный">ПУ</span>
                         )}

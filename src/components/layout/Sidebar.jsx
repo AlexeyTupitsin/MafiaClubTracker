@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, LogIn, LogOut, MoreHorizontal, X, LayoutDashboard, Sword, Award, Trophy, Users, Settings } from "lucide-react";
+import { ChevronDown, LogIn, LogOut, MoreHorizontal, X, LayoutDashboard, Sword, Award, Trophy, Users, Settings, BarChart3 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { CLUB_NAME } from "../../lib/clubConfig";
 import { Modal } from "../ui";
@@ -16,6 +16,7 @@ const NAV_SECTIONS = [
     items: [
       { id: "rating", label: "Рейтинг", icon: Trophy },
       { id: "players", label: "Игроки", icon: Users },
+      { id: "stats", label: "Статистика", icon: BarChart3 },
     ],
   },
   {
@@ -183,6 +184,7 @@ export function Sidebar({ currentPage, navigate, seasons, currentSeasonId, setCu
           <div className="md:hidden fixed inset-0 z-30 bg-black/60" onClick={() => setMobileMenuOpen(false)} />
           <div className="md:hidden fixed top-14 left-0 right-0 z-40 bg-surface-raised border-b border-line-strong shadow-2xl shadow-black/60 animate-slide-up">
             <div className="p-3 space-y-0.5">
+              {renderNavButton({ id: "stats", label: "Статистика клуба", icon: BarChart3 })}
               {isAdmin && renderNavButton({ id: "settings", label: "Настройки", icon: Settings })}
               {authButton(() => setMobileMenuOpen(false))}
             </div>
