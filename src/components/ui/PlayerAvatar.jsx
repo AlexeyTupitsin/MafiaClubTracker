@@ -1,7 +1,8 @@
 import { useState } from "react";
 
 const SIZES = {
-  sm:   { outer: "w-[42px] h-[42px]",  text: "text-sm" },
+  xs:   { outer: "w-7 h-7",            text: "text-[10px]" },
+  sm:  { outer: "w-[42px] h-[42px]",  text: "text-sm" },
   base: { outer: "w-[54px] h-[54px]",  text: "text-base" },
   md:   { outer: "w-[66px] h-[66px]",  text: "text-xl" },
   lg:   { outer: "w-[108px] h-[108px]", text: "text-3xl" },
@@ -33,7 +34,7 @@ export function PlayerAvatar({ player, size = "md", clickable = true }) {
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className={`w-full h-full rounded-full bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-bold ${text}`}>
+          <div className={`w-full h-full rounded-full bg-elev-3 text-stone-300 ring-1 ring-inset ring-line-strong flex items-center justify-center font-bold ${text}`}>
             {getInitials(player?.nickname)}
           </div>
         )}
@@ -41,7 +42,7 @@ export function PlayerAvatar({ player, size = "md", clickable = true }) {
 
       {lightbox && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
           onClick={() => setLightbox(false)}
         >
           <img

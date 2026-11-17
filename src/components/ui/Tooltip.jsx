@@ -85,8 +85,8 @@ export function Tooltip({ children, content, align = "right" }) {
             visibility: position ? "visible" : "hidden",
           }}
           className="fixed z-50 w-max max-w-[min(26rem,calc(100vw-1rem))] pointer-events-none
-            rounded-lg border border-indigo-500/20 bg-slate-900/95 px-3 py-2
-            text-xs font-normal text-slate-300 shadow-xl backdrop-blur-sm"
+            rounded-lg border border-line-strong bg-stone-900/95 px-3 py-2
+            text-xs font-normal text-stone-300 shadow-xl"
         >
           {content}
         </span>,

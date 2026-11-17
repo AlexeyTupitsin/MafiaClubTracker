@@ -1,5 +1,7 @@
 // Страница приложения ⇄ hash-адрес (#/players/<id>).
 // Hash, а не путь: не нужны rewrite-правила на Vercel, и F5 работает везде.
+// После «?» — состояние страницы (фильтры, сортировка): #/games?player=<id>.
+// Оно переживает «назад», F5 и пересылку ссылки.
 
 const ROUTES = [
   // [страница, шаблон]; :id — идентификатор записи.
@@ -18,6 +20,7 @@ const ROUTES = [
   ['tournamentForm', 'tournaments/new'],
   ['tournamentForm', 'tournaments/:id/edit'],
   ['tournamentDetail', 'tournaments/:id'],
+  ['stats', 'stats'],
   ['settings', 'settings'],
 ];
 
@@ -28,7 +31,7 @@ export function routeToHash(page, id = null) {
 }
 
 export function hashToRoute(hash) {
-  const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  const parts = splitHash(hash).path.replace(/^#\/?/, '').split('/').filter(Boolean);
   for (const [page, pattern] of ROUTES) {
     const tpl = pattern.split('/').filter(Boolean);
     if (tpl.length !== parts.length) continue;
@@ -42,4 +45,35 @@ export function hashToRoute(hash) {
     if (matches) return { page, id };
   }
   return { page: 'dashboard', id: null };
+}
+
+function splitHash(hash) {
+  const i = hash.indexOf('?');
+  return i === -1 ? { path: hash, query: '' } : { path: hash.slice(0, i), query: hash.slice(i + 1) };
+}
+
+/** Часть адреса после «?» вместе с ним ('' — параметров нет). */
+export function hashQuery(hash) {
+  const { query } = splitHash(hash);
+  return query ? `?${query}` : '';
+}
+
+/** Адрес без параметров: '#/games?x=1' → '#/games'. */
+export function hashPath(hash) {
+  return splitHash(hash).path;
+}
+
+/** Значение параметра страницы; null — не задан. */
+export function getHashParam(hash, key) {
+  return new URLSearchParams(splitHash(hash).query).get(key);
+}
+
+/** Тот же адрес с изменённым параметром; null/'' — убрать параметр. */
+export function setHashParam(hash, key, value) {
+  const { path, query } = splitHash(hash);
+  const params = new URLSearchParams(query);
+  if (value == null || value === '') params.delete(key);
+  else params.set(key, String(value));
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
 }

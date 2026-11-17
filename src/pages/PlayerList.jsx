@@ -1,6 +1,8 @@
-import { useState, useMemo, useEffect } from "react";
+import { winrateClass } from "../lib/utils";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useHashParam } from "../hooks/useHashParam";
 import { Plus, Users, UserPlus, Pencil, X, Check, Camera } from "lucide-react";
-import { Modal, ConfirmDialog, EmptyState, Badge, PlayerAvatar } from "../components/ui";
+import { Modal, ConfirmDialog, EmptyState, Badge, PlayerAvatar, Field, Input, Button, FormStatus, useFocusFirstError } from "../components/ui";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { createPlayer, updatePlayer, uploadPlayerAvatar, deletePlayerAvatar } from "../lib/queries";
 import { calcPlayerStats } from "../lib/metrics";
@@ -10,9 +12,13 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [nickname, setNickname] = useState("");
   const [realName, setRealName] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(""); // ошибка поля «Никнейм»
+  const [failure, setFailure] = useState(""); // сбой сохранения
+  const formBodyRef = useRef(null);
+  const [attempt, setAttempt] = useState(0);
+  useFocusFirstError(formBodyRef, attempt);
   const [confirmDeactivate, setConfirmDeactivate] = useState(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useHashParam("q", ""); // в адресе — «назад» из профиля не сбрасывает поиск
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -38,6 +44,7 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
     setNickname("");
     setRealName("");
     setError("");
+    setFailure("");
     setAvatarFile(null);
     setAvatarPreview(null);
     setRemoveAvatar(false);
@@ -49,6 +56,7 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
     setNickname(player.nickname);
     setRealName(player.realName || "");
     setError("");
+    setFailure("");
     setAvatarFile(null);
     setAvatarPreview(null);
     setRemoveAvatar(false);
@@ -73,11 +81,12 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
 
   const handleSave = async () => {
     const trimmed = nickname.trim();
-    if (!trimmed) { setError("Введите никнейм"); return; }
+    setFailure("");
+    if (!trimmed) { setError("Введите ник — так игрока увидят в рейтинге"); setAttempt((n) => n + 1); return; }
     const duplicate = players.find(
       (p) => p.nickname.toLowerCase() === trimmed.toLowerCase() && p.id !== editingPlayer?.id
     );
-    if (duplicate) { setError("Игрок с таким ником уже существует"); return; }
+    if (duplicate) { setError(`Ник «${duplicate.nickname}» уже занят — добавьте букву или цифру`); setAttempt((n) => n + 1); return; }
 
     try {
       setAvatarUploading(true);
@@ -102,7 +111,7 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
       setShowModal(false);
       showToast?.(editingPlayer ? `Игрок «${trimmed}» обновлён` : `Игрок «${trimmed}» добавлен`);
     } catch (err) {
-      setError(err.message || "Ошибка сохранения");
+      setFailure("Не сохранилось: " + (err.message || "неизвестная ошибка") + ". Попробуйте ещё раз.");
     } finally {
       setAvatarUploading(false);
     }
@@ -115,7 +124,8 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
       setConfirmDeactivate(null);
       showToast?.(player.isActive ? `Игрок «${player.nickname}» деактивирован` : `Игрок «${player.nickname}» активирован`);
     } catch (err) {
-      setError(err.message || "Ошибка обновления");
+      setConfirmDeactivate(null);
+      showToast?.("Ошибка обновления: " + (err.message || "неизвестная ошибка"), "error");
     }
   };
 
@@ -130,24 +140,25 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold gradient-text">Игроки</h2>
+      <div className="flex items-end justify-between gap-4 mb-5">
+        <div>
+          <p className="eyebrow">{players.filter((p) => p.isActive).length} в составе</p>
+          <h2 className="page-title mt-1.5">Игроки</h2>
+        </div>
         <AdminOnly>
-          <button onClick={openAdd}
-            className="flex items-center gap-2 btn-gradient cursor-pointer text-white px-4 py-2 rounded-lg text-sm">
-            <Plus size={16} /> Добавить игрока
-          </button>
+          <Button icon={Plus} onClick={openAdd}>Добавить игрока</Button>
         </AdminOnly>
       </div>
 
       {players.length > 0 && (
         <div className="mb-4">
-          <input
-            type="text"
-            placeholder="Поиск игрока..."
+          <Input
+            type="search"
+            placeholder="Ник или имя"
+            aria-label="Поиск игрока"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="bg-indigo-500/5 border border-indigo-500/15 rounded-lg px-3 py-1.5 text-sm text-slate-200 placeholder-slate-500 w-48 focus:ring-2 focus:ring-indigo-500/50 outline-none"
+            className="sm:!w-64"
           />
         </div>
       )}
@@ -159,139 +170,135 @@ export function PlayerList({ players, games, allGames, navigate, showToast, refr
           description="Добавьте первого игрока клуба"
           action={
             <AdminOnly>
-              <button onClick={openAdd}
-                className="flex items-center gap-2 btn-gradient cursor-pointer text-white px-4 py-2 rounded-lg text-sm">
-                <UserPlus size={16} /> Добавить игрока
-              </button>
+              <Button icon={UserPlus} onClick={openAdd}>Добавить первого игрока</Button>
             </AdminOnly>
           }
         />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
           {filteredPlayers.map((player) => {
             const s = playerStatsMap[player.id];
             return (
-              <div key={player.id} className={`glass-card p-4 flex flex-col gap-3 ${!player.isActive ? "opacity-50" : ""}`}>
-                <div className="flex items-center gap-3">
+              <div key={player.id}
+                onClick={() => navigate("playerProfile", player.id)}
+                className={`card card-link relative p-4 ${!player.isActive ? "opacity-60" : ""}`}>
+                <div className="flex flex-col items-start gap-3">
                   <PlayerAvatar player={player} size="base" clickable={false} />
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 w-full">
                     <button
-                      onClick={() => navigate("playerProfile", player.id)}
-                      className="text-sm font-semibold text-indigo-400 hover:text-indigo-300 cursor-pointer truncate block w-full text-left"
+                      onClick={(e) => { e.stopPropagation(); navigate("playerProfile", player.id); }}
+                      className="font-semibold text-stone-50 truncate block w-full text-left cursor-pointer"
                     >
                       {player.nickname}
                     </button>
-                    {player.realName && (
-                      <p className="text-xs text-slate-500 truncate">{player.realName}</p>
-                    )}
-                    <div className="grid grid-cols-2 gap-x-3 mt-1.5 text-xs text-slate-400">
-                      <span>Игр: <span className="text-slate-200 font-data">{s?.totalGames ?? 0}</span></span>
-                      <span>Побед: <span className="text-slate-200 font-data">{s?.wins ?? 0}</span></span>
-                      <span>WR: <span className={`font-data ${s?.winrate > 60 ? "text-emerald-400" : s?.winrate < 40 ? "text-red-400" : "text-slate-200"}`}>{s?.totalGames ? `${s.winrate.toFixed(0)}%` : "—"}</span></span>
-                      <span>Ср.: <span className="text-slate-200 font-data">{s?.totalGames ? s.avgScore.toFixed(2) : "—"}</span></span>
-                      <span className="col-span-2">ELO: <span className="text-slate-200 font-data">{player.eloGames > 0 ? Math.round(player.elo) : "—"}</span></span>
-                    </div>
+                    <p className="text-xs text-stone-500 truncate mt-0.5">
+                      {player.realName || (player.eloGames > 0 ? `ELO ${Math.round(player.elo)}` : "Новичок")}
+                    </p>
+                    {!player.isActive && <span className="inline-block mt-1.5"><Badge variant="inactive">Неактивен</Badge></span>}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <Badge variant={player.isActive ? "active" : "inactive"}>
-                    {player.isActive ? "Активен" : "Неактивен"}
-                  </Badge>
-                  <AdminOnly>
-                    <div className="flex items-center gap-0.5">
-                      <button
-                        onClick={() => openEdit(player)}
-                        className="p-1.5 hover:bg-indigo-500/10 rounded transition-colors cursor-pointer"
-                        title="Редактировать"
-                      >
-                        <Pencil size={14} className="text-slate-400" />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDeactivate(player)}
-                        className="p-1.5 hover:bg-indigo-500/10 rounded transition-colors cursor-pointer"
-                        title={player.isActive ? "Деактивировать" : "Активировать"}
-                      >
-                        {player.isActive
-                          ? <X size={14} className="text-slate-400" />
-                          : <Check size={14} className="text-indigo-400" />}
-                      </button>
-                    </div>
-                  </AdminOnly>
-                </div>
+                <dl className="grid grid-cols-3 gap-1 mt-3 pt-3 border-t border-line font-data">
+                  <div>
+                    <dt className="text-[11px] text-stone-500">Игр</dt>
+                    <dd className="text-sm font-semibold text-stone-100">{s?.totalGames ?? 0}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-stone-500">WR</dt>
+                    <dd className={`text-sm font-semibold ${s?.totalGames ? (winrateClass(s.winrate) || "text-stone-100") : "text-stone-500"}`}>
+                      {s?.totalGames ? `${s.winrate.toFixed(0)}%` : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-stone-500">Ср.</dt>
+                    <dd className="text-sm font-semibold text-stone-100">{s?.totalGames ? s.avgScore.toFixed(2) : "—"}</dd>
+                  </div>
+                </dl>
+
+                <AdminOnly>
+                  <div className="absolute top-2 right-2 flex flex-col" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => openEdit(player)}
+                      className="w-8 h-8 flex items-center justify-center text-stone-500 hover:text-stone-100 hover:bg-elev-3 rounded-lg cursor-pointer"
+                      aria-label={`Редактировать ${player.nickname}`}
+                      title="Редактировать"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeactivate(player)}
+                      className="w-8 h-8 flex items-center justify-center text-stone-500 hover:text-stone-100 hover:bg-elev-3 rounded-lg cursor-pointer"
+                      aria-label={player.isActive ? `Деактивировать ${player.nickname}` : `Активировать ${player.nickname}`}
+                      title={player.isActive ? "Деактивировать" : "Активировать"}
+                    >
+                      {player.isActive ? <X size={14} /> : <Check size={14} className="text-accent-400" />}
+                    </button>
+                  </div>
+                </AdminOnly>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Add/Edit Modal */}
       {showModal && (
         <Modal
-          title={editingPlayer ? "Редактировать игрока" : "Новый игрок"}
+          title={editingPlayer ? editingPlayer.nickname : "Новый игрок"}
+          description={editingPlayer ? null : "Появится в выборе мест при внесении игры"}
           onClose={() => setShowModal(false)}
+          onSubmit={handleSave}
           footer={
             <>
-              <button onClick={() => setShowModal(false)}
-                className="btn-ghost px-4 py-2 text-sm cursor-pointer">
+              <Button variant="secondary" onClick={() => setShowModal(false)} disabled={avatarUploading}>
                 Отмена
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={avatarUploading}
-                className="btn-gradient px-4 py-2 text-sm cursor-pointer disabled:opacity-50"
-              >
-                {avatarUploading ? "Сохранение..." : "Сохранить"}
-              </button>
+              </Button>
+              <Button type="submit" loading={avatarUploading}>
+                {avatarUploading ? "Сохраняем…" : editingPlayer ? "Сохранить игрока" : "Добавить игрока"}
+              </Button>
             </>
           }>
-          <div className="space-y-4">
-            <div className="flex flex-col items-center gap-3 py-2">
-              <div className="w-[72px] h-[72px] rounded-full overflow-hidden shrink-0">
+          <div ref={formBodyRef} className="space-y-5">
+            <div className="flex items-center gap-4">
+              <div className="w-[72px] h-[72px] rounded-full overflow-hidden shrink-0 ring-1 ring-line-strong">
                 {avatarPreview ? (
-                  <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
+                  <img src={avatarPreview} alt="Новое фото" className="w-full h-full object-cover" />
                 ) : (editingPlayer?.avatarUrl && !removeAvatar) ? (
-                  <img src={editingPlayer.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  <img src={editingPlayer.avatarUrl} alt="Текущее фото" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-indigo-500/15 text-indigo-400 flex items-center justify-center text-xl font-bold">
-                    {nickname ? nickname.slice(0, 2).toUpperCase() : "?"}
+                  <div className="w-full h-full bg-elev-3 text-stone-300 flex items-center justify-center text-xl font-bold" aria-hidden="true">
+                    {nickname.trim() ? nickname.trim().slice(0, 2).toUpperCase() : "?"}
                   </div>
                 )}
               </div>
-              <div className="flex gap-2">
-                <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 cursor-pointer transition-colors">
-                  <Camera size={13} />
-                  {avatarFile ? "Изменить" : "Загрузить фото"}
-                  <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarChange} />
-                </label>
-                {(editingPlayer?.avatarUrl || avatarFile) && !removeAvatar && (
-                  <button type="button"
-                    onClick={() => { setAvatarFile(null); setAvatarPreview(null); setRemoveAvatar(true); }}
-                    className="px-3 py-1.5 text-xs rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer"
-                  >
-                    Удалить фото
-                  </button>
-                )}
+              <div className="min-w-0">
+                <div className="flex flex-wrap gap-2">
+                  <label className="btn-secondary btn-sm cursor-pointer focus-within:outline-2 focus-within:outline-accent-400">
+                    <Camera size={14} aria-hidden="true" />
+                    {avatarFile || (editingPlayer?.avatarUrl && !removeAvatar) ? "Другое фото" : "Загрузить фото"}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={handleAvatarChange} />
+                  </label>
+                  {(editingPlayer?.avatarUrl || avatarFile) && !removeAvatar && (
+                    <Button variant="ghost" size="sm"
+                      onClick={() => { setAvatarFile(null); setAvatarPreview(null); setRemoveAvatar(true); }}
+                      className="!text-red-400 hover:!bg-red-500/10">
+                      Убрать
+                    </Button>
+                  )}
+                </div>
+                <p className="field-hint">JPG, PNG или WebP, до 10 МБ</p>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Никнейм <span className="text-red-400">*</span>
-              </label>
-              <input type="text" value={nickname}
-                onChange={(e) => { setNickname(e.target.value); setError(""); }}
-                className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none"
-                placeholder="Игровой ник" autoFocus />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Настоящее имя</label>
-              <input type="text" value={realName}
-                onChange={(e) => setRealName(e.target.value)}
-                className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none"
-                placeholder="Необязательно" />
-            </div>
-            {error && <p className="text-red-400 text-sm">{error}</p>}
+            <Field label="Ник" error={error} hint="Под ним игрок будет в рейтинге и протоколах">
+              <Input type="text" value={nickname} maxLength={40} autoFocus
+                autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                onChange={(e) => { setNickname(e.target.value); setError(""); }} />
+            </Field>
+            <Field label="Настоящее имя" optional hint="Видно рядом с ником при поиске">
+              <Input type="text" value={realName} maxLength={60} autoComplete="off"
+                onChange={(e) => setRealName(e.target.value)} />
+            </Field>
+            {failure && <FormStatus>{failure}</FormStatus>}
           </div>
         </Modal>
       )}

@@ -1,14 +1,14 @@
 import { useState, useMemo } from "react";
 import { Plus, Award } from "lucide-react";
-import { EmptyState } from "../components/ui";
+import { Button, EmptyState, Select } from "../components/ui";
 import { AdminOnly } from "../components/auth/AuthGuard";
-import { formatDate } from "../lib/utils";
+import { formatDate, pluralize } from "../lib/utils";
 
 const COL = "grid grid-cols-[1fr_5rem] sm:grid-cols-[1fr_5rem_9rem_9rem] gap-x-4 items-center";
 
 function TournamentListHeader() {
   return (
-    <div className={`${COL} px-4 py-1.5 text-xs font-medium text-slate-500`}>
+    <div className={`${COL} px-4 py-1.5 text-xs font-medium text-stone-500`}>
       <span>Турнир</span>
       <span className="text-center">Игр (кр/чёрн)</span>
       <span className="hidden sm:block">Лучший игрок</span>
@@ -21,17 +21,17 @@ function TournamentCard({ t, getTournamentData, getPlayerNickname, navigate }) {
   const data = getTournamentData(t);
   return (
     <div onClick={() => navigate("tournamentDetail", t.id)}
-      className={`${COL} glass-card glass-card-interactive px-4 py-3 cursor-pointer`}>
+      className={`${COL} card card-link px-4 py-3 cursor-pointer`}>
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-indigo-400 truncate">{t.name}</p>
-        <p className="text-xs text-slate-500">{formatDate(t.date)}</p>
+        <p className="font-semibold text-stone-50 truncate">{t.name}</p>
+        <p className="text-xs text-stone-500">{formatDate(t.date)}</p>
         {data.total > 0 && (data.bestPlayer || data.mvpPlayer) && (
-          <div className="sm:hidden flex flex-wrap gap-x-3 mt-1 text-xs text-slate-500">
+          <div className="sm:hidden flex flex-wrap gap-x-3 mt-1 text-xs text-stone-500">
             {data.bestPlayer && (
-              <span>Лучший: <span className="text-indigo-400">{getPlayerNickname(data.bestPlayer.id)}</span></span>
+              <span>Лучший: <span className="text-stone-100">{getPlayerNickname(data.bestPlayer.id)}</span></span>
             )}
             {data.mvpPlayer && (
-              <span>MVP: <span className="text-indigo-400">{getPlayerNickname(data.mvpPlayer.id)}</span></span>
+              <span>MVP: <span className="text-stone-100">{getPlayerNickname(data.mvpPlayer.id)}</span></span>
             )}
           </div>
         )}
@@ -40,32 +40,32 @@ function TournamentCard({ t, getTournamentData, getPlayerNickname, navigate }) {
       <div className="text-center text-xs">
         {data.total > 0 ? (
           <>
-            <p className="font-data font-semibold text-slate-200">{data.total}</p>
+            <p className="font-data font-semibold text-stone-200">{data.total}</p>
             <p className="text-[11px]">
               <span className="text-red-400">{data.redWins}</span>
-              <span className="text-slate-600">/</span>
-              <span className="text-slate-400">{data.blackWins}</span>
+              <span className="text-stone-500">/</span>
+              <span className="text-stone-400">{data.blackWins}</span>
             </p>
           </>
-        ) : <span className="text-slate-600">—</span>}
+        ) : <span className="text-stone-500">—</span>}
       </div>
 
       <div className="hidden sm:block text-xs min-w-0">
         {data.bestPlayer ? (
           <>
-            <p className="text-indigo-400 truncate">{getPlayerNickname(data.bestPlayer.id)}</p>
-            <p className="text-slate-500 font-data">{data.bestPlayer.avgScore.toFixed(2)}</p>
+            <p className="text-stone-100 truncate">{getPlayerNickname(data.bestPlayer.id)}</p>
+            <p className="text-stone-500 font-data">{data.bestPlayer.avgScore.toFixed(2)}</p>
           </>
-        ) : <span className="text-slate-600">—</span>}
+        ) : <span className="text-stone-500">—</span>}
       </div>
 
       <div className="hidden sm:block text-xs min-w-0">
         {data.mvpPlayer ? (
           <>
-            <p className="text-indigo-400 truncate">{getPlayerNickname(data.mvpPlayer.id)}</p>
-            <p className="text-slate-500 font-data">{data.mvpPlayer.avgBonus > 0 ? "+" : ""}{data.mvpPlayer.avgBonus.toFixed(2)}</p>
+            <p className="text-stone-100 truncate">{getPlayerNickname(data.mvpPlayer.id)}</p>
+            <p className="text-stone-500 font-data">{data.mvpPlayer.avgBonus > 0 ? "+" : ""}{data.mvpPlayer.avgBonus.toFixed(2)}</p>
           </>
-        ) : <span className="text-slate-600">—</span>}
+        ) : <span className="text-stone-500">—</span>}
       </div>
     </div>
   );
@@ -133,9 +133,9 @@ export function TournamentList({ allTournaments, allGames, seasons, players, nav
   };
 
   const renderList = (tournaments) => (
-    <div className="glass-card overflow-hidden">
+    <div className="card overflow-hidden">
       <TournamentListHeader />
-      <div className="divide-y divide-indigo-500/10">
+      <div className="divide-y divide-line">
         {tournaments.map((t) => (
           <TournamentCard key={t.id} t={t} getTournamentData={getTournamentData} getPlayerNickname={getPlayerNickname} navigate={navigate} />
         ))}
@@ -145,34 +145,42 @@ export function TournamentList({ allTournaments, allGames, seasons, players, nav
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold gradient-text">Турниры</h2>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">
+            {filteredTournaments.length} {pluralize(filteredTournaments.length, "турнир", "турнира", "турниров")}
+          </p>
+          <h2 className="page-title mt-1.5">Турниры</h2>
+        </div>
         <AdminOnly>
-          <button onClick={() => navigate("tournamentForm")}
-            className="flex items-center gap-2 btn-gradient cursor-pointer px-3 py-1.5 rounded-lg text-sm">
-            <Plus size={14} /> Создать турнир
-          </button>
+          <Button icon={Plus} onClick={() => navigate("tournamentForm")} className="w-full sm:w-auto">
+            Создать турнир
+          </Button>
         </AdminOnly>
-      </div>
+      </header>
 
       <div className="flex flex-wrap gap-2">
-        <select value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-sm border bg-indigo-500/5 border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer">
+        <Select value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)} aria-label="Сезон" wrapperClassName="w-full sm:w-fit" className="sm:!w-auto sm:min-w-[9rem]">
           <option value="all">Все сезоны</option>
           {seasons.map((s) => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {filteredTournaments.length === 0 ? (
-        <EmptyState icon={Award} title="Нет турниров"
-          description="Создайте первый турнир или добавьте турнир при создании игры" />
+        <EmptyState icon={Award} title="Турниров пока нет"
+          description="Турнир объединяет игры одного вечера или серии. Его можно создать здесь или прямо при записи игры."
+          action={
+            <AdminOnly>
+              <Button icon={Plus} onClick={() => navigate("tournamentForm")}>Создать турнир</Button>
+            </AdminOnly>
+          } />
       ) : groupedTournaments ? (
         <div className="space-y-6">
           {groupedTournaments.map(({ season, tournaments }) => (
             <div key={season.id}>
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-2">{season.name}</h3>
+              <h3 className="text-sm font-semibold text-stone-400 uppercase tracking-wide mb-2">{season.name}</h3>
               {renderList(tournaments)}
             </div>
           ))}

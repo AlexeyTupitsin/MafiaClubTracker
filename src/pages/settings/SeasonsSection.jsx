@@ -1,143 +1,153 @@
-import { useState } from "react";
-import { AlertTriangle, Loader, Pencil, Plus, Trash2 } from "lucide-react";
-import { Badge, ConfirmDialog, Modal } from "../../components/ui";
-import { formatDate } from "../../lib/utils";
+import { useRef, useState } from "react";
+import { AlertTriangle, Pencil, Plus, Trash2 } from "lucide-react";
+import { Badge, Button, ConfirmDialog, DateInput, Field, FormStatus, Modal, useFocusFirstError } from "../../components/ui";
+import { formatDate, localIsoDate } from "../../lib/utils";
 import { createSeason, updateSeason, deleteSeason, getGameCountBySeason } from "../../lib/queries";
-import { SeasonFormFields, seasonInputClass } from "./SeasonFormFields";
-import { NEW_SEASON_FORM, isThresholdValid, seasonToForm, thresholdForSave } from "./seasonFormLogic";
+import { SeasonFormFields } from "./SeasonFormFields";
+import { NEW_SEASON_FORM, seasonToForm, thresholdForSave, validateSeasonForm } from "./seasonFormLogic";
 
-const today = () => new Date().toISOString().split("T")[0];
+const iconButton = "w-10 h-10 flex items-center justify-center rounded-lg text-stone-500 hover:text-stone-200 hover:bg-elev-2 transition-colors cursor-pointer";
 
 function SeasonRow({ season, isCurrent, onEdit, onEnd, onDelete }) {
   return (
-    <div className={`flex items-center justify-between p-3 border border-indigo-500/15 rounded-lg ${
-      isCurrent ? "border-indigo-500/30 bg-indigo-500/5" : ""
+    <div className={`flex items-center gap-3 pl-4 pr-2 py-2 rounded-xl border ${
+      isCurrent ? "border-accent-400/35 bg-elev-2" : "border-line"
     }`}>
-      <div className="min-w-0">
-        <div className="flex items-center gap-1">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 min-w-0">
           <span className="font-medium truncate">{season.name}</span>
-          <button onClick={onEdit}
-            className="p-1 hover:bg-indigo-500/5 rounded transition-colors" title="Редактировать">
-            <Pencil size={12} className="text-slate-500" />
-          </button>
+          {season.isActive && <Badge variant="active">Идёт</Badge>}
         </div>
-        <div className="text-sm text-slate-400">
-          {formatDate(season.startDate)}
-          {season.endDate ? ` — ${formatDate(season.endDate)}` : " — ..."}
+        <div className="text-[13px] text-stone-500 font-data">
+          {formatDate(season.startDate)} — {season.endDate ? formatDate(season.endDate) : "сейчас"}
         </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0 ml-2">
-        <Badge variant={season.isActive ? "active" : "inactive"}>
-          {season.isActive ? "Активен" : "Завершён"}
-        </Badge>
+      <div className="flex items-center shrink-0">
         {season.isActive && (
-          <button onClick={onEnd}
-            className="text-xs text-slate-500 hover:text-slate-300 px-2 py-1 border border-indigo-500/15 rounded hover:bg-indigo-500/5">
-            Завершить
-          </button>
+          <Button variant="ghost" size="sm" onClick={onEnd} className="mr-1">Завершить</Button>
         )}
-        <button onClick={onDelete}
-          className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors" title="Удалить">
-          <Trash2 size={14} className="text-slate-500" />
+        <button type="button" onClick={onEdit} className={iconButton} aria-label={`Изменить сезон «${season.name}»`}>
+          <Pencil size={16} />
+        </button>
+        <button type="button" onClick={onDelete} className={`${iconButton} hover:!text-red-400`} aria-label={`Удалить сезон «${season.name}»`}>
+          <Trash2 size={16} />
         </button>
       </div>
     </div>
   );
 }
 
-function ModalFooter({ saving, disabled, onCancel, onSubmit, idleText, busyText }) {
+// Окно сезона: создание (withStartDate) или редактирование
+function SeasonModal({ title, initialForm, withStartDate, warning, submitText, onSubmit, onClose }) {
+  const bodyRef = useRef(null);
+  const [form, setForm] = useState(initialForm);
+  const [startDate, setStartDate] = useState(() => localIsoDate());
+  const [errors, setErrors] = useState({});
+  const [failure, setFailure] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useFocusFirstError(bodyRef, attempt);
+
+  const change = (next) => {
+    setForm(next);
+    // Ошибка поля уходит, как только его поправили
+    if (Object.keys(errors).length) {
+      const still = validateSeasonForm(next);
+      setErrors((prev) => Object.fromEntries(Object.keys(prev).filter((k) => still[k]).map((k) => [k, still[k]])));
+    }
+  };
+
+  const submit = async () => {
+    const found = validateSeasonForm(form);
+    setErrors(found);
+    setFailure("");
+    if (Object.keys(found).length) { setAttempt((n) => n + 1); return; }
+    setSaving(true);
+    try {
+      await onSubmit(form, startDate);
+    } catch (err) {
+      setFailure("Не сохранилось: " + (err.message || "неизвестная ошибка") + ". Попробуйте ещё раз.");
+      setSaving(false);
+    }
+  };
+
   return (
-    <>
-      <button onClick={onCancel}
-        disabled={saving}
-        className="px-4 py-2 btn-ghost cursor-pointer text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-        Отмена
-      </button>
-      <button onClick={onSubmit}
-        disabled={saving || disabled}
-        className="flex items-center gap-2 px-4 py-2 btn-gradient cursor-pointer disabled:bg-slate-800/30 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
-        {saving && <Loader size={14} className="animate-spin" />}
-        {saving ? busyText : idleText}
-      </button>
-    </>
+    <Modal
+      title={title}
+      onClose={onClose}
+      onSubmit={submit}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>Отмена</Button>
+          <Button type="submit" loading={saving}>{saving ? "Сохраняем…" : submitText}</Button>
+        </>
+      }
+    >
+      <div ref={bodyRef} className="space-y-5">
+        <SeasonFormFields form={form} onChange={change} errors={errors} namePlaceholder="Сезон 3, осень">
+          {withStartDate && (
+            <Field label="Начало сезона">
+              <DateInput value={startDate} onChange={setStartDate} />
+            </Field>
+          )}
+        </SeasonFormFields>
+        {warning && (
+          <p className="flex gap-2 text-sm text-amber-300 bg-amber-400/8 border border-amber-400/20 rounded-xl px-3 py-2.5">
+            <AlertTriangle size={16} className="shrink-0 mt-0.5" /> {warning}
+          </p>
+        )}
+        {failure && <FormStatus>{failure}</FormStatus>}
+      </div>
+    </Modal>
   );
 }
+
+const formToSeason = (form) => ({
+  name: form.name.trim(),
+  trackFirstKill: form.trackFirstKill,
+  trackBestMove: form.trackBestMove,
+  ratingThresholdType: form.thresholdType,
+  ratingThresholdValue: thresholdForSave(form.thresholdType, form.thresholdValue),
+});
 
 // Сезоны: список, создание, редактирование, завершение, удаление.
 // onError — текст для общей плашки ошибки страницы («» — скрыть).
 export function SeasonsSection({ seasons, currentSeasonId, setCurrentSeasonId, refreshSeasons, showToast, onError }) {
-  const [newForm, setNewForm] = useState(null); // null — окно закрыто
-  const [newStartDate, setNewStartDate] = useState(today);
-  const [editing, setEditing] = useState(null); // { season, form }
-  const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState(null); // season
   const [confirmEnd, setConfirmEnd] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const activeSeason = seasons.find((s) => s.isActive);
 
-  const openNew = () => {
+  const handleCreate = async (form, startDate) => {
+    const season = await createSeason({
+      ...formToSeason(form),
+      startDate,
+      endDate: null,
+      isActive: true,
+    });
+    await refreshSeasons();
+    setCurrentSeasonId(season.id);
+    setCreating(false);
     onError("");
-    setNewForm(NEW_SEASON_FORM);
+    showToast("Сезон создан");
   };
 
-  const handleCreate = async () => {
-    const name = newForm.name.trim();
-    if (!name) { onError("Введите название сезона"); return; }
-
-    setSaving(true);
-    try {
-      const season = await createSeason({
-        name,
-        startDate: newStartDate,
-        endDate: null,
-        isActive: true,
-        trackFirstKill: newForm.trackFirstKill,
-        trackBestMove: newForm.trackBestMove,
-        ratingThresholdType: newForm.thresholdType,
-        ratingThresholdValue: thresholdForSave(newForm.thresholdType, newForm.thresholdValue),
-      });
-      await refreshSeasons();
-      setCurrentSeasonId(season.id);
-      setNewForm(null);
-      onError("");
-      showToast("Сезон создан");
-    } catch (err) {
-      onError(err.message || "Ошибка создания сезона");
-      showToast("Ошибка создания сезона: " + (err.message || "неизвестная ошибка"), "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSaveEdit = async () => {
-    const { season, form } = editing;
-    const name = form.name.trim();
-    if (!name) { onError("Введите название сезона"); return; }
-
-    setSaving(true);
-    try {
-      await updateSeason(season.id, {
-        name,
-        trackFirstKill: form.trackFirstKill,
-        trackBestMove: form.trackBestMove,
-        ratingThresholdType: form.thresholdType,
-        ratingThresholdValue: thresholdForSave(form.thresholdType, form.thresholdValue),
-      });
-      await refreshSeasons();
-      setEditing(null);
-      showToast("Сезон обновлён");
-    } catch (err) {
-      onError(err.message || "Ошибка обновления сезона");
-    } finally {
-      setSaving(false);
-    }
+  const handleSaveEdit = async (form) => {
+    await updateSeason(editing.id, formToSeason(form));
+    await refreshSeasons();
+    setEditing(null);
+    showToast("Сезон обновлён");
   };
 
   const handleEnd = async (season) => {
     try {
-      await updateSeason(season.id, { isActive: false, endDate: today() });
+      await updateSeason(season.id, { isActive: false, endDate: localIsoDate() });
       await refreshSeasons();
       setConfirmEnd(null);
       showToast("Сезон завершён");
     } catch (err) {
+      setConfirmEnd(null);
       onError(err.message || "Ошибка завершения сезона");
     }
   };
@@ -146,8 +156,7 @@ export function SeasonsSection({ seasons, currentSeasonId, setCurrentSeasonId, r
     try {
       const gameCount = await getGameCountBySeason(season.id);
       if (gameCount > 0) {
-        onError("Нельзя удалить сезон с играми");
-        showToast("Нельзя удалить сезон с играми", "error");
+        showToast(`В сезоне «${season.name}» есть игры — такой сезон не удалить`, "error");
         setConfirmDelete(null);
         return;
       }
@@ -155,30 +164,28 @@ export function SeasonsSection({ seasons, currentSeasonId, setCurrentSeasonId, r
       const updatedSeasons = await refreshSeasons();
       if (currentSeasonId === season.id) {
         const fallback = updatedSeasons.find((s) => s.isActive) || updatedSeasons[updatedSeasons.length - 1];
-        if (fallback) {
-          setCurrentSeasonId(fallback.id);
-        }
+        if (fallback) setCurrentSeasonId(fallback.id);
       }
       setConfirmDelete(null);
       onError("");
       showToast("Сезон удалён");
     } catch (err) {
+      setConfirmDelete(null);
       onError(err.message || "Ошибка удаления сезона");
       showToast("Ошибка удаления сезона: " + (err.message || "неизвестная ошибка"), "error");
     }
   };
 
   return (
-    <div className="glass-card rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-4">
+    <div className="card p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3 mb-4">
         <h3 className="text-lg font-semibold">Сезоны</h3>
-        <button onClick={openNew}
-          className="flex items-center gap-2 btn-gradient cursor-pointer px-3 py-1.5 rounded-lg text-sm">
-          <Plus size={14} /> Новый сезон
-        </button>
+        <Button size="sm" icon={Plus} onClick={() => { onError(""); setCreating(true); }}>
+          Новый сезон
+        </Button>
       </div>
       {seasons.length === 0 ? (
-        <p className="text-slate-400 text-sm">Нет сезонов</p>
+        <p className="text-stone-400 text-sm">Сезонов пока нет — создайте первый, чтобы вносить игры.</p>
       ) : (
         <div className="space-y-2">
           {seasons.map((season) => (
@@ -186,7 +193,7 @@ export function SeasonsSection({ seasons, currentSeasonId, setCurrentSeasonId, r
               key={season.id}
               season={season}
               isCurrent={season.id === currentSeasonId}
-              onEdit={() => setEditing({ season, form: seasonToForm(season) })}
+              onEdit={() => setEditing(season)}
               onEnd={() => setConfirmEnd(season)}
               onDelete={() => setConfirmDelete(season)}
             />
@@ -194,75 +201,40 @@ export function SeasonsSection({ seasons, currentSeasonId, setCurrentSeasonId, r
         </div>
       )}
 
-      {newForm && (
-        <Modal
+      {creating && (
+        <SeasonModal
           title="Новый сезон"
-          onClose={() => setNewForm(null)}
-          footer={
-            <ModalFooter
-              saving={saving}
-              disabled={!isThresholdValid(newForm.thresholdType, newForm.thresholdValue)}
-              onCancel={() => setNewForm(null)}
-              onSubmit={handleCreate}
-              idleText="Создать"
-              busyText="Создание..."
-            />
-          }>
-          <div className="space-y-4">
-            <SeasonFormFields form={newForm} onChange={setNewForm} idPrefix="new" namePlaceholder="Сезон 2 — Лето 2026">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Дата начала</label>
-                <input type="date" value={newStartDate}
-                  onChange={(e) => setNewStartDate(e.target.value)}
-                  className={seasonInputClass} />
-              </div>
-            </SeasonFormFields>
-            {seasons.some((s) => s.isActive) && (
-              <p className="text-sm text-amber-400 flex items-center gap-1">
-                <AlertTriangle size={14} /> Текущий активный сезон будет автоматически завершён
-              </p>
-            )}
-          </div>
-        </Modal>
+          initialForm={NEW_SEASON_FORM}
+          withStartDate
+          warning={activeSeason ? `Сезон «${activeSeason.name}» завершится сегодняшним днём.` : null}
+          submitText="Создать сезон"
+          onSubmit={handleCreate}
+          onClose={() => setCreating(false)}
+        />
       )}
 
       {editing && (
-        <Modal
-          title="Редактировать сезон"
+        <SeasonModal
+          title="Сезон"
+          initialForm={seasonToForm(editing)}
+          submitText="Сохранить сезон"
+          onSubmit={handleSaveEdit}
           onClose={() => setEditing(null)}
-          footer={
-            <ModalFooter
-              saving={saving}
-              disabled={!editing.form.name.trim() || !isThresholdValid(editing.form.thresholdType, editing.form.thresholdValue)}
-              onCancel={() => setEditing(null)}
-              onSubmit={handleSaveEdit}
-              idleText="Сохранить"
-              busyText="Сохранение..."
-            />
-          }
-        >
-          <div className="space-y-4">
-            <SeasonFormFields
-              form={editing.form}
-              onChange={(form) => setEditing((prev) => ({ ...prev, form }))}
-              idPrefix="edit"
-            />
-          </div>
-        </Modal>
+        />
       )}
 
       {confirmEnd && (
         <ConfirmDialog title="Завершить сезон?"
-          message={`Сезон «${confirmEnd.name}» будет завершён. Новые игры нельзя будет добавить в него.`}
+          message={`Сезон «${confirmEnd.name}» завершится сегодняшним днём. Новые игры в него внести будет нельзя.`}
           onConfirm={() => handleEnd(confirmEnd)}
-          onCancel={() => setConfirmEnd(null)} confirmText="Завершить" />
+          onCancel={() => setConfirmEnd(null)} confirmText="Завершить сезон" />
       )}
 
       {confirmDelete && (
         <ConfirmDialog title="Удалить сезон?"
-          message={`Сезон «${confirmDelete.name}» будет удалён. Это действие нельзя отменить.`}
+          message={`Сезон «${confirmDelete.name}» будет удалён. Это не отменить. Сезон с играми удалить нельзя.`}
           onConfirm={() => handleDelete(confirmDelete)}
-          onCancel={() => setConfirmDelete(null)} confirmText="Удалить" danger />
+          onCancel={() => setConfirmDelete(null)} confirmText="Удалить сезон" danger />
       )}
     </div>
   );

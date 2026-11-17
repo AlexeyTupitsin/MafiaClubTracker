@@ -1,15 +1,23 @@
-import { useState, useEffect } from "react";
-import { ArrowLeft, Check } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ArrowLeft } from "lucide-react";
 import { createTournament, updateTournament } from "../lib/queries";
+import { localIsoDate } from "../lib/utils";
+import { Field, Input, Textarea, Select, DateInput, Button, FormStatus, useFocusFirstError } from "../components/ui";
 
 export function TournamentForm({
   seasons, currentSeasonId, navigate, goBack,
   editingTournament, showToast, refreshAllTournaments,
 }) {
+  const formRef = useRef(null);
   const [name, setName] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(() => localIsoDate());
   const [seasonId, setSeasonId] = useState(currentSeasonId || "");
   const [notes, setNotes] = useState("");
+  const [errors, setErrors] = useState({});
+  const [failure, setFailure] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useFocusFirstError(formRef, attempt);
 
   useEffect(() => {
     if (editingTournament) {
@@ -20,8 +28,17 @@ export function TournamentForm({
     }
   }, [editingTournament]);
 
-  const handleSave = async () => {
-    if (!name.trim()) return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const next = {};
+    if (!name.trim()) next.name = "Назовите турнир — например, «Кубок клуба, март»";
+    if (!date) next.date = "Укажите дату турнира";
+    if (!editingTournament && !seasonId) next.seasonId = "Выберите сезон";
+    setErrors(next);
+    setFailure("");
+    if (Object.keys(next).length) { setAttempt((n) => n + 1); return; }
+
+    setSaving(true);
     try {
       if (editingTournament) {
         await updateTournament(editingTournament.id, {
@@ -39,68 +56,68 @@ export function TournamentForm({
           date,
           notes: notes.trim() || null,
         });
-        showToast?.(`Турнир "${t.name}" создан`);
+        showToast?.(`Турнир «${t.name}» создан`);
         await refreshAllTournaments?.();
         navigate("tournamentDetail", t.id, { replace: true });
       }
     } catch (err) {
-      showToast?.("Ошибка: " + (err.message || "неизвестная ошибка"), "error");
+      // Введённое остаётся в полях — можно отправить ещё раз
+      setFailure("Не сохранилось: " + (err.message || "неизвестная ошибка") + ". Попробуйте ещё раз.");
+      setSaving(false);
     }
   };
 
+  const clear = (key) => setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
+
   return (
-    <div className="space-y-4">
+    <form ref={formRef} onSubmit={handleSubmit} noValidate className="max-w-xl space-y-5">
       <div className="flex items-center gap-3">
-        <button aria-label="Назад" onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
+        <button type="button" aria-label="Назад" onClick={() => goBack()}
+          className="w-10 h-10 -ml-2 flex items-center justify-center hover:bg-elev-2 rounded-lg transition-colors cursor-pointer">
           <ArrowLeft size={20} />
         </button>
-        <h2 className="text-xl font-bold gradient-text">
+        <h2 className="page-title">
           {editingTournament ? "Редактирование турнира" : "Новый турнир"}
         </h2>
       </div>
 
-      <div className="glass-card rounded-2xl p-4 space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">
-            Название <span className="text-red-400">*</span>
-          </label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-            className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/50"
-            placeholder="Кубок клуба — Март 2026" autoFocus />
-        </div>
+      <div className="card p-5 space-y-5">
+        <Field label="Название" error={errors.name}>
+          <Input type="text" value={name} autoFocus maxLength={80}
+            onChange={(e) => { setName(e.target.value); clear("name"); }}
+            placeholder="Кубок клуба, март" />
+        </Field>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">Дата</label>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/50" />
-        </div>
+        <Field label="Дата" error={errors.date}>
+          <DateInput value={date} onChange={(v) => { setDate(v); clear("date"); }} />
+        </Field>
 
         {!editingTournament && (
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Сезон</label>
-            <select value={seasonId} onChange={(e) => setSeasonId(e.target.value)}
-              className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/50">
+          <Field label="Сезон" error={errors.seasonId}>
+            <Select value={seasonId} onChange={(e) => { setSeasonId(e.target.value); clear("seasonId"); }}>
+              {!seasonId && <option value="">Выберите сезон</option>}
               {seasons.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}{s.isActive ? " (активен)" : ""}</option>
+                <option key={s.id} value={s.id}>{s.name}{s.isActive ? " · активен" : ""}</option>
               ))}
-            </select>
-          </div>
+            </Select>
+          </Field>
         )}
 
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">Описание</label>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
-            className="w-full bg-indigo-500/5 border border-indigo-500/15 text-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none"
-            placeholder="Необязательно" />
-        </div>
+        <Field label="Описание" optional hint="Формат, призы, кто судил — увидят все на странице турнира">
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+        </Field>
       </div>
 
-      <div className="flex justify-end">
-        <button onClick={handleSave} disabled={!name.trim()}
-          className="flex items-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-red-600 disabled:bg-slate-800/30 disabled:text-slate-500 text-white rounded-lg text-sm">
-          <Check size={16} /> {editingTournament ? "Сохранить" : "Создать турнир"}
-        </button>
+      {failure && <FormStatus>{failure}</FormStatus>}
+
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+        <Button variant="secondary" onClick={() => goBack()} disabled={saving} className="w-full sm:w-auto">
+          Отмена
+        </Button>
+        <Button type="submit" loading={saving} className="w-full sm:w-auto">
+          {saving ? "Сохраняем…" : editingTournament ? "Сохранить турнир" : "Создать турнир"}
+        </Button>
       </div>
-    </div>
+    </form>
   );
 }

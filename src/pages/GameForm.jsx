@@ -1,14 +1,15 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { ArrowLeft, Check, Loader } from "lucide-react";
-import { compareGamesDesc } from "../lib/utils";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { ArrowLeft, ArrowRight, Check, FileClock } from "lucide-react";
+import { compareGamesDesc, pluralize } from "../lib/utils";
 import { createGame, updateGame, createTournament } from "../lib/queries";
+import { Button, FormStatus, useFocusFirstError } from "../components/ui";
 import {
-  SEAT_COUNT, emptySeats, today, acceptBonusInput, toggleBonusSign,
-  buildGamePlayers, rolesAreValid, nextGameNumber,
+  SEAT_COUNT, emptySeats, today, acceptBonusInput, toggleBonusSign, isBonusInvalid,
+  buildGamePlayers, rolesAreValid, nextGameNumber, swapSeats, STEPS, STEP_COUNT,
 } from "./gameForm/gameFormLogic";
 import { useGameDraft } from "./gameForm/useGameDraft";
 import { TournamentPicker } from "./gameForm/TournamentPicker";
-import { StepProgress, STEP_COUNT } from "./gameForm/StepProgress";
+import { StepProgress } from "./gameForm/StepProgress";
 import { SeatsStep } from "./gameForm/SeatsStep";
 import { RolesStep } from "./gameForm/RolesStep";
 import { ScoresStep } from "./gameForm/ScoresStep";
@@ -18,18 +19,28 @@ const NO_BEST_MOVES = [null, null, null];
 // Замена одного элемента массива — для полей по местам
 const replaceAt = (list, idx, value) => list.map((item, i) => (i === idx ? value : item));
 
+const draftTime = (ms) => new Date(ms).toLocaleString("ru-RU", {
+  day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+});
+
 export function GameForm({ players, games, currentSeasonId, currentSeason, navigate, editingGame, showToast, refreshAfterGameWrite, tournaments, refreshAllTournaments }) {
+  const formRef = useRef(null);
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [failure, setFailure] = useState("");
+  // Номер шага, на котором нажали «Далее» с пробелами: подсветить пустое
+  const [errorsShownFor, setErrorsShownFor] = useState(0);
+  const [attempt, setAttempt] = useState(0);
+  useFocusFirstError(formRef, attempt);
   // id новой игры — заранее, чтобы повторное нажатие «Сохранить» после
   // потерянного ответа не создало вторую такую же игру
   const [newGameId] = useState(() => crypto.randomUUID());
 
-  // Турнир
+  // Вечер: турнир и дата
   const [tournamentId, setTournamentId] = useState("");
   const [newTournamentMode, setNewTournamentMode] = useState(false);
   const [newTournamentName, setNewTournamentName] = useState("");
-  const [newTournamentDate, setNewTournamentDate] = useState(today);
+  const [gameDate, setGameDate] = useState(today);
 
   // Шаг 1: рассадка
   const [seats, setSeats] = useState(emptySeats);
@@ -42,7 +53,6 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
   const [bonusScores, setBonusScores] = useState(() => Array(SEAT_COUNT).fill("0"));
   const [bonusComments, setBonusComments] = useState(() => Array(SEAT_COUNT).fill(""));
   const [notes, setNotes] = useState("");
-  const [gameDate, setGameDate] = useState(today);
   const [firstKilled, setFirstKilled] = useState(null);
   const [bestMoves, setBestMoves] = useState(NO_BEST_MOVES);
 
@@ -51,20 +61,22 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
 
   // --- Черновик новой игры ---
   const draftValues = useMemo(() => ({
-    step, tournamentId, newTournamentMode, newTournamentName, newTournamentDate,
+    step, tournamentId, newTournamentMode, newTournamentName,
     seats, roles, winner, bonusScores, bonusComments, notes, gameDate, firstKilled,
     bestMoveSeat1: bestMoves[0],
     bestMoveSeat2: bestMoves[1],
     bestMoveSeat3: bestMoves[2],
-  }), [step, tournamentId, newTournamentMode, newTournamentName, newTournamentDate,
+  }), [step, tournamentId, newTournamentMode, newTournamentName,
     seats, roles, winner, bonusScores, bonusComments, notes, gameDate, firstKilled, bestMoves]);
+
+  const formIsEmpty = !seats.some((s) => s.playerId) && !roles.some(Boolean) && !winner
+    && !newTournamentName.trim() && !notes.trim();
 
   const restoreDraft = useCallback((draft) => {
     if (draft.step) setStep(draft.step);
     if (draft.tournamentId) setTournamentId(draft.tournamentId);
     if (draft.newTournamentMode !== undefined) setNewTournamentMode(draft.newTournamentMode);
     if (draft.newTournamentName) setNewTournamentName(draft.newTournamentName);
-    if (draft.newTournamentDate) setNewTournamentDate(draft.newTournamentDate);
     if (draft.seats) setSeats(draft.seats);
     if (draft.roles) setRoles(draft.roles);
     if (draft.winner) setWinner(draft.winner);
@@ -81,6 +93,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     enabled: !editingGame,
     values: draftValues,
     restore: restoreDraft,
+    isEmpty: formIsEmpty,
   });
 
   // --- Редактирование: заполнить форму данными игры ---
@@ -114,10 +127,29 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
 
   const getPlayerName = (id) => players.find((p) => p.id === id)?.nickname || "—";
 
-  const stepValid = {
-    1: seats.every((s) => s.playerId),
-    2: rolesAreValid(roles) && Boolean(winner),
+  // --- Что мешает пройти шаг (null — всё заполнено) ---
+  const emptySeatCount = seats.filter((s) => !s.playerId).length;
+  const emptyRoleCount = roles.filter((r) => !r).length;
+  const tournamentNameMissing = newTournamentMode && !newTournamentName.trim();
+  const stepProblem = {
+    1: emptySeatCount
+      ? `Осталось посадить ${emptySeatCount} ${pluralize(emptySeatCount, "игрока", "игроков", "игроков")}`
+      : null,
+    2: emptyRoleCount
+      ? `Не роздано ролей: ${emptyRoleCount}`
+      : !rolesAreValid(roles)
+      ? "Роли не сходятся: нужно 6 мирных, шериф, 2 мафии и дон"
+      : !winner
+      ? "Отметьте, кто победил"
+      : null,
+    3: bonusScores.some(isBonusInvalid)
+      ? "Доп. балл — число от −5 до +5, например 0.5 или −1"
+      : tournamentNameMissing
+      ? "Назовите новый турнир или выберите турнир из списка"
+      : null,
   };
+  const canOpenStep = (n) => n <= step || STEPS.filter((s) => s.n < n).every((s) => !stepProblem[s.n]);
+  const shownProblem = errorsShownFor === step ? stepProblem[step] : null;
 
   // --- Обработчики полей ---
   const copyLastGame = () => {
@@ -125,6 +157,14 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     if (!lastGame) return;
     const sorted = [...lastGame.players].sort((a, b) => a.seat - b.seat);
     setSeats(sorted.map((p) => ({ seat: p.seat, playerId: p.playerId })));
+  };
+
+  const handleSeatSwap = (from, to) => {
+    const next = swapSeats({ seats, roles, bonusScores, bonusComments }, from, to);
+    setSeats(next.seats);
+    setRoles(next.roles);
+    setBonusScores(next.bonusScores);
+    setBonusComments(next.bonusComments);
   };
 
   const handleBonusChange = (idx, value) => {
@@ -141,8 +181,29 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     }
   };
 
+  const goToStep = (n) => {
+    setStep(n);
+    setErrorsShownFor(0);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleNext = () => {
+    if (stepProblem[step]) {
+      setErrorsShownFor(step);
+      setAttempt((a) => a + 1);
+      return;
+    }
+    goToStep(step + 1);
+  };
+
   // --- Сохранение ---
   const handleSave = async () => {
+    setFailure("");
+    if (stepProblem[3]) {
+      setErrorsShownFor(3);
+      setAttempt((a) => a + 1);
+      return;
+    }
     const gamePlayers = buildGamePlayers({ seats, roles, winner, bonusScores, bonusComments });
     const details = {
       date: new Date(gameDate).toISOString(),
@@ -163,7 +224,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
         const t = await createTournament({
           seasonId: currentSeasonId,
           name: newTournamentName.trim(),
-          date: newTournamentDate,
+          date: gameDate,
         });
         resolvedTournamentId = t.id;
         // Турнир уже создан: если игра не сохранится, повторное нажатие
@@ -184,7 +245,8 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
         });
     } catch (err) {
       console.error("Failed to save game:", err);
-      showToast?.("Ошибка сохранения: " + (err.message || "неизвестная ошибка"), "error");
+      // Всё введённое остаётся: можно нажать ещё раз
+      setFailure("Игра не сохранилась: " + (err.message || "неизвестная ошибка") + ". Нажмите «Сохранить» ещё раз.");
       setSaving(false);
       return;
     }
@@ -201,7 +263,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
 
     // Номер новой игры назначает сервер
     const number = editingGame?.gameNumber ?? freshGames?.find((g) => g.id === saved.id)?.gameNumber;
-    const title = editingGame ? "Игра обновлена" : number ? `Игра #${number} сохранена` : "Игра сохранена";
+    const title = editingGame ? "Игра обновлена" : number ? `Игра №${number} сохранена` : "Игра сохранена";
     if (saved.eloError) {
       showToast?.(`${title}, но ELO не пересчитан: ${saved.eloError.message}. Настройки → «Пересчитать ELO»`, "warning");
     } else if (!freshGames) {
@@ -214,38 +276,64 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
     else navigate("games", null, { replace: true });
   };
 
+  const isLastStep = step === STEP_COUNT;
+  const statusText = failure || shownProblem;
+
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-4">
-        <button aria-label="Назад" onClick={() => navigate("games")}
-          className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
+    <div ref={formRef}>
+      <div className="flex items-center gap-3 mb-1">
+        <button type="button" aria-label="Назад к играм" onClick={() => navigate("games")}
+          className="w-10 h-10 -ml-2 flex items-center justify-center hover:bg-elev-2 rounded-lg transition-colors cursor-pointer">
           <ArrowLeft size={20} />
         </button>
-        <h2 className="text-xl font-bold gradient-text">
-          {editingGame ? `Редактирование игры №${editingGame.gameNumber}` : "Новая игра"}
-        </h2>
+        <div className="min-w-0">
+          <p className="eyebrow">Шаг {step} из {STEP_COUNT}</p>
+          <h2 className="page-title mt-1">
+            {editingGame ? `Игра №${editingGame.gameNumber}` : "Новая игра"}
+          </h2>
+        </div>
       </div>
 
-      <TournamentPicker
-        tournaments={tournaments}
-        tournamentId={tournamentId}
-        onTournamentChange={setTournamentId}
-        newMode={newTournamentMode}
-        onNewModeChange={setNewTournamentMode}
-        newName={newTournamentName}
-        onNewNameChange={setNewTournamentName}
-        newDate={newTournamentDate}
-        onNewDateChange={setNewTournamentDate}
-      />
+      {draft.pending && (
+        <div className="card mt-4 p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-accent-400/30" role="region" aria-label="Черновик">
+          <FileClock size={20} className="text-accent-400 shrink-0 hidden sm:block" aria-hidden="true" />
+          <p className="text-sm text-stone-300 flex-1">
+            Есть незаконченная игра
+            {draft.pending.savedAt ? <> от <span className="text-stone-100">{draftTime(draft.pending.savedAt)}</span></> : null}.
+            Продолжить с того же места?
+          </p>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={draft.discard} className="flex-1 sm:flex-none">Начать заново</Button>
+            <Button size="sm" onClick={draft.accept} className="flex-1 sm:flex-none">Продолжить</Button>
+          </div>
+        </div>
+      )}
 
-      <StepProgress step={step} onStepClick={setStep} />
+      <div className="mt-5">
+        <TournamentPicker
+          tournaments={tournaments}
+          tournamentId={tournamentId}
+          onTournamentChange={setTournamentId}
+          newMode={newTournamentMode}
+          onNewModeChange={setNewTournamentMode}
+          newName={newTournamentName}
+          onNewNameChange={setNewTournamentName}
+          nameError={errorsShownFor === 3 && tournamentNameMissing ? "Назовите турнир" : null}
+          gameDate={gameDate}
+          onGameDateChange={setGameDate}
+        />
+      </div>
+
+      <StepProgress step={step} onStepClick={goToStep} canOpen={canOpenStep} />
 
       {step === 1 && (
         <SeatsStep
           seats={seats}
           onSeatChange={(idx, playerId) => setSeats((prev) => replaceAt(prev, idx, { ...prev[idx], playerId }))}
+          onSeatSwap={handleSeatSwap}
           activePlayers={activePlayers}
           onCopyLastGame={!editingGame && games.length > 0 ? copyLastGame : undefined}
+          showErrors={errorsShownFor === 1}
         />
       )}
 
@@ -258,6 +346,7 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           winner={winner}
           onWinnerChange={setWinner}
           getPlayerName={getPlayerName}
+          showErrors={errorsShownFor === 2}
         />
       )}
 
@@ -278,38 +367,39 @@ export function GameForm({ players, games, currentSeasonId, currentSeason, navig
           onFirstKilledToggle={toggleFirstKilled}
           bestMoves={bestMoves}
           onBestMoveChange={(i, seat) => setBestMoves((prev) => replaceAt(prev, i, seat))}
-          gameDate={gameDate}
-          onGameDateChange={setGameDate}
           notes={notes}
           onNotesChange={setNotes}
         />
       )}
 
-      <div className="flex justify-between mt-4">
-        {step > 1 ? (
-          <button onClick={() => setStep(step - 1)}
-            className="flex items-center gap-1 px-4 py-2 btn-ghost cursor-pointer text-sm">
-            <ArrowLeft size={16} /> Назад
-          </button>
-        ) : (
-          <div />
-        )}
-        {step < STEP_COUNT ? (
-          <button
-            onClick={() => setStep(step + 1)}
-            disabled={!stepValid[step]}
-            className="flex items-center gap-1 px-4 py-2 btn-gradient cursor-pointer disabled:bg-slate-800/30 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg text-sm"
-          >
-            Далее
-          </button>
-        ) : (
-          <button onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800/30 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg text-sm">
-            {saving ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
-            {saving ? "Сохранение..." : "Сохранить игру"}
-          </button>
-        )}
+      {/* Панель действий: на телефоне прилипает над нижней навигацией */}
+      <div className="sticky z-30 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-4 mt-5">
+        <div className="flex items-center gap-3 p-2 pl-4 rounded-2xl border border-line-strong bg-surface-raised/95 backdrop-blur-xl shadow-2xl shadow-black/50">
+          <div className="flex-1 min-w-0">
+            {statusText ? (
+              <FormStatus className="leading-snug">{statusText}</FormStatus>
+            ) : (
+              <p className="hidden sm:block text-[13px] text-stone-500 truncate">
+                {isLastStep ? "Проверьте баллы и сохраните" : `Дальше — ${STEPS[step].label.toLowerCase()}`}
+              </p>
+            )}
+          </div>
+          {step > 1 && (
+            <Button variant="secondary" icon={ArrowLeft} onClick={() => goToStep(step - 1)} disabled={saving}
+              aria-label="Предыдущий шаг" className="!px-3 sm:!px-4">
+              <span className="hidden sm:inline">Назад</span>
+            </Button>
+          )}
+          {isLastStep ? (
+            <Button icon={Check} loading={saving} onClick={handleSave}>
+              {saving ? "Сохраняем…" : editingGame ? "Сохранить" : "Сохранить игру"}
+            </Button>
+          ) : (
+            <Button onClick={handleNext}>
+              Далее <ArrowRight size={16} aria-hidden="true" />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

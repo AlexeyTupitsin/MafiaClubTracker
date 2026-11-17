@@ -1,40 +1,38 @@
-import { Badge } from "../../components/ui";
-import { ROLE_NAMES, ROLE_BADGE_VARIANT, RESULT_NAMES } from "../../lib/constants";
-import { SEAT_COUNT, formatTotal, isBonusInvalid, parseBonus, seatOutcome, today } from "./gameFormLogic";
+import { Skull } from "lucide-react";
+import { Badge, Field, Textarea } from "../../components/ui";
+import { ROLE_NAMES, ROLE_BADGE_VARIANT, RESULT_NAMES, TEAM_NAMES } from "../../lib/constants";
+import { SEAT_COUNT, formatTotal, isBonusInvalid, parseBonus, seatOutcome } from "./gameFormLogic";
+import { SeatNumber } from "./SeatsStep";
 
 const SEAT_NUMBERS = Array.from({ length: SEAT_COUNT }, (_, i) => i + 1);
 
-const inputClass = "bg-indigo-500/5 border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50";
-const dateButtonClass = "px-2 py-0.5 bg-slate-800/30 hover:bg-indigo-500/5 text-slate-400 rounded text-xs transition-colors";
+const RESULT_TONE = { win: "text-emerald-400", draw: "text-amber-300", lose: "text-stone-500" };
 
-function resultClass(result, strong) {
-  if (result === "win") return strong ? "text-emerald-400 font-medium" : "text-emerald-400 text-xs";
-  if (result === "draw") return strong ? "text-amber-400 font-medium" : "text-amber-400 text-xs";
-  return strong ? "text-red-400" : "text-red-400 text-xs";
-}
-
-function yesterday() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().split("T")[0];
-}
-
-function FirstKillToggle({ active, onClick, className = "" }) {
+// Первоубиенный: на телефоне — подписанная кнопка, в таблице — круглая
+function FirstKillToggle({ active, onClick, seat, compact = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${className} ${
-        active ? "border-red-500 bg-red-500" : "border-indigo-500/15 hover:border-red-500/50"
-      }`}
+      aria-pressed={active}
+      aria-label={compact ? `Первоубиенный — место ${seat}` : undefined}
+      title="Первоубиенный"
+      className={compact
+        ? `w-9 h-9 mx-auto rounded-full border flex items-center justify-center transition-colors cursor-pointer ${
+          active ? "border-red-500/60 bg-red-500/20 text-red-300" : "border-line-strong text-stone-600 hover:text-stone-300 hover:border-stone-500"
+        }`
+        : `btn-sm rounded-[10px] border cursor-pointer ${
+          active ? "border-red-500/50 bg-red-500/15 text-red-300" : "border-line-strong text-stone-400 hover:text-stone-200"
+        }`}
     >
-      {active && <span className="w-2 h-2 rounded-full bg-white" />}
+      <Skull size={compact ? 16 : 14} aria-hidden="true" />
+      {!compact && "Первоубиенный"}
     </button>
   );
 }
 
 // Три места «лучшего хода»: без своего места и без уже выбранных в соседних полях
-function BestMoveSelects({ seatNumber, values, onChange, selectClassName }) {
+function BestMoveSelects({ seatNumber, values, onChange }) {
   return values.map((value, i) => {
     const usedByOthers = values.filter((v, j) => j !== i && v);
     return (
@@ -42,7 +40,8 @@ function BestMoveSelects({ seatNumber, values, onChange, selectClassName }) {
         key={i}
         value={value ?? ""}
         onChange={(e) => onChange(i, e.target.value ? Number(e.target.value) : null)}
-        className={selectClassName}
+        aria-label={`Лучший ход, ${i + 1}-е место`}
+        className="input input-sm !w-14 text-center font-data !pr-2"
       >
         <option value="">—</option>
         {SEAT_NUMBERS
@@ -54,28 +53,35 @@ function BestMoveSelects({ seatNumber, values, onChange, selectClassName }) {
   });
 }
 
-function BonusInput({ value, onChange, onToggleSign, inputClassName, signClassName }) {
+function BonusInput({ value, onChange, onToggleSign, seat }) {
+  const invalid = isBonusInvalid(value);
   return (
-    <>
+    <div className="flex items-center gap-1">
+      <button type="button" onClick={onToggleSign}
+        aria-label={`Сменить знак доп. балла, место ${seat}`}
+        className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg text-stone-400 hover:text-stone-100 hover:bg-elev-3 font-data cursor-pointer">
+        ±
+      </button>
       <input
         type="text"
         inputMode="decimal"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="0.0"
-        className={`${inputClassName} ${isBonusInvalid(value) ? "border-red-500" : "border-indigo-500/15"}`}
+        onFocus={(e) => e.target.select()}
+        aria-label={`Доп. балл, место ${seat}`}
+        aria-invalid={invalid || undefined}
+        className="input input-sm !w-16 text-center font-data"
       />
-      <button type="button" onClick={onToggleSign} className={signClassName}>±</button>
-    </>
+    </div>
   );
 }
 
-// Шаг 3: доп. баллы, первоубиенный, лучший ход, дата и комментарий
+// Шаг 3: доп. баллы, первоубиенный, лучший ход, комментарий
 export function ScoresStep({
   seats, roles, winner, bonusScores, bonusComments,
   onBonusChange, onToggleSign, onCommentChange, getPlayerName,
   trackFirstKill, trackBestMove, firstKilled, onFirstKilledToggle, bestMoves, onBestMoveChange,
-  gameDate, onGameDateChange, notes, onNotesChange,
+  notes, onNotesChange,
 }) {
   // Лучший ход без первоубиенного не бывает — колонка только при обоих флагах
   const showBestMoveColumn = trackBestMove && trackFirstKill;
@@ -87,182 +93,142 @@ export function ScoresStep({
     return { seat, idx, role, result, baseScore, total, isFirstKilled: firstKilled === seat.playerId };
   });
 
-  return (
-    <div className="glass-card rounded-2xl p-4">
-      <h3 className="font-semibold mb-3">Дополнительные баллы</h3>
+  const winnerText = winner === "draw" ? "Ничья" : `Победа: ${TEAM_NAMES[winner]?.toLowerCase()}`;
 
-      {/* Мобильная версия — карточки */}
-      <div className="sm:hidden space-y-3">
-        {rows.map(({ seat, idx, role, result, baseScore, total, isFirstKilled }) => (
-          <div key={idx} className={`bg-indigo-500/5 border border-indigo-500/10 rounded-lg p-3 space-y-2 ${isFirstKilled ? "ring-2 ring-red-500/30 bg-red-500/5" : ""}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-200">
-                {seat.seat}. {getPlayerName(seat.playerId)}
-              </span>
-              <div className="flex items-center gap-2">
+  return (
+    <div className="space-y-5">
+      <section className="card p-4 sm:p-5" aria-labelledby="scores-title">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-4">
+          <h3 id="scores-title" className="font-semibold text-stone-50">Дополнительные баллы</h3>
+          <p className="text-[13px] text-stone-500">
+            {winnerText} · доп. балл от −5 до +5{trackFirstKill ? " · отметьте первоубиенного" : ""}
+          </p>
+        </div>
+
+        {/* Телефон — карточки */}
+        <ol className="sm:hidden space-y-2.5">
+          {rows.map(({ seat, idx, role, result, baseScore, total, isFirstKilled }) => (
+            <li key={idx} className={`rounded-xl border p-3 space-y-3 ${
+              isFirstKilled ? "border-red-500/40 bg-red-500/5" : "border-line bg-elev-2/50"
+            }`}>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <SeatNumber seat={seat.seat} />
+                <span className="text-sm font-medium text-stone-100 truncate flex-1">{getPlayerName(seat.playerId)}</span>
                 <Badge variant={ROLE_BADGE_VARIANT[role]}>{ROLE_NAMES[role]}</Badge>
-                <span className={resultClass(result, false)}>{RESULT_NAMES[result]}</span>
+                {trackFirstKill && (
+                  <FirstKillToggle compact active={isFirstKilled} seat={seat.seat}
+                    onClick={() => onFirstKilledToggle(seat.playerId)} />
+                )}
               </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-center text-xs text-slate-400">
-              <div>База: <span className="text-slate-200">{baseScore}</span></div>
-              <div className="flex items-center gap-1">
-                Доп.:{" "}
+              <div className="flex items-center justify-between gap-2">
+                <span className={`text-[13px] ${RESULT_TONE[result]}`}>
+                  {RESULT_NAMES[result]} · <span className="font-data">{baseScore}</span>
+                </span>
                 <BonusInput
                   value={bonusScores[idx]}
+                  seat={seat.seat}
                   onChange={(v) => onBonusChange(idx, v)}
                   onToggleSign={() => onToggleSign(idx)}
-                  inputClassName="w-14 bg-slate-800/30 border rounded px-1 py-0.5 text-center text-slate-200"
-                  signClassName="text-zinc-400 hover:text-zinc-200 text-sm px-1 py-0.5 rounded"
                 />
+                <span className="text-sm text-stone-400">
+                  = <span className="font-data font-semibold text-stone-50">{formatTotal(total)}</span>
+                </span>
               </div>
-              <div>Итого: <span className="text-slate-200 font-medium">{formatTotal(total)}</span></div>
-            </div>
-            <input
-              type="text"
-              placeholder="Комментарий..."
-              value={bonusComments[idx]}
-              onChange={(e) => onCommentChange(idx, e.target.value)}
-              className="w-full bg-slate-800/30 border border-indigo-500/15 rounded px-2 py-1 text-xs text-slate-200 placeholder-slate-500"
-            />
-            {trackFirstKill && (
-              <div className="flex items-center justify-center pt-1">
-                <label className="flex items-center gap-2 text-xs text-slate-400">
-                  <FirstKillToggle active={isFirstKilled} onClick={() => onFirstKilledToggle(seat.playerId)} />
-                  Первоубиенный
-                </label>
-              </div>
-            )}
-            {trackBestMove && isFirstKilled && (
-              <div className="pt-2 space-y-1.5">
-                <p className="text-xs text-slate-400 text-center">Лучший ход</p>
-                <div className="flex items-center gap-2 justify-center">
-                  <BestMoveSelects
-                    seatNumber={seat.seat}
-                    values={bestMoves}
-                    onChange={onBestMoveChange}
-                    selectClassName="bg-slate-800/50 border border-indigo-500/15 rounded px-1 py-1 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500/50"
-                  />
+              <input
+                type="text"
+                placeholder="За что доп. балл"
+                aria-label={`Комментарий к доп. баллу, место ${seat.seat}`}
+                value={bonusComments[idx]}
+                onChange={(e) => onCommentChange(idx, e.target.value)}
+                className="input input-sm"
+              />
+              {trackBestMove && isFirstKilled && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] text-red-300">Первоубиенный · лучший ход</span>
+                  <div className="flex items-center gap-1.5">
+                    <BestMoveSelects seatNumber={seat.seat} values={bestMoves} onChange={onBestMoveChange} />
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+              )}
+            </li>
+          ))}
+        </ol>
 
-      {/* Десктоп — таблица */}
-      <div className="hidden sm:block overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
-              <th className="text-left px-2 py-2 font-medium text-slate-400">Место</th>
-              <th className="text-left px-2 py-2 font-medium text-slate-400">Игрок</th>
-              <th className="text-left px-2 py-2 font-medium text-slate-400">Роль</th>
-              <th className="text-left px-2 py-2 font-medium text-slate-400">Результат</th>
-              <th className="text-center px-2 py-2 font-medium text-slate-400">База</th>
-              <th className="text-center px-2 py-2 font-medium text-slate-400">Доп.</th>
-              <th className="text-center px-2 py-2 font-medium text-slate-400">Итого</th>
-              <th className="text-left px-2 py-2 font-medium text-slate-400">Комментарий</th>
-              {trackFirstKill && <th className="text-center px-2 py-2 font-medium text-slate-400">ПУ</th>}
-              {showBestMoveColumn && <th className="text-center px-2 py-2 font-medium text-slate-400">ЛХ</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ seat, idx, role, result, baseScore, total, isFirstKilled }) => (
-              <tr key={idx} className={`border-b border-indigo-500/10 last:border-b-0 ${isFirstKilled ? "bg-red-500/10" : ""}`}>
-                <td className="px-2 py-2 text-center font-medium">{seat.seat}</td>
-                <td className="px-2 py-2 font-medium">{getPlayerName(seat.playerId)}</td>
-                <td className="px-2 py-2">
-                  <Badge variant={ROLE_BADGE_VARIANT[role]}>{ROLE_NAMES[role]}</Badge>
-                </td>
-                <td className="px-2 py-2">
-                  <span className={resultClass(result, true)}>{RESULT_NAMES[result]}</span>
-                </td>
-                <td className="px-2 py-2 text-center">{baseScore}</td>
-                <td className="px-2 py-2">
-                  <div className="flex items-center gap-1">
+        {/* Планшет и компьютер — таблица */}
+        <div className="hidden sm:block overflow-x-auto -mx-1">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-[12px] text-stone-500 border-b border-line">
+                <th scope="col" className="text-left font-medium px-1 pb-2">Место</th>
+                <th scope="col" className="text-left font-medium px-2 pb-2">Игрок</th>
+                <th scope="col" className="text-left font-medium px-2 pb-2">Результат</th>
+                <th scope="col" className="text-center font-medium px-2 pb-2">База</th>
+                <th scope="col" className="text-left font-medium px-2 pb-2">Доп.</th>
+                <th scope="col" className="text-center font-medium px-2 pb-2">Итого</th>
+                <th scope="col" className="text-left font-medium px-2 pb-2 w-[30%]">Комментарий</th>
+                {trackFirstKill && <th scope="col" className="text-center font-medium px-2 pb-2" title="Первоубиенный">ПУ</th>}
+                {showBestMoveColumn && <th scope="col" className="text-center font-medium px-2 pb-2" title="Лучший ход">ЛХ</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ seat, idx, role, result, baseScore, total, isFirstKilled }) => (
+                <tr key={idx} className={`border-b border-line last:border-b-0 ${isFirstKilled ? "bg-red-500/8" : ""}`}>
+                  <td className="px-1 py-1.5"><SeatNumber seat={seat.seat} /></td>
+                  <td className="px-2 py-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-medium text-stone-100 truncate max-w-[10rem]">{getPlayerName(seat.playerId)}</span>
+                      <Badge variant={ROLE_BADGE_VARIANT[role]}>{ROLE_NAMES[role]}</Badge>
+                    </div>
+                  </td>
+                  <td className={`px-2 py-1.5 ${RESULT_TONE[result]}`}>{RESULT_NAMES[result]}</td>
+                  <td className="px-2 py-1.5 text-center font-data text-stone-300">{baseScore}</td>
+                  <td className="px-2 py-1.5">
                     <BonusInput
                       value={bonusScores[idx]}
+                      seat={seat.seat}
                       onChange={(v) => onBonusChange(idx, v)}
                       onToggleSign={() => onToggleSign(idx)}
-                      inputClassName="w-16 bg-indigo-500/5 border rounded px-2 py-1 text-center text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
-                      signClassName="text-slate-400 hover:text-slate-200 text-sm px-1 py-1 rounded"
-                    />
-                  </div>
-                </td>
-                <td className="px-2 py-2 text-center font-semibold">{formatTotal(total)}</td>
-                <td className="px-2 py-2">
-                  <input
-                    type="text"
-                    value={bonusComments[idx]}
-                    onChange={(e) => onCommentChange(idx, e.target.value)}
-                    className="w-full bg-indigo-500/5 border border-indigo-500/15 rounded px-2 py-1 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50"
-                    placeholder="—"
-                  />
-                </td>
-                {trackFirstKill && (
-                  <td className="px-2 py-2 text-center">
-                    <FirstKillToggle
-                      active={isFirstKilled}
-                      onClick={() => onFirstKilledToggle(seat.playerId)}
-                      className="mx-auto"
                     />
                   </td>
-                )}
-                {showBestMoveColumn && (
-                  <td className="px-2 py-2 text-center">
-                    {isFirstKilled ? (
-                      <div className="flex items-center gap-1 justify-center">
-                        <BestMoveSelects
-                          seatNumber={seat.seat}
-                          values={bestMoves}
-                          onChange={onBestMoveChange}
-                          selectClassName="bg-indigo-500/5 border border-indigo-500/15 rounded px-1 py-0.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500/50 w-12"
-                        />
-                      </div>
-                    ) : (
-                      <span className="text-slate-600">—</span>
-                    )}
+                  <td className="px-2 py-1.5 text-center font-data font-semibold text-stone-50">{formatTotal(total)}</td>
+                  <td className="px-2 py-1.5">
+                    <input
+                      type="text"
+                      value={bonusComments[idx]}
+                      onChange={(e) => onCommentChange(idx, e.target.value)}
+                      aria-label={`Комментарий к доп. баллу, место ${seat.seat}`}
+                      className="input input-sm"
+                    />
                   </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mt-4 flex items-center gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">Дата игры</label>
-          <input
-            type="date"
-            value={gameDate}
-            onChange={(e) => onGameDateChange(e.target.value)}
-            className={inputClass}
-          />
-          <div className="flex gap-2 mt-1">
-            <button type="button" onClick={() => onGameDateChange(today())} className={dateButtonClass}>
-              Сегодня
-            </button>
-            <button type="button" onClick={() => onGameDateChange(yesterday())} className={dateButtonClass}>
-              Вчера
-            </button>
-          </div>
+                  {trackFirstKill && (
+                    <td className="px-2 py-1.5 text-center">
+                      <FirstKillToggle compact active={isFirstKilled} seat={seat.seat}
+                        onClick={() => onFirstKilledToggle(seat.playerId)} />
+                    </td>
+                  )}
+                  {showBestMoveColumn && (
+                    <td className="px-2 py-1.5">
+                      {isFirstKilled ? (
+                        <div className="flex items-center gap-1 justify-center">
+                          <BestMoveSelects seatNumber={seat.seat} values={bestMoves} onChange={onBestMoveChange} />
+                        </div>
+                      ) : (
+                        <span className="block text-center text-stone-600">—</span>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
+      </section>
 
-      <div className="mt-4">
-        <label className="block text-sm font-medium text-slate-300 mb-1">
-          Комментарий к игре
-        </label>
-        <textarea
-          value={notes}
-          onChange={(e) => onNotesChange(e.target.value)}
-          rows={2}
-          className={`w-full ${inputClass} resize-none`}
-          placeholder="Необязательно"
-        />
-      </div>
+      <section className="card p-4 sm:p-5">
+        <Field label="Комментарий к игре" optional hint="Виден на странице игры: спорные моменты, замены, решения судьи">
+          <Textarea value={notes} onChange={(e) => onNotesChange(e.target.value)} rows={2} />
+        </Field>
+      </section>
     </div>
   );
 }

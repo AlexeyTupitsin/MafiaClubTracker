@@ -1,12 +1,12 @@
-import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { WifiOff } from "lucide-react";
 
 import { getSeasons, getPlayers, getAllGames, getAllTournaments } from "./lib/queries";
-import { Toast, EmptyState } from "./components/ui";
+import { Toast, EmptyState, Button } from "./components/ui";
 import { Sidebar } from "./components/layout/Sidebar";
 import { useAuth } from "./hooks/useAuth";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { hashToRoute, routeToHash } from "./lib/router";
+import { hashToRoute, routeToHash, hashQuery, hashPath } from "./lib/router";
 import { readDataCache, writeDataCache, pickDefaultSeasonId, seasonSlice } from "./lib/dataCache";
 
 import { Dashboard } from "./pages/Dashboard";
@@ -25,10 +25,23 @@ const SettingsPage = lazyPage(() => import("./pages/Settings"), "SettingsPage");
 const TournamentList = lazyPage(() => import("./pages/TournamentList"), "TournamentList");
 const TournamentDetail = lazyPage(() => import("./pages/TournamentDetail"), "TournamentDetail");
 const TournamentForm = lazyPage(() => import("./pages/TournamentForm"), "TournamentForm");
+const ClubStats = lazyPage(() => import("./pages/ClubStats"), "ClubStats");
 
 // Страницы, где устаревшие данные опасны (номер новой игры, импорт, сезоны):
 // открываются только после загрузки свежих данных с сервера.
 const FRESH_DATA_PAGES = new Set(["gameForm", "tournamentForm", "settings"]);
+
+// Прокрутка после смены страницы: вперёд — наверх, «назад» — туда, где был.
+// Страница могла ещё не дорисоваться (ленивая загрузка, Suspense) — пробуем
+// несколько кадров, пока высоты документа не хватит.
+function restoreScroll(y) {
+  let tries = 0;
+  const step = () => {
+    window.scrollTo(0, y);
+    if (Math.abs(window.scrollY - y) > 2 && tries++ < 40) requestAnimationFrame(step);
+  };
+  step();
+}
 
 function SkeletonBlocks() {
   return (
@@ -36,21 +49,21 @@ function SkeletonBlocks() {
       {/* Skeleton stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[1, 2, 3].map(i => (
-          <div key={i} className="glass-card p-4 animate-pulse">
-            <div className="h-4 bg-indigo-500/10 rounded w-20 mb-3" />
-            <div className="h-8 bg-indigo-500/10 rounded w-16" />
+          <div key={i} className="card p-4 animate-pulse">
+            <div className="h-4 bg-elev-3 rounded w-20 mb-3" />
+            <div className="h-8 bg-elev-3 rounded w-16" />
           </div>
         ))}
       </div>
       {/* Skeleton table */}
-      <div className="glass-card p-4">
+      <div className="card p-4">
         {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} className="flex gap-4 py-3 border-b border-indigo-500/5 last:border-0 animate-pulse">
-            <div className="h-4 bg-indigo-500/10 rounded w-8" />
-            <div className="h-4 bg-indigo-500/10 rounded w-24" />
-            <div className="h-4 bg-indigo-500/10 rounded w-12" />
-            <div className="h-4 bg-indigo-500/10 rounded w-12" />
-            <div className="h-4 bg-indigo-500/10 rounded w-16" />
+          <div key={i} className="flex gap-4 py-3 border-b border-line last:border-0 animate-pulse">
+            <div className="h-4 bg-elev-3 rounded w-8" />
+            <div className="h-4 bg-elev-3 rounded w-24" />
+            <div className="h-4 bg-elev-3 rounded w-12" />
+            <div className="h-4 bg-elev-3 rounded w-12" />
+            <div className="h-4 bg-elev-3 rounded w-16" />
           </div>
         ))}
       </div>
@@ -71,7 +84,9 @@ export default function App() {
   const [allGames, setAllGames] = useState(cached?.allGames ?? []);
   const [allTournaments, setAllTournaments] = useState(cached?.allTournaments ?? []);
   const [currentSeasonId, setCurrentSeasonId] = useState(cached?.seasonId ?? null);
-  const [route, setRoute] = useState(() => hashToRoute(window.location.hash));
+  const [route, setRoute] = useState(() => ({ ...hashToRoute(window.location.hash), dir: "none" }));
+  // Куда прокрутить после смены страницы (null — не трогать)
+  const pendingScrollRef = useRef(null);
   const [loading, setLoading] = useState(!cached);
   const [loadError, setLoadError] = useState(null);
   // pending — ждём сервер, fresh — данные свежие, failed — показан только кэш
@@ -96,6 +111,13 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const { page: currentPage, id: selectedId } = route;
 
+  useLayoutEffect(() => {
+    const y = pendingScrollRef.current;
+    if (y == null) return;
+    pendingScrollRef.current = null;
+    restoreScroll(y);
+  }, [route]);
+
   const showToast = useCallback((msg, type = "success") => {
     setToast({ message: msg, type });
   }, []);
@@ -106,9 +128,15 @@ export default function App() {
   useEffect(() => {
     const depth = window.history.state?.depth ?? 0;
     const { page, id } = hashToRoute(window.location.hash);
-    window.history.replaceState({ depth }, "", routeToHash(page, id));
+    // Параметры страницы (фильтры после «?») сохраняем
+    window.history.replaceState({ depth }, "", routeToHash(page, id) + hashQuery(window.location.hash));
+    // Прокрутку восстанавливаем сами: браузер делает это раньше, чем страница дорисуется
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
 
-    const onPopState = () => setRoute(hashToRoute(window.location.hash));
+    const onPopState = () => {
+      pendingScrollRef.current = window.history.state?.scrollY ?? 0;
+      setRoute({ ...hashToRoute(window.location.hash), dir: "back" });
+    };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
@@ -117,13 +145,18 @@ export default function App() {
   // «назад» не возвращал в уже закрытую форму)
   const navigate = useCallback((page, id = null, { replace = false } = {}) => {
     const hash = routeToHash(page, id);
+    const current = window.location.hash;
     const depth = window.history.state?.depth ?? 0;
-    if (replace || hash === window.location.hash) {
+    if (hash === hashPath(current)) return; // та же страница — фильтры не сбрасываем
+    if (replace) {
       window.history.replaceState({ depth }, "", hash);
     } else {
+      // Запоминаем прокрутку уходящей страницы — «назад» вернёт на то же место
+      window.history.replaceState({ ...window.history.state, scrollY: window.scrollY }, "", current);
       window.history.pushState({ depth: depth + 1 }, "", hash);
     }
-    setRoute({ page, id });
+    pendingScrollRef.current = 0;
+    setRoute({ page, id, dir: "forward" });
   }, []);
 
   const goBack = useCallback(() => {
@@ -238,19 +271,18 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-surface">
-        <div className="md:ml-[220px] max-w-6xl mx-auto px-4 py-6 pt-16 md:pt-6">
+        <div className="md:pl-[220px]"><div className="max-w-6xl mx-auto px-4 md:px-8 pt-20 pb-24 md:py-10">
           <SkeletonBlocks />
           {loadError && (
             <div className="mt-4 max-w-md mx-auto bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-400 text-sm">
               <p className="font-medium mb-1">Ошибка загрузки данных:</p>
               <p className="font-mono text-xs">{loadError}</p>
-              <button onClick={() => window.location.reload()}
-                className="btn-ghost mt-3 px-4 py-2 text-sm cursor-pointer">
+              <Button variant="secondary" className="mt-3" onClick={() => window.location.reload()}>
                 Повторить
-              </button>
+              </Button>
             </div>
           )}
-        </div>
+        </div></div>
       </div>
     );
   }
@@ -277,10 +309,9 @@ export default function App() {
           title="Нет связи с сервером"
           description="Эта страница открывается только со свежими данными. Проверьте интернет и обновите страницу."
           action={
-            <button onClick={() => window.location.reload()}
-              className="btn-ghost px-4 py-2 text-sm cursor-pointer">
-              Обновить
-            </button>
+            <Button variant="secondary" onClick={() => window.location.reload()}>
+              Обновить страницу
+            </Button>
           }
         />
       );
@@ -299,7 +330,7 @@ export default function App() {
             seasons={seasons}
             currentSeasonId={currentSeasonId}
             allGames={allGames}
-            tournaments={tournaments}
+            allTournaments={allTournaments}
           />
         );
       case "gameDetail":
@@ -417,6 +448,15 @@ export default function App() {
             goBack={goBack}
           />
         );
+      case "stats":
+        return (
+          <ClubStats
+            allGames={allGames}
+            seasons={seasons}
+            players={players}
+            navigate={navigate}
+          />
+        );
       case "settings":
         if (!isAdmin) return <SkeletonBlocks />; // эффект выше уведёт на дашборд
         return (
@@ -437,7 +477,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-surface pb-16 md:pb-0">
+    <div className="min-h-screen bg-surface">
       <Sidebar
         currentPage={currentPage}
         navigate={navigate}
@@ -446,12 +486,17 @@ export default function App() {
         setCurrentSeasonId={selectSeason}
       />
 
-      <main className="md:ml-[220px] max-w-6xl mx-auto px-4 py-6 pt-16 md:pt-6 animate-page-enter" key={currentPage + (selectedId || "")}>
-        <ErrorBoundary>
-          <Suspense fallback={<SkeletonBlocks />}>
-            {renderPage()}
-          </Suspense>
-        </ErrorBoundary>
+      <main className="md:pl-[220px]">
+        <div
+          className={`max-w-6xl mx-auto px-4 md:px-8 pt-20 pb-28 md:py-10 ${route.dir === "back" ? "animate-page-back" : "animate-page-enter"}`}
+          key={currentPage + (selectedId || "")}
+        >
+          <ErrorBoundary>
+            <Suspense fallback={<SkeletonBlocks />}>
+              {renderPage()}
+            </Suspense>
+          </ErrorBoundary>
+        </div>
       </main>
 
       {toast && (

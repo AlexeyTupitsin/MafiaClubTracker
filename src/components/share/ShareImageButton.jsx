@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Download, Loader, Share2 } from "lucide-react";
-import { Modal } from "../ui";
+import { Download, Share2 } from "lucide-react";
+import { Button, Modal } from "../ui";
 import { canShareFile, canvasToBlob, downloadFile, shareFile } from "../../lib/shareImage/share";
 
 /**
@@ -49,15 +49,16 @@ export function ShareImageButton({ render, fileName, title, showToast, className
 
   return (
     <>
-      <button
+      <Button
+        variant="secondary"
+        size="icon"
+        icon={Share2}
+        loading={busy}
         onClick={handleOpen}
-        disabled={busy}
         title="Картинка для отправки"
         aria-label="Картинка для отправки"
-        className={`btn-ghost flex items-center justify-center p-2 cursor-pointer disabled:opacity-60 disabled:cursor-wait ${className}`}
-      >
-        {busy ? <Loader size={16} className="animate-spin" /> : <Share2 size={16} />}
-      </button>
+        className={className}
+      />
 
       {image && (
         <Modal
@@ -65,20 +66,17 @@ export function ShareImageButton({ render, fileName, title, showToast, className
           onClose={close}
           footer={
             <>
-              <button onClick={() => downloadFile(image.file, fileName)}
-                className="btn-ghost flex items-center gap-1.5 px-4 py-2 text-sm cursor-pointer">
-                <Download size={14} /> Скачать
-              </button>
+              <Button variant={canShare ? "secondary" : "primary"} icon={Download}
+                onClick={() => downloadFile(image.file, fileName)}>
+                Скачать картинку
+              </Button>
               {canShare && (
-                <button onClick={handleShare}
-                  className="btn-gradient flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-sm font-medium cursor-pointer transition-all">
-                  <Share2 size={14} /> Поделиться
-                </button>
+                <Button icon={Share2} onClick={handleShare}>Поделиться</Button>
               )}
             </>
           }
         >
-          <img src={image.url} alt={title} className="w-full rounded-lg border border-indigo-500/10" />
+          <img src={image.url} alt={title} className="w-full rounded-lg border border-line" />
         </Modal>
       )}
     </>

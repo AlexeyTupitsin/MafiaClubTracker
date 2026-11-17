@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   NEW_SEASON_FORM, seasonToForm, isThresholdValid, thresholdForSave,
-  withThresholdType, withTrackFirstKill,
+  withThresholdType, withTrackFirstKill, validateSeasonForm,
 } from './seasonFormLogic';
 
 describe('isThresholdValid', () => {
@@ -61,5 +61,22 @@ describe('изменения формы', () => {
     const form = { ...NEW_SEASON_FORM, trackFirstKill: true, trackBestMove: true };
     expect(withTrackFirstKill(form, false)).toMatchObject({ trackFirstKill: false, trackBestMove: false });
     expect(withTrackFirstKill(form, true)).toMatchObject({ trackFirstKill: true, trackBestMove: true });
+  });
+});
+
+describe('validateSeasonForm', () => {
+  const base = { ...NEW_SEASON_FORM, name: 'Сезон 3' };
+  it('пропускает заполненную форму без порога', () => {
+    expect(validateSeasonForm(base)).toEqual({});
+  });
+  it('требует название', () => {
+    expect(validateSeasonForm({ ...base, name: '   ' })).toHaveProperty('name');
+  });
+  it('проверяет порог по его типу', () => {
+    expect(validateSeasonForm({ ...base, thresholdType: 'absolute', thresholdValue: '0' }).thresholdValue)
+      .toMatch(/не меньше 1/);
+    expect(validateSeasonForm({ ...base, thresholdType: 'percent', thresholdValue: '120' }).thresholdValue)
+      .toMatch(/от 1 до 100/);
+    expect(validateSeasonForm({ ...base, thresholdType: 'percent', thresholdValue: '50' })).toEqual({});
   });
 });

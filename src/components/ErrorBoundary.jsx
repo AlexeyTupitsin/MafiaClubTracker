@@ -1,6 +1,6 @@
 import { Component } from "react";
 import { AlertTriangle } from "lucide-react";
-import { EmptyState } from "./ui";
+import { Button, EmptyState } from "./ui";
 
 // Ошибка загрузки файла страницы: после деплоя старые чанки удалены.
 // Обычно такую ошибку перехватывает vite:preloadError в main.jsx и
@@ -36,10 +36,9 @@ export class ErrorBoundary extends Component {
           ? "Обновите страницу, чтобы загрузить её."
           : "Произошла ошибка. Попробуйте обновить страницу — если не поможет, сообщите администратору."}
         action={
-          <button onClick={() => window.location.reload()}
-            className="btn-ghost px-4 py-2 text-sm cursor-pointer">
-            Обновить
-          </button>
+          <Button variant="secondary" onClick={() => window.location.reload()}>
+            Обновить страницу
+          </Button>
         }
       />
     );

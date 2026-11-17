@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  gamesForPeriod, recentTournamentStats, partnerStats, eloSummary, playerGameHistory,
+  gamesForPeriod, recentTournamentStats, partnerStats, partnerHighlights, eloSummary, playerGameHistory,
   fmtScore, fmtWr, fmtPairCell,
 } from './profileLogic';
 import { makeGame, makePlayers } from '../../test/fixtures';
@@ -75,5 +75,39 @@ describe('форматирование', () => {
     expect(fmtWr(66.6)).toBe('67%');
     expect(fmtPairCell(3, 2, 66.6)).toBe('3 / 2 (67%)');
     expect(fmtPairCell(0, 0, 0)).toBe('—');
+  });
+});
+
+describe('partnerHighlights', () => {
+  // Пара: together — игры в одной команде, against — друг против друга
+  const pair = (id, together, against) => ({
+    id, nickname: id,
+    bothRed: { games: together[0], wins: together[1] },
+    bothBlack: { games: 0, wins: 0 },
+    aRedBBlack: { games: against[0], winsA: against[1] },
+    aBlackBRed: { games: 0, winsA: 0 },
+  });
+  const pairs = [
+    pair('a', [6, 5], [2, 0]),   // хороший партнёр; против — мало игр
+    pair('b', [10, 5], [8, 1]),  // неудобный соперник
+    pair('c', [6, 5], [5, 4]),   // как «a» по %, игр поровну
+    pair('d', [3, 3], [9, 3]),   // 100% вместе, но мало игр
+    pair('e', [12, 10], [5, 1]), // тот же % вместе, что у a, но больше игр
+  ];
+
+  it('партнёры — по проценту побед вместе, не меньше minGames', () => {
+    const { partners } = partnerHighlights(pairs, { minGames: 5 });
+    // e и a — по 83%, у e больше игр
+    expect(partners.map((p) => p.id)).toEqual(['e', 'a', 'c']);
+    expect(partners[1]).toMatchObject({ games: 6, wins: 5 });
+  });
+
+  it('соперники — по наименьшему проценту побед против; при равенстве — больше игр', () => {
+    const { rivals } = partnerHighlights(pairs, { minGames: 5 });
+    expect(rivals.map((p) => p.id)).toEqual(['b', 'e', 'd']);
+  });
+
+  it('никого с достаточным числом игр — пустые списки', () => {
+    expect(partnerHighlights(pairs, { minGames: 50 })).toEqual({ partners: [], rivals: [], minGames: 50 });
   });
 });

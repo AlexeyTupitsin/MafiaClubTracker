@@ -1,14 +1,18 @@
 import { useState, useMemo } from "react";
-import { Plus, Shield, Sword, ChevronUp, ChevronDown, Users } from "lucide-react";
-import { StatCard, EmptyState } from "../components/ui";
+import { Plus, Sword, Users, ArrowRight, Crown, Sparkles } from "lucide-react";
+import { Button, EmptyState, PlayerAvatar } from "../components/ui";
 import { calcSeasonStats, calcExtendedNominations, calcPlayerStats, calcKillRate, calcThreshold } from "../lib/metrics";
-import { NOMINATION_CONFIG, MEDAL_ICON } from "../lib/constants";
+import { NOMINATION_CONFIG, ROLE_TONE } from "../lib/constants";
 import { CLUB_NAME } from "../lib/clubConfig";
+import { pluralize, signedClass, winrateClass } from "../lib/utils";
 import { AdminOnly } from "../components/auth/AuthGuard";
 import { useAuth } from "../hooks/useAuth";
-import { PlayerHeroCard } from "../components/PlayerHeroCard";
 import { ShareImageButton } from "../components/share/ShareImageButton";
+import { RatingTable } from "../components/RatingTable";
+import { TeamBalance } from "../components/TeamBalance";
 import { renderRatingCard } from "../lib/shareImage/ratingCard";
+import { MySummary, MeHint } from "../components/MySummary";
+import { useMe } from "../hooks/useMe";
 
 // Подписи колонок таблицы — для строки «Сортировка: …» на картинке
 const SORT_LABELS = {
@@ -21,8 +25,105 @@ const SORT_LABELS = {
   avgBonus: "Ср. доп.",
 };
 
+const TOP_ROWS = 10;
+const fmt2 = (v) => v.toFixed(2);
+const fmtSigned = (v) => `${v > 0 ? "+" : ""}${v.toFixed(2)}`;
+const games_ = (n) => `${n} ${pluralize(n, "игра", "игры", "игр")}`;
+
+function Metric({ label, value, className = "" }) {
+  return (
+    <div>
+      <div className={`font-data text-lg font-semibold text-stone-100 ${className}`}>{value}</div>
+      <div className="text-xs text-stone-500 mt-0.5">{label}</div>
+    </div>
+  );
+}
+
+// Лидер сезона + 2-е и 3-е места
+function LeaderHero({ podium, navigate }) {
+  const [leader, ...rest] = podium;
+  return (
+    <section className="card relative overflow-hidden p-5 md:p-6 lg:col-span-2" aria-labelledby="leader-title">
+      {/* латунный свет из угла — единственный декоративный эффект на странице */}
+      <div className="pointer-events-none absolute -top-28 -left-20 w-80 h-80 rounded-full bg-accent-400/10 blur-3xl" aria-hidden="true" />
+      <p id="leader-title" className="eyebrow flex items-center gap-1.5 relative">
+        <Crown size={14} className="text-accent-400" aria-hidden="true" /> Лидер сезона
+      </p>
+      <div className="relative mt-4 flex flex-col xl:flex-row xl:items-center gap-5">
+        <button onClick={() => navigate("playerProfile", leader.id)} className="flex items-center gap-4 min-w-0 text-left cursor-pointer group">
+          <span className="rounded-full ring-2 ring-accent-400 ring-offset-4 ring-offset-elev-1 shrink-0">
+            <PlayerAvatar player={leader} size="md" clickable={false} />
+          </span>
+          <span className="min-w-0">
+            <span className="block font-display text-2xl md:text-3xl font-bold text-stone-50 truncate group-hover:text-accent-200 transition-colors">
+              {leader.nickname}
+            </span>
+            <span className="block text-sm text-stone-400 mt-1">
+              {games_(leader.totalGames)} · {leader.wins} {pluralize(leader.wins, "победа", "победы", "побед")}
+            </span>
+          </span>
+        </button>
+        <div className="xl:ml-auto grid grid-cols-4 gap-4 sm:gap-8 xl:gap-6 shrink-0">
+          <Metric label="Ср. балл" value={fmt2(leader.avgScore)} className="!text-accent-300" />
+          <Metric label="Победы" value={`${leader.winrate.toFixed(0)}%`} />
+          <Metric label="Доп." value={fmtSigned(leader.avgBonus)} className={signedClass(leader.avgBonus)} />
+          <Metric label="ELO" value={leader.elo != null ? Math.round(leader.elo) : "—"} />
+        </div>
+      </div>
+
+      {rest.length > 0 && (
+        <ol className="relative mt-6 pt-4 border-t border-line grid sm:grid-cols-2 gap-x-6 gap-y-1">
+          {rest.map((p, i) => (
+            <li key={p.id}>
+              <button onClick={() => navigate("playerProfile", p.id)}
+                className="flex items-center gap-3 w-full h-11 px-2 -mx-2 rounded-xl text-left hover:bg-elev-2 cursor-pointer">
+                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold font-data shrink-0 ${
+                  i === 0 ? "bg-stone-300 text-stone-900" : "bg-accent-800 text-accent-100"}`}>{i + 2}</span>
+                <PlayerAvatar player={p} size="xs" clickable={false} />
+                <span className="font-medium text-stone-100 truncate">{p.nickname}</span>
+                <span className="ml-auto font-data text-sm text-stone-300">{fmt2(p.avgScore)}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+function NominationCard({ label, icon: Icon, tone, player, navigate, className = "" }) {
+  const body = (
+    <>
+      <span className="flex items-center gap-2 min-w-0">
+        <span className={`w-7 h-7 rounded-full ring-1 ring-inset flex items-center justify-center shrink-0 ${tone}`}>
+          <Icon size={14} aria-hidden="true" />
+        </span>
+        <span className="text-xs text-stone-400 leading-tight">{label}</span>
+      </span>
+      <span className="mt-3 block font-medium text-stone-100 truncate group-hover:text-accent-200">
+        {player ? player.nickname : "—"}
+      </span>
+      {player && (
+        <span className="mt-0.5 flex items-baseline gap-1.5 font-data text-xs whitespace-nowrap">
+          <span className={`text-sm font-semibold ${signedClass(player.avgBonus)}`}>{fmtSigned(player.avgBonus)}</span>
+          <span className="text-stone-500 truncate">{games_(player.totalGames)}</span>
+        </span>
+      )}
+    </>
+  );
+  if (!player) return <div className={`card p-4 min-w-0 ${className}`}>{body}</div>;
+  return (
+    <button onClick={() => navigate("playerProfile", player.id)}
+      className={`card card-link group p-4 min-w-0 text-left ${className}`}>
+      {body}
+    </button>
+  );
+}
+
 export function Dashboard({ games, players, navigate, currentSeason, seasons, showToast }) {
   const { isAdmin } = useAuth();
+  const [meId] = useMe();
+  const meKnown = Boolean(meId && players.some((p) => p.id === meId));
   const hasPlayers = players.length > 0;
   const [showAll, setShowAll] = useState(false);
   const [sortCol, setSortCol] = useState("avgScore");
@@ -32,86 +133,70 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, sh
   const dashStats = useMemo(() => calcSeasonStats(games), [games]);
   const { nominations } = useMemo(() => calcExtendedNominations(games, players), [games, players]);
 
-  // Full rating data
+  const playerById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+
   const ratingData = useMemo(() => {
     const playerIds = new Set();
     games.forEach((g) => g.players.forEach((p) => playerIds.add(p.playerId)));
     return Array.from(playerIds).map((pid) => {
-      const player = players.find((p) => p.id === pid);
+      const player = playerById.get(pid);
       const stats = calcPlayerStats(pid, games);
       const kr = calcKillRate(pid, games, seasons);
-      return { id: pid, nickname: player?.nickname || "?", ...stats, killRate: kr };
+      return {
+        id: pid,
+        nickname: player?.nickname || "?",
+        avatarUrl: player?.avatarUrl,
+        elo: player?.eloGames > 0 ? player.elo : null,
+        ...stats,
+        killRate: kr,
+      };
     });
-  }, [games, players, seasons]);
+  }, [games, playerById, seasons]);
 
   const threshold = useMemo(() => calcThreshold(currentSeason, games.length), [currentSeason, games.length]);
-
-  const hasBelowThreshold = useMemo(
-    () => threshold > 0 && ratingData.some((r) => r.totalGames < threshold),
+  const eligible = useMemo(
+    () => ratingData.filter((r) => threshold === 0 || r.totalGames >= threshold),
     [ratingData, threshold]
   );
+  const hasBelowThreshold = threshold > 0 && eligible.length < ratingData.length;
 
-  const seasonLeader = useMemo(() => {
-    const eligible = ratingData.filter((r) => r.totalGames >= threshold || threshold === 0);
-    if (eligible.length === 0) return null;
-    const top = eligible.reduce((best, r) => (r.avgScore > best.avgScore ? r : best));
-    const player = players.find((p) => p.id === top.id);
-    return { ...top, avatarUrl: player?.avatarUrl, elo: player?.eloGames > 0 ? player.elo : null };
-  }, [ratingData, threshold, players]);
+  const podium = useMemo(
+    () => [...eligible].sort((a, b) => b.avgScore - a.avgScore).slice(0, 3),
+    [eligible]
+  );
 
   const mvpPlayer = useMemo(() => {
-    const eligible = ratingData.filter((r) => r.totalGames >= threshold || threshold === 0);
     if (eligible.length === 0) return null;
-    const top = eligible.reduce((best, r) => (r.avgBonus > best.avgBonus ? r : best));
-    const player = players.find((p) => p.id === top.id);
-    return { ...top, avatarUrl: player?.avatarUrl, elo: player?.eloGames > 0 ? player.elo : null };
-  }, [ratingData, threshold, players]);
+    return eligible.reduce((best, r) => (r.avgBonus > best.avgBonus ? r : best));
+  }, [eligible]);
 
   const nominationLeaders = useMemo(() => {
     const result = {};
     for (const { role } of NOMINATION_CONFIG) {
-      const eligible = (nominations[role] || []).filter((nom) => {
+      const top = (nominations[role] || []).find((nom) => {
         if (threshold === 0) return true;
         const rd = ratingData.find((r) => r.id === nom.playerId);
         return rd && rd.totalGames >= threshold;
       });
-      const top = eligible[0];
-      if (!top) { result[role] = null; continue; }
-      const player = players.find((p) => p.id === top.playerId);
-      result[role] = {
-        id: top.playerId,
-        nickname: top.nickname,
-        avatarUrl: player?.avatarUrl,
-        elo: player?.eloGames > 0 ? player.elo : null,
-        totalGames: top.games,
-        wins: top.wins,
-        winrate: top.winrate,
-        avgScore: top.avgScore,
-        avgBonus: top.avgBonus,
-      };
+      result[role] = top
+        ? { id: top.playerId, nickname: top.nickname, totalGames: top.games, avgBonus: top.avgBonus }
+        : null;
     }
     return result;
-  }, [nominations, players, ratingData, threshold]);
+  }, [nominations, ratingData, threshold]);
 
   const filteredRating = useMemo(() => {
-    let data = showAll ? ratingData : ratingData.filter((r) => r.totalGames >= threshold);
+    const data = showAll ? ratingData : eligible;
     return [...data].sort((a, b) => {
-      let va = a[sortCol], vb = b[sortCol];
+      const va = a[sortCol], vb = b[sortCol];
       if (typeof va === "string") return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
       return sortDir === "asc" ? va - vb : vb - va;
     });
-  }, [ratingData, showAll, threshold, sortCol, sortDir]);
+  }, [ratingData, eligible, showAll, sortCol, sortDir]);
 
   const handleSort = (col) => {
     if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortCol(col); setSortDir("desc"); }
-  };
-
-  const SortIcon = ({ col }) => {
-    if (sortCol !== col) return null;
-    return sortDir === "asc"
-      ? <ChevronUp size={14} className="inline ml-0.5" />
-      : <ChevronDown size={14} className="inline ml-0.5" />;
   };
 
   const renderShareImage = () => {
@@ -122,114 +207,97 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, sh
       totalGames: games.length,
       minGames: showAll ? 0 : threshold,
       sortLabel: sortLabel ? `${sortLabel} ${sortDir === "asc" ? "↑" : "↓"}` : null,
-      rows: filteredRating.slice(0, 15).map((row) => {
-        const player = players.find((p) => p.id === row.id);
-        return {
-          ...row,
-          avatarUrl: player?.avatarUrl ?? null,
-          elo: player?.eloGames > 0 ? player.elo : null,
-        };
-      }),
+      rows: filteredRating.slice(0, 15).map((row) => ({ ...row, avatarUrl: row.avatarUrl ?? null })),
     });
   };
 
-  const medalColors = ["text-yellow-400", "text-slate-400", "text-amber-600"];
-  const renderRank = (idx) => (
-    <span className="inline-flex justify-center w-full">
-      {idx < 3 ? <MEDAL_ICON size={16} className={medalColors[idx]} /> : idx + 1}
-    </span>
-  );
+  const columns = [
+    { key: "totalGames", label: "Игры", sortable: true },
+    { key: "wins", label: "Побед", sortable: true },
+    { key: "winrate", label: "WR", sortable: true, title: "Процент побед",
+      render: (r) => <span className={winrateClass(r.winrate)}>{r.winrate.toFixed(0)}%</span> },
+    { key: "totalScore", label: "Баллы", sortable: true,
+      render: (r) => (r.totalScore % 1 === 0 ? r.totalScore : r.totalScore.toFixed(1)) },
+    { key: "avgScore", label: "Ср. балл", sortable: true, title: "Средний балл за игру", render: (r) => fmt2(r.avgScore) },
+    { key: "avgBonus", label: "Ср. доп.", sortable: true, title: "Средний дополнительный балл",
+      render: (r) => <span className={signedClass(r.avgBonus)}>{fmtSigned(r.avgBonus)}</span> },
+    { key: "killRate", label: "ПУ", title: "Процент первых убийств",
+      render: (r) => (r.killRate ? `${r.killRate.killRate.toFixed(0)}%` : <span className="text-stone-600">—</span>) },
+  ];
 
-  // Welcome screen
+  // Первый запуск: игроков ещё нет
   if (!hasPlayers) {
     return (
       <div className="text-center py-16">
-        <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 rounded-3xl flex items-center justify-center border border-indigo-500/20">
-          <Sword size={36} className="text-indigo-400" />
-        </div>
-        <h2 className="text-2xl font-bold text-indigo-50 mb-2">Добро пожаловать в {CLUB_NAME}!</h2>
-        <p className="text-slate-400 mb-8 max-w-md mx-auto">
-          Начните работу с приложением — добавьте игроков клуба и проведите первую игру.
+        <img src="/logo.jpg" alt="" className="w-20 h-20 mx-auto mb-6 rounded-2xl object-cover ring-1 ring-line-strong" />
+        <h2 className="page-title mb-3">Добро пожаловать в {CLUB_NAME}</h2>
+        <p className="text-stone-400 mb-8 max-w-md mx-auto">
+          Добавьте игроков клуба и запишите первую игру — рейтинг и статистика посчитаются сами.
         </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <button onClick={() => navigate("players")}
-            className="btn-gradient flex items-center gap-2 px-5 py-2.5 text-sm font-medium cursor-pointer">
-            <Users size={18} /> 1. Добавить игроков
-          </button>
-          <span className="text-slate-600">{"\u2192"}</span>
-          <button className="flex items-center gap-2 glass-card px-5 py-2.5 text-sm font-medium text-slate-500 cursor-not-allowed opacity-50" disabled>
-            <Sword size={18} /> 2. Провести игру
-          </button>
-        </div>
+        {isAdmin ? (
+          <div className="flex flex-col items-center gap-3">
+            <Button icon={Users} onClick={() => navigate("players")} className="w-full sm:w-auto">
+              Добавить игроков
+            </Button>
+            <p className="text-[13px] text-stone-500">Записать игру можно, когда в составе будет 10 игроков</p>
+          </div>
+        ) : (
+          <p className="text-[13px] text-stone-500">Ведущий клуба скоро добавит игроков</p>
+        )}
       </div>
     );
   }
 
+  const canAddGame = currentSeason?.isActive;
+
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold gradient-text">Дашборд</h2>
+    <div className="space-y-6 md:space-y-8">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">{currentSeason?.isActive ? "Текущий сезон" : "Сезон"}</p>
+          <h2 className="page-title mt-1.5">{currentSeason?.name ?? "Обзор"}</h2>
+        </div>
+        {canAddGame && hasGames && (
+          <AdminOnly>
+            <Button icon={Plus} onClick={() => navigate("gameForm")} className="w-full sm:w-auto">
+              Записать игру
+            </Button>
+          </AdminOnly>
+        )}
+      </header>
 
       {!hasGames ? (
         <EmptyState
           icon={Sword}
-          title="Нет игр в этом сезоне"
-          description="Запишите первую игру, чтобы увидеть статистику"
-          action={isAdmin && currentSeason?.isActive ? (
-            <button onClick={() => navigate("gameForm")}
-              className="btn-gradient px-4 py-2 text-sm cursor-pointer">
-              Записать игру
-            </button>
+          title="В этом сезоне ещё не играли"
+          description="Запишите первую игру — здесь появятся лидер сезона, рейтинг и номинации."
+          action={isAdmin && canAddGame ? (
+            <Button icon={Plus} onClick={() => navigate("gameForm")}>
+              Записать первую игру
+            </Button>
           ) : null}
         />
       ) : (
-        <div className="space-y-6">
-          {/* Bento grid stat cards */}
-          <div className={`grid grid-cols-1 gap-4 stagger-children ${dashStats.draws > 0 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
-            <StatCard label="Всего игр" value={dashStats.totalGames} icon={Sword} />
-            <div className="glass-card p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-slate-400">Побед красных</span>
-                <Shield size={18} className="text-red-400/70" />
-              </div>
-              <div className="text-2xl font-bold font-data text-red-400">
-                {dashStats.redWins} <span className="text-base font-normal text-red-500/50">({dashStats.redWinrate.toFixed(0)}%)</span>
-              </div>
-            </div>
-            <div className="glass-card p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-slate-400">Побед чёрных</span>
-              </div>
-              <div className="text-2xl font-bold font-data text-slate-200">
-                {dashStats.blackWins} <span className="text-base font-normal text-slate-500">({dashStats.blackWinrate.toFixed(0)}%)</span>
-              </div>
-            </div>
-            {dashStats.draws > 0 && (
-              <div className="glass-card p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-slate-400">Ничьих</span>
-                </div>
-                <div className="text-2xl font-bold font-data text-amber-400">
-                  {dashStats.draws}
-                </div>
-              </div>
-            )}
+        <>
+          {meKnown
+            ? <MySummary meId={meId} players={players} games={games} season={currentSeason} navigate={navigate} />
+            : <MeHint navigate={navigate} />}
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {podium.length > 0 && <LeaderHero podium={podium} navigate={navigate} />}
+            <TeamBalance totalGames={dashStats.totalGames} redWins={dashStats.redWins} blackWins={dashStats.blackWins} draws={dashStats.draws} />
           </div>
 
-          {/* Quick action */}
-          {currentSeason?.isActive && (
-            <AdminOnly>
-              <button onClick={() => navigate("gameForm")}
-                className="btn-gradient w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium cursor-pointer">
-                <Plus size={18} /> Добавить игру
-              </button>
-            </AdminOnly>
-          )}
-
-          {/* Rating table */}
-          <div className="glass-card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-indigo-50">Рейтинг</h3>
-              <div className="flex items-center gap-2">
+          <section className="card overflow-hidden" aria-labelledby="rating-title">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 md:px-5 pt-4 pb-2">
+              <h3 id="rating-title" className="font-display text-base font-bold text-stone-50">Рейтинг</h3>
+              <div className="flex items-center gap-1">
+                {hasBelowThreshold && (
+                  <button onClick={() => setShowAll(!showAll)}
+                    className="h-9 px-3 rounded-lg text-sm text-stone-400 hover:text-stone-100 hover:bg-elev-2 cursor-pointer">
+                    {showAll ? `Только от ${threshold} игр` : "Все игроки"}
+                  </button>
+                )}
                 {filteredRating.length > 0 && (
                   <ShareImageButton
                     render={renderShareImage}
@@ -238,100 +306,43 @@ export function Dashboard({ games, players, navigate, currentSeason, seasons, sh
                     showToast={showToast}
                   />
                 )}
-                {hasBelowThreshold && (
-                  <button onClick={() => setShowAll(!showAll)}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 cursor-pointer">
-                    {showAll ? `Только \u2265${threshold} игр` : "Показать всех"}
-                  </button>
-                )}
               </div>
             </div>
             {filteredRating.length === 0 ? (
-              <p className="text-slate-500 text-sm py-4 text-center">Нет данных для рейтинга</p>
+              <p className="text-stone-500 text-sm py-8 text-center">Нет данных для рейтинга</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-indigo-500/10 bg-indigo-500/5">
-                      <th className="px-2 py-2.5 text-center font-medium text-slate-400">#</th>
-                      <th className="px-2 py-2.5 text-left font-medium text-slate-400 cursor-pointer select-none" onClick={() => handleSort("nickname")}>
-                        Ник<SortIcon col="nickname" />
-                      </th>
-                      <th className="px-2 py-2.5 text-center font-medium text-slate-400 cursor-pointer select-none" onClick={() => handleSort("totalGames")}>
-                        Игры<SortIcon col="totalGames" />
-                      </th>
-                      <th className="px-2 py-2.5 text-center font-medium text-slate-400 cursor-pointer select-none" onClick={() => handleSort("wins")}>
-                        Побед<SortIcon col="wins" />
-                      </th>
-                      <th className="px-2 py-2.5 text-center font-medium text-slate-400 cursor-pointer select-none" onClick={() => handleSort("winrate")} title="Процент побед">
-                        WR%<SortIcon col="winrate" />
-                      </th>
-                      <th className="px-2 py-2.5 text-center font-medium text-slate-400 cursor-pointer select-none" onClick={() => handleSort("totalScore")}>
-                        Баллы<SortIcon col="totalScore" />
-                      </th>
-                      <th className="px-2 py-2.5 text-center font-medium text-slate-400 cursor-pointer select-none" onClick={() => handleSort("avgScore")} title="Средний балл за игру">
-                        Ср. балл<SortIcon col="avgScore" />
-                      </th>
-                      <th className="px-2 py-2.5 text-center font-medium text-slate-400 cursor-pointer select-none" onClick={() => handleSort("avgBonus")} title="Средний дополнительный балл">
-                        Ср. доп.<SortIcon col="avgBonus" />
-                      </th>
-                      <th className="px-2 py-2.5 text-center font-medium text-slate-400" title="Процент первых убийств">ПУ%</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRating.map((row, idx) => (
-                      <tr key={row.id} className="border-b border-indigo-500/5 last:border-b-0 hover:bg-indigo-500/5 transition-colors">
-                        <td className="px-2 py-2.5 text-center font-medium">{renderRank(idx)}</td>
-                        <td className="px-2 py-2.5 text-left font-medium max-w-[120px] truncate">
-                          <button onClick={() => navigate("playerProfile", row.id)}
-                            className="text-indigo-400 hover:text-indigo-300 cursor-pointer">{row.nickname}</button>
-                        </td>
-                        <td className="px-2 py-2.5 text-center font-data">{row.totalGames}</td>
-                        <td className="px-2 py-2.5 text-center font-data">{row.wins}</td>
-                        <td className="px-2 py-2.5 text-center font-data">
-                          <span className={row.winrate > 60 ? "text-emerald-400 font-medium" : row.winrate < 40 ? "text-red-400" : ""}>
-                            {row.winrate.toFixed(0)}%
-                          </span>
-                        </td>
-                        <td className="px-2 py-2.5 text-center font-data font-semibold">
-                          {row.totalScore % 1 === 0 ? row.totalScore : row.totalScore.toFixed(1)}
-                        </td>
-                        <td className="px-2 py-2.5 text-center font-data">{row.avgScore.toFixed(2)}</td>
-                        <td className="px-2 py-2.5 text-center font-data">
-                          <span className={
-                            row.avgBonus > 0 ? "text-emerald-400" :
-                            row.avgBonus < 0 ? "text-red-400" : ""
-                          }>
-                            {row.avgBonus.toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="px-2 py-2.5 text-center text-xs font-data">
-                          {row.killRate ? (
-                            <span className={
-                              row.killRate.killRate > 25 ? "text-red-400" :
-                              row.killRate.killRate < 10 ? "text-emerald-400" : ""
-                            }>
-                              {row.killRate.killRate.toFixed(1)}%
-                            </span>
-                          ) : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                <RatingTable
+                  rows={filteredRating.slice(0, TOP_ROWS)}
+                  columns={columns}
+                  sortCol={sortCol}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  navigate={navigate}
+                />
+                {filteredRating.length > TOP_ROWS && (
+                  <button onClick={() => navigate("rating")}
+                    className="flex items-center justify-center gap-1.5 w-full h-12 border-t border-line text-sm font-medium text-stone-300 hover:text-accent-300 hover:bg-elev-2 cursor-pointer">
+                    Весь рейтинг · {filteredRating.length} {pluralize(filteredRating.length, "игрок", "игрока", "игроков")}
+                    <ArrowRight size={15} />
+                  </button>
+                )}
+              </>
             )}
-          </div>
+          </section>
 
-          {/* Nomination hero cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <PlayerHeroCard title="Лидер сезона" player={seasonLeader} navigate={navigate} />
-            <PlayerHeroCard title="MVP" player={mvpPlayer} navigate={navigate} />
-            {NOMINATION_CONFIG.map(({ role, label }) => (
-              <PlayerHeroCard key={role} title={label} player={nominationLeaders[role]} navigate={navigate} />
-            ))}
-          </div>
-        </div>
+          <section aria-labelledby="nom-title">
+            <h3 id="nom-title" className="font-display text-base font-bold text-stone-50 mb-3">Номинации</h3>
+            <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
+              <NominationCard label="MVP" icon={Sparkles} className="col-span-2 xl:col-span-1"
+                tone="text-accent-300 bg-accent-400/10 ring-accent-400/30" player={mvpPlayer} navigate={navigate} />
+              {NOMINATION_CONFIG.map(({ role, label, icon }) => (
+                <NominationCard key={role} label={label} icon={icon} tone={ROLE_TONE[role]}
+                  player={nominationLeaders[role]} navigate={navigate} />
+              ))}
+            </div>
+          </section>
+        </>
       )}
     </div>
   );

@@ -1,19 +1,20 @@
 import { useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 // Сворачиваемая секция профиля
 export function Section({ title, defaultOpen = true, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="mb-6">
+    <section className="pt-2">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 text-lg font-semibold text-slate-200 mb-3 hover:text-indigo-400 transition-colors w-full text-left"
+        aria-expanded={open}
+        className="group flex items-center justify-between gap-2 w-full h-11 mb-2 text-left cursor-pointer"
       >
-        <ChevronRight size={18} className={`transition-transform ${open ? "rotate-90" : ""}`} />
-        {title}
+        <h3 className="font-display text-base font-bold text-stone-50 group-hover:text-accent-200 transition-colors">{title}</h3>
+        <ChevronDown size={18} className={`text-stone-500 transition-transform ${open ? "" : "-rotate-90"}`} />
       </button>
       {open && <div className="animate-page-enter">{children}</div>}
-    </div>
+    </section>
   );
 }

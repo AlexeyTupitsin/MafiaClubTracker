@@ -1,27 +1,46 @@
 @import "tailwindcss";
 
 /* === Цвета ===
-   Все цвета интерфейса — через переменные. Классы Tailwind (text-slate-400,
-   bg-indigo-500/5…) компилируются в var(--color-slate-400) и т. п., поэтому
-   светлой теме достаточно переопределить переменные под [data-theme="light"]:
-   поверхности, текст и нейтральную шкалу slate — разметку трогать не придётся.
-   Hex в классах (bg-[#…]) и стилях не использовать: только эти токены или
-   палитру Tailwind. Исключение — картинки для шаринга (Canvas не понимает
-   CSS-переменные): ROLE_COLORS и цвета в src/lib/shareImage. */
+   Тема «Красное и чёрное»: тёплый чёрный фон, сплошные слои поверхностей,
+   латунный акцент. Красный и чёрный не используются как акцент интерфейса —
+   они означают команды. Латунь = действие, активное состояние, достижение.
+
+   Все цвета — через токены ниже и палитру Tailwind (нейтральная шкала — stone).
+   Светлой теме достаточно переопределить переменные под [data-theme="light"].
+   Hex в классах (bg-[#…]) и стилях не использовать. Исключение — картинки для
+   шаринга (Canvas не понимает CSS-переменные): ROLE_COLORS и src/lib/shareImage. */
 @theme {
-  --color-surface: #0a0908;         /* фон страницы — bg-surface */
-  --color-surface-raised: #120f0a;  /* модалки, выпадающие списки, тосты — bg-surface-raised */
+  --color-surface: #0a0908;         /* фон страницы */
+  --color-surface-raised: #1a1713;  /* модалки, выпадающие списки, тосты */
+  --color-elev-1: #131110;          /* карточки — bg-elev-1 (через .card) */
+  --color-elev-2: #1b1916;          /* поля ввода, шапки таблиц, наведение */
+  --color-elev-3: #25221e;          /* активные сегменты, вложенные плашки */
+  --color-line: rgb(255 244 228 / 0.07);         /* обычные рамки и разделители */
+  --color-line-strong: rgb(255 244 228 / 0.13);  /* рамки полей, кнопок */
+  /* «Это я»: строка зрителя в таблицах. Непрозрачный — лежит под закреплёнными ячейками */
+  --color-me: color-mix(in oklab, var(--color-accent-400) 10%, var(--color-elev-1));
+
+  /* Латунь */
+  --color-accent-50: #fbf7ec;
+  --color-accent-100: #f5ecd0;
+  --color-accent-200: #ecd9a3;
+  --color-accent-300: #e3c47a;
+  --color-accent-400: #d6ad55;
+  --color-accent-500: #c0923a;
+  --color-accent-600: #9f752c;
+  --color-accent-700: #7b5a24;
+  --color-accent-800: #5a421d;
+  --color-accent-900: #3b2c15;
+  --color-accent-950: #1f170b;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Unbounded', 'Inter', system-ui, sans-serif;
 }
 
 :root {
-  --color-text-primary: #faf8f5;
-  --color-accent-primary: var(--color-indigo-500);
-
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-
-  --glow-sm: 0 0 15px color-mix(in oklab, var(--color-indigo-500) 10%, transparent);
-  --glow-md: 0 0 25px color-mix(in oklab, var(--color-indigo-500) 16%, transparent);
+  --color-text-primary: var(--color-stone-100);
+  --color-accent-primary: var(--color-accent-400);
+  color-scheme: dark;
 }
 
 /* === Global Styles === */
@@ -31,130 +50,276 @@ body {
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* === Selection === */
 ::selection {
-  background-color: color-mix(in oklab, var(--color-indigo-500) 25%, transparent);
-  color: var(--color-text-primary);
+  background-color: color-mix(in oklab, var(--color-accent-400) 30%, transparent);
+  color: var(--color-stone-50);
 }
 
 /* === Scrollbar === */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--color-indigo-500) 18%, transparent); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: color-mix(in oklab, var(--color-indigo-500) 30%, transparent); }
-* { scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--color-indigo-500) 18%, transparent) transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-line-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-stone-700); }
+* { scrollbar-width: thin; scrollbar-color: var(--color-line-strong) transparent; }
 
 /* === Animations === */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* Переход между страницами: вперёд — подъём снизу, «назад» — только проявление */
+@keyframes pageForward {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pageBack {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 @keyframes zoomIn {
-  from { opacity: 0; transform: scale(0.95); }
+  from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
 }
 @keyframes slideInBottom {
   from { opacity: 0; transform: translateY(100%); }
   to { opacity: 1; transform: translateY(0); }
 }
-@keyframes staggerIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+
+.animate-page-enter { animation: fadeIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+main > .animate-page-enter { animation: pageForward 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.animate-page-back { animation: pageBack 0.18s ease-out; }
+.animate-modal-enter { animation: zoomIn 0.18s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.animate-slide-up { animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.animate-toast-enter { animation: slideInBottom 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* Компонентные классы — в слое components, чтобы утилиты (rounded-*, p-*, bg-*) их перебивали */
+@layer components {
+/* === Карточка ===
+   Сплошная поверхность с тонкой рамкой. Кликабельная (.card-link) при наведении
+   поднимается на 2px и подсвечивает рамку латунью. */
+.card {
+  background: var(--color-elev-1);
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
 }
-@keyframes shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
+.card-link {
+  cursor: pointer;
+  transition: transform 0.18s ease-out, border-color 0.18s ease-out, background-color 0.18s ease-out;
+}
+.card-link:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--color-accent-400) 35%, transparent);
+  background: color-mix(in oklab, var(--color-elev-1) 85%, var(--color-elev-2));
+}
+.card-link:active { transform: translateY(0); }
+
+/* === Заголовки === */
+.page-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--color-stone-50);
+}
+@media (min-width: 768px) {
+  .page-title { font-size: 1.875rem; }
+}
+.eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-stone-400);
 }
 
-.animate-page-enter { animation: fadeIn 0.3s ease-out; }
-.animate-modal-enter { animation: zoomIn 0.2s ease-out; }
-.animate-slide-up { animation: slideUp 0.3s ease-out; }
-.animate-toast-enter { animation: slideInBottom 0.3s ease-out; }
-
-/* Stagger children animation */
-.stagger-children > * { animation: staggerIn 0.35s ease-out both; }
-.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
-.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
-
-/* === Glass card base === */
-.glass-card {
-  background: color-mix(in oklab, var(--color-indigo-500) 3%, transparent);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid color-mix(in oklab, var(--color-indigo-500) 10%, transparent);
-  border-radius: 16px;
-  transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out, background-color 0.2s ease-out;
+/* === Кнопки === */
+.btn-primary {
+  background: var(--color-accent-400);
+  color: var(--color-accent-950);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: background-color 0.15s ease-out, transform 0.1s ease-out;
 }
-.glass-card:hover {
-  border-color: color-mix(in oklab, var(--color-indigo-500) 22%, transparent);
-  box-shadow: var(--glow-sm);
-}
-.glass-card-interactive { cursor: pointer; }
-.glass-card-interactive:hover {
-  background: color-mix(in oklab, var(--color-indigo-500) 6%, transparent);
-  border-color: color-mix(in oklab, var(--color-indigo-500) 28%, transparent);
-  box-shadow: var(--glow-md);
-}
+.btn-primary:hover { background: var(--color-accent-300); }
+.btn-primary:active { transform: scale(0.98); }
 
-/* === Gradient text === */
-.gradient-text {
-  background: linear-gradient(135deg, var(--color-indigo-400), var(--color-indigo-500));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.gradient-text-shimmer {
-  background: linear-gradient(90deg, var(--color-indigo-400), var(--color-indigo-500), var(--color-indigo-400));
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: shimmer 3s linear infinite;
-}
-
-/* === Gradient button === */
-.btn-gradient {
-  background: linear-gradient(135deg, var(--color-indigo-500), var(--color-indigo-600));
-  color: white;
-  border: none;
-  border-radius: 12px;
+.btn-secondary {
+  background: var(--color-elev-2);
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-stone-200);
+  border-radius: 10px;
   font-weight: 500;
-  transition: box-shadow 0.2s ease-out, transform 0.2s ease-out;
+  transition: background-color 0.15s ease-out, border-color 0.15s ease-out, transform 0.1s ease-out;
 }
-.btn-gradient:hover {
-  box-shadow: 0 0 20px color-mix(in oklab, var(--color-indigo-500) 30%, transparent);
-  transform: translateY(-1px);
-}
-.btn-gradient:active { transform: translateY(0); }
+.btn-secondary:hover { background: var(--color-elev-3); border-color: var(--color-stone-600); }
+.btn-secondary:active { transform: scale(0.98); }
 
-/* === Ghost button === */
+.btn-danger {
+  background: var(--color-red-600);
+  color: var(--color-stone-50);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: background-color 0.15s ease-out, transform 0.1s ease-out;
+}
+.btn-danger:hover { background: var(--color-red-500); }
+.btn-danger:active { transform: scale(0.98); }
+
+/* Тихая кнопка: действие второго плана внутри карточки (очистить, из прошлой игры) */
 .btn-ghost {
-  background: transparent;
-  border: 1px solid color-mix(in oklab, var(--color-indigo-500) 20%, transparent);
-  color: var(--color-indigo-400);
-  border-radius: 12px;
-  transition: background-color 0.2s ease-out, border-color 0.2s ease-out;
+  color: var(--color-stone-300);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: background-color 0.15s ease-out, color 0.15s ease-out;
 }
-.btn-ghost:hover {
-  background: color-mix(in oklab, var(--color-indigo-500) 10%, transparent);
-  border-color: color-mix(in oklab, var(--color-indigo-500) 40%, transparent);
+.btn-ghost:hover { background: var(--color-elev-2); color: var(--color-stone-100); }
+
+/* Опасное действие второго плана (удалить на странице): красный текст без заливки */
+.btn-danger-soft {
+  color: var(--color-red-300);
+  border: 1px solid color-mix(in oklab, var(--color-red-500) 30%, transparent);
+  border-radius: 10px;
+  font-weight: 500;
+  transition: background-color 0.15s ease-out, transform 0.1s ease-out;
+}
+.btn-danger-soft:hover { background: color-mix(in oklab, var(--color-red-500) 10%, transparent); }
+.btn-danger-soft:active { transform: scale(0.98); }
+
+/* Размеры кнопок: 44px на телефоне (палец), 40px с мыши */
+.btn-md {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  min-height: 44px; padding: 0 1rem; font-size: 0.875rem;
+}
+.btn-sm {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem;
+  min-height: 36px; padding: 0 0.75rem; font-size: 0.8125rem;
+}
+/* Квадратная кнопка-иконка: обязательно с aria-label */
+.btn-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; flex-shrink: 0;
+}
+@media (min-width: 640px) { .btn-md { min-height: 40px; } .btn-icon { width: 40px; height: 40px; } }
+button:disabled:is(.btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .btn-danger-soft) {
+  opacity: 0.45; cursor: not-allowed; transform: none;
+}
+button[aria-busy="true"]:disabled { opacity: 0.8; cursor: wait; }
+
+/* === Поля форм ===
+   Подпись всегда над полем, плейсхолдер — только пример значения.
+   16px на телефоне: iOS не увеличивает страницу при фокусе. */
+.field-label {
+  display: block;
+  margin-bottom: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-stone-300);
+}
+.field-hint { margin-top: 0.375rem; font-size: 0.8125rem; color: var(--color-stone-500); }
+.field-error { margin-top: 0.375rem; font-size: 0.8125rem; color: var(--color-red-400); }
+
+.input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  color: var(--color-stone-100);
+  background: var(--color-elev-2);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 10px;
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out, background-color 0.15s ease-out;
+}
+@media (min-width: 640px) { .input { min-height: 40px; font-size: 0.875rem; } }
+.input::placeholder { color: var(--color-stone-500); }
+.input:hover:not(:disabled):not(:focus) { border-color: var(--color-stone-600); }
+.input:focus, .input:focus-within {
+  border-color: color-mix(in oklab, var(--color-accent-400) 70%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent-400) 18%, transparent);
+}
+.input[aria-invalid="true"], .input:has([aria-invalid="true"]) {
+  border-color: color-mix(in oklab, var(--color-red-500) 75%, transparent);
+}
+.input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-red-500) 20%, transparent);
+}
+.input:disabled { opacity: 0.5; cursor: not-allowed; }
+textarea.input { min-height: 0; line-height: 1.5; resize: vertical; }
+select.input { appearance: none; padding-right: 2.25rem; cursor: pointer; }
+input[type="date"].input { color-scheme: dark; }
+
+/* Плотное поле внутри таблиц и строк (доп. балл, комментарий к месту) */
+.input-sm { min-height: 36px; padding: 0.25rem 0.5rem; font-size: 0.875rem; border-radius: 8px; }
+@media (min-width: 640px) { .input-sm { min-height: 32px; } }
+
+/* === Сегменты: выбор одного из 2–5 вариантов === */
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--color-elev-2);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+}
+.segmented > button {
+  flex: 1 1 0;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem;
+  min-height: 38px;
+  padding: 0 0.625rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-stone-400);
+  border-radius: 9px;
+  white-space: nowrap;
+}
+.segmented > button:hover:not([aria-checked="true"]) {
+  color: var(--color-stone-200);
+  background: color-mix(in oklab, var(--color-elev-3) 60%, transparent);
+}
+.segmented > button[aria-checked="true"] {
+  color: var(--color-stone-50);
+  background: var(--color-elev-3);
+  box-shadow: inset 0 0 0 1px var(--color-line-strong);
 }
 
-/* === Mono digits for data tables === */
+.segmented[aria-invalid="true"] { border-color: color-mix(in oklab, var(--color-red-500) 60%, transparent); }
+
+/* === Переключатель (role="switch") === */
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px; height: 24px;
+  border-radius: 999px;
+  background: var(--color-elev-3);
+  border: 1px solid var(--color-line-strong);
+  transition: background-color 0.15s ease-out, border-color 0.15s ease-out;
+}
+.switch::after {
+  content: "";
+  position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  border-radius: 999px;
+  background: var(--color-stone-400);
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.15s ease-out;
+}
+.switch[aria-checked="true"] { background: var(--color-accent-400); border-color: transparent; }
+.switch[aria-checked="true"]::after { transform: translateX(16px); background: var(--color-accent-950); }
+
+}
+
+/* === Цифры: Inter с табличными цифрами (колонки ровные, таблица узкая) === */
 .font-data {
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "cv11" 1;
 }
 
 /* === Dark form controls === */
@@ -163,17 +328,16 @@ select option {
   color: var(--color-text-primary);
 }
 
-/* === Focus visible outlines === */
+/* === Focus === */
 :focus-visible { outline: 2px solid var(--color-accent-primary); outline-offset: 2px; }
 input:focus, select:focus, textarea:focus { outline: none; }
 
-/* === Disabled button styles === */
 button:disabled { cursor: not-allowed; opacity: 0.5; }
 
 /* === Global transitions === */
 button, a, [role="tab"] {
   transition-property: color, background-color, border-color, box-shadow, transform;
-  transition-duration: 200ms;
+  transition-duration: 150ms;
   transition-timing-function: ease-out;
 }
 
@@ -184,4 +348,5 @@ button, a, [role="tab"] {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  .card-link:hover { transform: none; }
 }

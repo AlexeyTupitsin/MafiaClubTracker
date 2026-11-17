@@ -4,7 +4,7 @@ import { eloExplanationLines, formatElo } from "../lib/elo";
 // Значение ELO после игры + изменение. При наведении — расшифровка расчёта.
 export function EloCell({ game, gp, align = "right" }) {
   if (gp?.eloAfter == null) {
-    return <span className="text-slate-600">—</span>;
+    return <span className="text-stone-500">—</span>;
   }
 
   const delta = gp.eloDelta ?? 0;
@@ -13,12 +13,12 @@ export function EloCell({ game, gp, align = "right" }) {
 
   const value = (
     <span className="inline-flex items-baseline gap-1.5">
-      <span className="font-semibold text-slate-200">{formatElo(gp.eloAfter)}</span>
+      <span className="font-medium text-stone-200">{formatElo(gp.eloAfter)}</span>
       <span
         className={
-          rounded > 0 ? "text-xs text-emerald-400"
-          : rounded < 0 ? "text-xs text-red-400"
-          : "text-xs text-slate-500"
+          rounded > 0 ? "inline-block w-8 text-left text-xs text-emerald-400"
+          : rounded < 0 ? "inline-block w-8 text-left text-xs text-red-400"
+          : "inline-block w-8 text-left text-xs text-stone-500"
         }
       >
         {rounded > 0 ? "+" : ""}{rounded}

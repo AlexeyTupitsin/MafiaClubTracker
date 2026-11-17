@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   ROLE_SET, emptySeats, parseBonus, acceptBonusInput, isBonusInvalid, toggleBonusSign,
-  seatOutcome, formatTotal, buildGamePlayers, countRoles, rolesAreValid, fillRandomRoles,
-  nextGameNumber,
+  seatOutcome, formatTotal, buildGamePlayers, countRoles, rolesAreValid, fillRandomRoles, missingRoles,
+  nextGameNumber, swapSeats,
 } from './gameFormLogic';
 
 describe('доп. балл', () => {
@@ -116,5 +116,50 @@ describe('nextGameNumber', () => {
   it('максимальный номер + 1, для пустого сезона — 1', () => {
     expect(nextGameNumber([{ gameNumber: 3 }, { gameNumber: 7 }, { gameNumber: 5 }])).toBe(8);
     expect(nextGameNumber([])).toBe(1);
+  });
+});
+
+describe('swapSeats', () => {
+  const state = {
+    seats: emptySeats().map((s, i) => ({ ...s, playerId: i < 9 ? `p${i + 1}` : '' })),
+    roles: ['citizen', 'sheriff', 'mafia', 'don', '', '', '', '', '', ''],
+    bonusScores: ['0', '0.5', '-1', '0', '0', '0', '0', '0', '0', '0'],
+    bonusComments: ['', 'шериф', '', '', '', '', '', '', '', ''],
+  };
+
+  it('меняет игроков местами, номера мест остаются на месте', () => {
+    const next = swapSeats(state, 1, 2);
+    expect(next.seats.map((s) => s.seat)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(next.seats[1].playerId).toBe('p3');
+    expect(next.seats[2].playerId).toBe('p2');
+  });
+
+  it('роль, доп. балл и комментарий переезжают вместе с игроком', () => {
+    const next = swapSeats(state, 1, 2);
+    expect(next.roles.slice(0, 3)).toEqual(['citizen', 'mafia', 'sheriff']);
+    expect(next.bonusScores.slice(0, 3)).toEqual(['0', '-1', '0.5']);
+    expect(next.bonusComments[2]).toBe('шериф');
+  });
+
+  it('перенос на пустое место освобождает исходное', () => {
+    const next = swapSeats(state, 0, 9);
+    expect(next.seats[9].playerId).toBe('p1');
+    expect(next.seats[0].playerId).toBe('');
+  });
+
+  it('не меняет исходные массивы', () => {
+    swapSeats(state, 0, 1);
+    expect(state.seats[0].playerId).toBe('p1');
+    expect(state.roles[0]).toBe('citizen');
+  });
+});
+
+describe('missingRoles', () => {
+  it('считает нерозданные роли и не уходит в минус', () => {
+    const roles = ['sheriff', 'don', 'mafia', 'mafia', 'mafia', 'citizen', '', '', '', ''];
+    expect(missingRoles(roles)).toEqual({ citizen: 5, sheriff: 0, mafia: 0, don: 0 });
+  });
+  it('для пустой рассадки — полный набор', () => {
+    expect(missingRoles(Array(10).fill(''))).toEqual({ citizen: 6, sheriff: 1, mafia: 2, don: 1 });
   });
 });

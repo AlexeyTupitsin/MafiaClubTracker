@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, ArrowRightLeft, TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { EmptyState, PlayerSelect } from "../components/ui";
+import { ArrowRightLeft, TrendingUp, TrendingDown, Minus, Check, X } from "lucide-react";
+import { BackButton, Button, EmptyState, PlayerSelect, Select } from "../components/ui";
 import { calcPlayerStats, calcRoleStats, calcPairStats, calcFormTrend, calcKillRate } from "../lib/metrics";
 import { ROLE_NAMES } from "../lib/constants";
 import { RoleWinrateChart } from "../components/RoleWinrateChart";
@@ -64,14 +64,14 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
     const diff = valA - valB;
     if (Math.abs(diff) < 0.01) return ["", ""];
     const aWins = higherIsBetter ? diff > 0 : diff < 0;
-    return [aWins ? "text-indigo-400 font-semibold" : "", !aWins ? "text-indigo-400 font-semibold" : ""];
+    return [aWins ? "text-accent-400 font-semibold" : "", !aWins ? "text-accent-400 font-semibold" : ""];
   };
 
   const TrendBadge = ({ trend }) => {
-    if (!trend) return <span className="text-slate-500 text-xs">—</span>;
-    if (trend.trend === "up") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-medium"><TrendingUp size={12} />На подъёме</span>;
+    if (!trend) return <span className="text-stone-500 text-xs">—</span>;
+    if (trend.trend === "up") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium"><TrendingUp size={12} />На подъёме</span>;
     if (trend.trend === "down") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 text-xs font-medium"><TrendingDown size={12} />В спаде</span>;
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 text-xs font-medium"><Minus size={12} />Стабильно</span>;
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-stone-500/15 text-stone-300 text-xs font-medium"><Minus size={12} />Стабильно</span>;
   };
 
   const statRows = useMemo(() => statsA && statsB ? [
@@ -114,15 +114,16 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <button aria-label="Назад" onClick={() => goBack()} className="p-1.5 hover:bg-indigo-500/5 rounded transition-colors">
-          <ArrowLeft size={20} />
-        </button>
-        <h2 className="text-xl font-bold gradient-text">Сравнение игроков</h2>
-      </div>
+      <header className="flex items-start gap-3">
+        <BackButton onClick={() => goBack()} className="mt-0.5" />
+        <div className="min-w-0">
+          <p className="eyebrow">Лицом к лицу</p>
+          <h2 className="page-title mt-1.5">Сравнение игроков</h2>
+        </div>
+      </header>
 
       {/* Player selectors */}
-      <div className="glass-card rounded-2xl p-4">
+      <div className="card p-4">
         <div className="flex items-center gap-3">
           <PlayerSelect
             value={playerAId}
@@ -130,10 +131,8 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
             players={players.filter((p) => p.id !== playerBId)}
             placeholder="Игрок A..."
           />
-          <button aria-label="Поменять игроков местами" onClick={handleSwap} disabled={!bothSelected}
-            className="p-2 btn-ghost cursor-pointer disabled:opacity-30 transition-colors">
-            <ArrowRightLeft size={16} />
-          </button>
+          <Button variant="ghost" size="icon" icon={ArrowRightLeft} aria-label="Поменять игроков местами"
+            title="Поменять местами" onClick={handleSwap} disabled={!bothSelected} />
           <PlayerSelect
             value={playerBId}
             onChange={setPlayerBId}
@@ -142,13 +141,12 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
           />
         </div>
         <div className="mt-3">
-          <select value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500/5 border-indigo-500/15 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50">
+          <Select value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)} aria-label="Период" wrapperClassName="w-full sm:w-fit" className="sm:!w-auto sm:min-w-[9rem]">
             <option value="all">Все сезоны</option>
             {seasons.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -157,15 +155,15 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
       ) : (
         <>
           {/* Stats comparison */}
-          <div className="glass-card rounded-2xl p-4">
-            <h3 className="font-semibold mb-3">Общая статистика</h3>
+          <div className="card p-4">
+            <h4 className="text-sm font-semibold text-stone-200 mb-3">Общая статистика</h4>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-indigo-500/10">
-                    <th className="text-left py-2 font-medium text-slate-400">Метрика</th>
-                    <th className="text-center py-2 font-medium text-indigo-400">{playerA?.nickname}</th>
-                    <th className="text-center py-2 font-medium text-indigo-400">{playerB?.nickname}</th>
+                  <tr className="border-b border-line">
+                    <th className="text-left py-2 font-medium text-stone-400">Метрика</th>
+                    <th className="text-center py-2 font-medium text-accent-400">{playerA?.nickname}</th>
+                    <th className="text-center py-2 font-medium text-accent-400">{playerB?.nickname}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -173,8 +171,8 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
                     const [clsA, clsB] = row.better ? renderBetter(row.a, row.b) : ["", ""];
                     const fmt = row.fmt || ((v) => (typeof v === "number" && v % 1 !== 0 ? v.toFixed(1) : v));
                     return (
-                      <tr key={row.label} className="border-b border-indigo-500/10 last:border-b-0">
-                        <td className="py-2 text-slate-400">{row.label}</td>
+                      <tr key={row.label} className="border-b border-line last:border-b-0">
+                        <td className="py-2 text-stone-400">{row.label}</td>
                         <td className={`py-2 text-center ${clsA}`}>{fmt(row.a)}</td>
                         <td className={`py-2 text-center ${clsB}`}>{fmt(row.b)}</td>
                       </tr>
@@ -183,16 +181,16 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
                 </tbody>
               </table>
             </div>
-            <div className="text-center text-sm text-slate-400 mt-3 py-2">
-              <span className="text-indigo-400 font-medium">{playerA?.nickname}</span> лидирует в {winsA} из {totalMetrics},{" "}
-              <span className="text-indigo-400 font-medium">{playerB?.nickname}</span> — в {winsB}
+            <div className="text-center text-sm text-stone-400 mt-3 py-2">
+              <span className="text-accent-400 font-medium">{playerA?.nickname}</span> лидирует в {winsA} из {totalMetrics},{" "}
+              <span className="text-accent-400 font-medium">{playerB?.nickname}</span> — в {winsB}
             </div>
           </div>
 
           {/* Role chart */}
           {roleChartData.length > 0 && (
-            <div className="glass-card rounded-2xl p-4">
-              <h3 className="font-semibold mb-3">Winrate по ролям</h3>
+            <div className="card p-4">
+              <h4 className="text-sm font-semibold text-stone-200 mb-3">Winrate по ролям</h4>
               <RoleWinrateChart
                 height={200}
                 groups={roleChartData}
@@ -205,33 +203,33 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
           )}
 
           {/* Head-to-head */}
-          <div className="glass-card rounded-2xl p-4">
-            <h3 className="font-semibold mb-3">
+          <div className="card p-4">
+            <h4 className="text-sm font-semibold text-stone-200 mb-3">
               Head-to-head {pairStats && pairStats.totalGames > 0 && `(${pairStats.totalGames} совместных игр)`}
-            </h3>
+            </h4>
             {pairStats && pairStats.totalGames > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-indigo-500/10">
-                      <th className="text-left py-2 font-medium text-slate-400">Комбинация</th>
-                      <th className="text-center py-2 font-medium text-slate-400">Игр / Побед (WR%)</th>
+                    <tr className="border-b border-line">
+                      <th className="text-left py-2 font-medium text-stone-400">Комбинация</th>
+                      <th className="text-center py-2 font-medium text-stone-400">Игр / Побед (WR%)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b border-indigo-500/10">
+                    <tr className="border-b border-line">
                       <td className="py-2">Оба 🔴</td>
                       <td className="py-2 text-center">{fmtPairCell(pairStats.bothRed.games, pairStats.bothRed.wins, pairStats.bothRed.winrate)}</td>
                     </tr>
-                    <tr className="border-b border-indigo-500/10">
+                    <tr className="border-b border-line">
                       <td className="py-2">Оба ⚫</td>
                       <td className="py-2 text-center">{fmtPairCell(pairStats.bothBlack.games, pairStats.bothBlack.wins, pairStats.bothBlack.winrate)}</td>
                     </tr>
-                    <tr className="border-b border-indigo-500/10">
+                    <tr className="border-b border-line">
                       <td className="py-2">{playerA?.nickname} 🔴 {playerB?.nickname} ⚫</td>
                       <td className="py-2 text-center">{fmtPairCell(pairStats.aRedBBlack.games, pairStats.aRedBBlack.winsA, pairStats.aRedBBlack.winrateA)}</td>
                     </tr>
-                    <tr className="border-b border-indigo-500/10 last:border-b-0">
+                    <tr className="border-b border-line last:border-b-0">
                       <td className="py-2">{playerA?.nickname} ⚫ {playerB?.nickname} 🔴</td>
                       <td className="py-2 text-center">{fmtPairCell(pairStats.aBlackBRed.games, pairStats.aBlackBRed.winsA, pairStats.aBlackBRed.winrateA)}</td>
                     </tr>
@@ -239,13 +237,13 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
                 </table>
               </div>
             ) : (
-              <p className="text-slate-500 text-sm py-4 text-center">Эти игроки ещё не встречались за одним столом</p>
+              <p className="text-stone-500 text-sm py-4 text-center">Эти игроки ещё не встречались за одним столом</p>
             )}
           </div>
 
           {/* Form trend */}
-          <div className="glass-card rounded-2xl p-4">
-            <h3 className="font-semibold mb-3">Тренд формы</h3>
+          <div className="card p-4">
+            <h4 className="text-sm font-semibold text-stone-200 mb-3">Тренд формы</h4>
             <div className="grid grid-cols-2 gap-4">
               {[{ p: playerA, f: formA }, { p: playerB, f: formB }].map(({ p, f }) => (
                 <div key={p?.id || "x"}>
@@ -257,17 +255,17 @@ export function PlayerCompare({ players, allGames, games, seasons, currentSeason
                           <span key={i} className={`w-6 h-6 flex items-center justify-center rounded text-xs ${
                             r === "win" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
                           }`}>
-                            {r === "win" ? "✅" : "❌"}
+                            {r === "win" ? <Check size={15} strokeWidth={3} aria-label="Победа" /> : <X size={15} strokeWidth={3} aria-label="Поражение" />}
                           </span>
                         ))}
                       </div>
-                      <div className="text-xs text-slate-400 mb-1">
+                      <div className="text-xs text-stone-400 mb-1">
                         WR: {f.recentWinrate.toFixed(0)}% vs {f.overallWinrate.toFixed(0)}%
                       </div>
                       <TrendBadge trend={f} />
                     </>
                   ) : (
-                    <p className="text-xs text-slate-500">Нет данных</p>
+                    <p className="text-xs text-stone-500">Нет данных</p>
                   )}
                 </div>
               ))}

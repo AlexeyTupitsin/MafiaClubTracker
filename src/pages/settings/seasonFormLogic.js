@@ -43,3 +43,15 @@ export function withThresholdType(form, thresholdType) {
 export function withTrackFirstKill(form, trackFirstKill) {
   return { ...form, trackFirstKill, trackBestMove: trackFirstKill && form.trackBestMove };
 }
+
+// Ошибки по полям для показа под ними; пустой объект — форма в порядке
+export function validateSeasonForm(form) {
+  const errors = {};
+  if (!form.name.trim()) errors.name = "Назовите сезон — например, «Сезон 3, осень»";
+  if (!isThresholdValid(form.thresholdType, form.thresholdValue)) {
+    errors.thresholdValue = form.thresholdType === "percent"
+      ? "Введите процент от 1 до 100"
+      : "Введите целое число игр, не меньше 1";
+  }
+  return errors;
+}

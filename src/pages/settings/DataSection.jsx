@@ -1,39 +1,51 @@
 import { useState } from "react";
-import { CheckCircle, Download, Loader, RefreshCw, Upload, X } from "lucide-react";
-import { ConfirmDialog } from "../../components/ui";
+import { Check, Copy, Download, RefreshCw, Upload, X } from "lucide-react";
+import { Button, ConfirmDialog, FormStatus } from "../../components/ui";
 import { exportAllData, importData, recalcElo } from "../../lib/queries";
 import { validateImportData, formatImportErrors } from "../../lib/importValidation";
-
-const actionButton = "flex items-center gap-2 bg-slate-800/30 hover:bg-indigo-500/5 text-slate-300 px-4 py-2 rounded-lg text-sm";
-const linkButton = "flex items-center gap-1 text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer font-medium";
+import { localIsoDate } from "../../lib/utils";
 
 function downloadJson(text, name = "mafia-club-export") {
   const blob = new Blob([text], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${name}-${new Date().toISOString().split("T")[0]}.json`;
+  a.download = `${name}-${localIsoDate()}.json`;
   a.click();
   // Сразу после click() некоторые браузеры ещё не начали скачивание
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Данные: экспорт, импорт, пересчёт ELO.
-// onError — текст для общей плашки ошибки страницы («» — скрыть).
-export function DataSection({ showToast, onError, refreshData, refreshAllGames, refreshPlayers }) {
+// Строка раздела: что делает действие, кнопка, и результат именно этого действия под ним
+function ActionRow({ title, description, action, status }) {
+  return (
+    <li className="py-4 first:pt-0 last:pb-0">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-stone-100">{title}</p>
+          <p className="text-[13px] text-stone-500 mt-0.5 max-w-prose">{description}</p>
+        </div>
+        <div className="shrink-0 [&>*]:w-full sm:[&>*]:w-auto">{action}</div>
+      </div>
+      {status && <FormStatus tone={status.tone} className="mt-2">{status.text}</FormStatus>}
+    </li>
+  );
+}
+
+// Данные: резервная копия, загрузка из файла, пересчёт ELO.
+// Результат и ошибка каждого действия показываются в его строке.
+export function DataSection({ showToast, refreshData, refreshAllGames, refreshPlayers }) {
   const [exportText, setExportText] = useState(null);
   const [copied, setCopied] = useState(false);
   const [pendingImport, setPendingImport] = useState(null);
-  const [recalculating, setRecalculating] = useState(false);
+  const [busy, setBusy] = useState(null); // "export" | "elo"
+  const [status, setStatus] = useState({}); // { export|import|elo: { tone, text } }
 
-  const fail = (title, err) => {
-    onError(err.message || title);
-    showToast(`${title}: ${err.message || "неизвестная ошибка"}`, "error");
-  };
+  const report = (key, tone, text) => setStatus((s) => ({ ...s, [key]: text ? { tone, text } : null }));
 
   const handleRecalcElo = async () => {
-    setRecalculating(true);
-    onError("");
+    setBusy("elo");
+    report("elo");
     try {
       const { gamesProcessed, rowsUpdated, playersUpdated } = await recalcElo();
       await Promise.all([refreshAllGames(), refreshPlayers()]);
@@ -42,58 +54,56 @@ export function DataSection({ showToast, onError, refreshData, refreshAllGames, 
         ? `ELO пересчитан: игр ${gamesProcessed}, обновлено записей ${updated}`
         : `ELO актуален — игр проверено: ${gamesProcessed}`);
     } catch (err) {
-      fail("Ошибка пересчёта ELO", err);
+      report("elo", "error", `Не удалось пересчитать ELO: ${err.message || "неизвестная ошибка"}. Попробуйте ещё раз.`);
     } finally {
-      setRecalculating(false);
+      setBusy(null);
     }
   };
 
   const handleExport = async () => {
+    setBusy("export");
+    report("export");
     try {
-      const data = await exportAllData();
-      setExportText(JSON.stringify(data, null, 2));
+      const text = JSON.stringify(await exportAllData(), null, 2);
+      downloadJson(text);
+      setExportText(text);
     } catch (err) {
-      fail("Ошибка экспорта", err);
+      report("export", "error", `Не удалось собрать копию: ${err.message || "неизвестная ошибка"}`);
+    } finally {
+      setBusy(null);
     }
   };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(exportText).then(() => {
-      showToast("Скопировано в буфер обмена");
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }).catch(() => {
-      showToast("Не удалось скопировать — выделите текст вручную", "warning");
+      report("export", "warning", "Не удалось скопировать — выделите текст в поле вручную");
     });
   };
 
   const handleImportFile = (e) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
+    report("import");
     const reader = new FileReader();
     reader.onload = (ev) => {
-      let message;
       try {
         const data = JSON.parse(ev.target.result);
         const errors = validateImportData(data);
-        if (errors.length === 0) {
-          setPendingImport(data);
-          return;
-        }
-        message = `Файл не прошёл проверку: ${formatImportErrors(errors)}`;
+        if (errors.length === 0) setPendingImport(data);
+        else report("import", "error", `Файл «${file.name}» не прошёл проверку: ${formatImportErrors(errors)}`);
       } catch {
-        message = "Ошибка чтения файла: некорректный JSON";
+        report("import", "error", `Файл «${file.name}» не читается как JSON — нужен файл резервной копии отсюда же`);
       }
-      onError(message);
-      showToast(message, "error");
     };
     reader.readAsText(file);
-    e.target.value = "";
   };
 
-  // Окно подтверждения остаётся открытым, пока идёт импорт
+  // Окно подтверждения остаётся открытым (со спиннером), пока идёт импорт
   const handleImportConfirm = async () => {
-    onError("");
     try {
       // Импорт заменяет всё — сначала сохраняем текущие данные файлом.
       // Не удалось сохранить копию — не импортируем.
@@ -109,72 +119,90 @@ export function DataSection({ showToast, onError, refreshData, refreshAllGames, 
       setPendingImport(null);
       await refreshData();
       if (eloError) {
-        const message = `Данные импортированы, но ELO не пересчитан: ${eloError.message}. Нажмите «Пересчитать ELO».`;
-        onError(message);
-        showToast(message, "warning");
+        report("import", "warning", `Данные загружены, но ELO не пересчитан: ${eloError.message}. Нажмите «Пересчитать».`);
       } else {
-        showToast("Данные импортированы");
+        showToast("Данные загружены");
       }
     } catch (err) {
       console.error("Import error:", err);
       setPendingImport(null);
-      fail("Ошибка импорта", err);
+      report("import", "error", `Загрузка не удалась: ${err.message || "неизвестная ошибка"}`);
     }
   };
 
   return (
-    <div className="glass-card rounded-2xl p-4">
-      <h3 className="text-lg font-semibold mb-3">Данные</h3>
-      <div className="flex flex-wrap gap-3">
-        <button onClick={handleExport} className={actionButton}>
-          <Download size={16} /> Экспорт в JSON
-        </button>
-        <label className={`${actionButton} cursor-pointer`}>
-          <Upload size={16} /> Импорт из JSON
-          <input type="file" accept=".json" onChange={handleImportFile} className="hidden" />
-        </label>
-        <button onClick={handleRecalcElo} disabled={recalculating} className={`${actionButton} disabled:opacity-50`}>
-          {recalculating ? <Loader size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-          Пересчитать ELO
-        </button>
-      </div>
-      <p className="text-xs text-slate-500 mt-2">
-        ELO пересчитывается автоматически при добавлении и изменении игр.
-        Кнопка нужна для первичного расчёта по уже внесённым играм.
-      </p>
+    <section className="card p-4 sm:p-5" aria-labelledby="data-title">
+      <h3 id="data-title" className="text-lg font-semibold">Данные</h3>
+      <p className="text-[13px] text-stone-500 mt-0.5 mb-5">Всё, что хранится в базе клуба: сезоны, игроки, игры и турниры</p>
+
+      <ul className="divide-y divide-line">
+        <ActionRow
+          title="Резервная копия"
+          description="Скачивает все данные одним файлом JSON. Сделайте копию перед большими правками."
+          status={status.export}
+          action={
+            <Button variant="secondary" icon={Download} loading={busy === "export"} onClick={handleExport}>
+              Скачать копию
+            </Button>
+          }
+        />
+        <ActionRow
+          title="Загрузить из копии"
+          description="Заменяет все текущие данные содержимым файла. Перед загрузкой текущие данные скачаются отдельной копией."
+          status={status.import}
+          action={
+            <label className="btn-secondary btn-md cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent-400">
+              <Upload size={16} aria-hidden="true" /> Выбрать файл
+              <input type="file" accept=".json,application/json" onChange={handleImportFile} className="sr-only" />
+            </label>
+          }
+        />
+        <ActionRow
+          title="Пересчитать ELO"
+          description="ELO обновляется сам после каждой игры. Пересчёт нужен после загрузки из копии или если рейтинг выглядит неверно."
+          status={status.elo}
+          action={
+            <Button variant="secondary" icon={RefreshCw} loading={busy === "elo"} onClick={handleRecalcElo}>
+              Пересчитать
+            </Button>
+          }
+        />
+      </ul>
 
       {exportText && (
-        <div className="mt-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-sm text-slate-400">Скопируйте данные или скачайте файл:</span>
-            <div className="flex gap-2">
-              <button onClick={() => downloadJson(exportText)} className={linkButton}>
-                <Download size={14} /> Скачать
-              </button>
-              <button onClick={handleCopy} className={linkButton}>
-                <CheckCircle size={14} /> {copied ? "Скопировано ✓" : "Копировать"}
-              </button>
-              <button aria-label="Закрыть" onClick={() => setExportText(null)} className="text-sm text-slate-500 hover:text-slate-300">
-                <X size={14} />
-              </button>
+        <div className="mt-5 rounded-xl border border-line bg-elev-2/50 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <p className="text-[13px] text-stone-400">
+              Файл скачан. Если браузер его не сохранил — скопируйте текст.
+            </p>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="sm" icon={copied ? Check : Copy} onClick={handleCopy}>
+                {copied ? "Скопировано" : "Копировать"}
+              </Button>
+              <Button variant="ghost" size="sm" icon={X} aria-label="Скрыть текст копии" onClick={() => setExportText(null)} />
             </div>
           </div>
           <textarea
             readOnly
             value={exportText}
-            rows={8}
-            className="w-full border border-indigo-500/15 rounded-lg px-3 py-2 text-xs font-mono bg-indigo-500/5 text-slate-300 outline-none"
+            rows={6}
+            aria-label="Текст резервной копии"
+            className="input !text-xs font-mono text-stone-300"
             onClick={(e) => e.target.select()}
           />
         </div>
       )}
 
       {pendingImport && (
-        <ConfirmDialog title="Импортировать данные?"
-          message={`Импорт перезапишет ВСЕ текущие данные. В файле: ${pendingImport.seasons.length} сезонов, ${pendingImport.players.length} игроков, ${Object.values(pendingImport.games).flat().length} игр. Перед импортом текущие данные скачаются файлом-копией. Продолжить?`}
+        <ConfirmDialog
+          title="Заменить все данные?"
+          message={`В файле: ${pendingImport.seasons.length} сезонов, ${pendingImport.players.length} игроков, ${Object.values(pendingImport.games).flat().length} игр. Всё, что сейчас в базе, будет заменено. Текущие данные сначала скачаются копией.`}
           onConfirm={handleImportConfirm}
-          onCancel={() => setPendingImport(null)} confirmText="Импортировать" danger />
+          onCancel={() => setPendingImport(null)}
+          confirmText="Заменить данные"
+          danger
+        />
       )}
-    </div>
+    </section>
   );
 }
